@@ -10,6 +10,21 @@ export default tseslint.config(
     },
   },
   {
+    files: ['**/test/**/*.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        process: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
     ignores: ['**/dist/**', '**/node_modules/**'],
   },
 )

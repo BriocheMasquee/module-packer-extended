@@ -5,6 +5,7 @@
   "version": "0.0.1",
   "publisher": "local",
   "license": "CC0-1.0",
+  "icon": "mpx-icon-128.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -18,6 +19,49 @@
     "packer"
   ],
   "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "mpx.createModuleProject",
+        "title": "Create Module Project",
+        "category": "MPX",
+        "icon": "$(new-folder)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mpx",
+          "title": "Module Packer Extended",
+          "icon": "resources/mpx-icon-mono.svg"
+        }
+      ]
+    },
+    "views": {
+      "mpx": [
+        {
+          "id": "mpx.moduleExplorer",
+          "name": "Module",
+          "icon": "resources/mpx-icon-mono.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "mpx.moduleExplorer",
+        "contents": "Welcome to Module Packer Extended.\n[Create Module Project](command:mpx.createModuleProject)",
+        "when": "mpx.workspaceKind == empty || mpx.workspaceKind == noFolder"
+      },
+      {
+        "view": "mpx.moduleExplorer",
+        "contents": "This folder is neither empty nor a recognized MPX project.",
+        "when": "mpx.workspaceKind == unsupported"
+      }
+    ]
+  },
   "scripts": {
     "compile": "node esbuild.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
