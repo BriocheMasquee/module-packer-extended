@@ -1,0 +1,15 @@
+{
+  "name": "mpx-core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Standalone compiler engine: turns Markdown/YAML module projects into EncounterPlus V5 .module files. No VSCode dependency.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "test": "echo \"no tests yet\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "mpx",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Module Packer Extended — community rebuild of EncounterPlus Module Packer for the V5 module format.",
+  "workspaces": [
+    "core",
+    "extension"
+  ],
+  "scripts": {
+    "compile": "npm run compile --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "eslint": "^9.19.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "mpx",
+  "displayName": "Module Packer Extended",
+  "description": "Build EncounterPlus V5 modules from Markdown projects.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "license": "CC0-1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "EncounterPlus",
+    "Markdown",
+    "module",
+    "packer"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"no tests yet\""
+  },
+  "dependencies": {
+    "mpx-core": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.7.3"
+  }
+}
