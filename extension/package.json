@@ -5,6 +5,10 @@
   "version": "0.1.0",
   "publisher": "local",
   "license": "CC0-1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BriocheMasquee/mpx-bis.git"
+  },
   "icon": "mpx-icon-128.png",
   "engines": {
     "vscode": "^1.85.0"
