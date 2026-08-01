@@ -9,6 +9,9 @@
     "compile": "tsc -p tsconfig.json",
     "test": "npm run compile && node --test test/*.test.js"
   },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  },
   "devDependencies": {
     "@types/node": "^22.10.5"
   }

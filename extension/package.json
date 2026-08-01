@@ -33,6 +33,12 @@
         "title": "Create Module Project",
         "category": "MPX",
         "icon": "$(new-folder)"
+      },
+      {
+        "command": "mpx.refreshExplorer",
+        "title": "Refresh Module Explorer",
+        "category": "MPX",
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
@@ -64,7 +70,16 @@
         "contents": "This folder is neither empty nor a recognized MPX project.",
         "when": "mpx.workspaceKind == unsupported"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mpx.refreshExplorer",
+          "when": "view == mpx.moduleExplorer",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "compile": "node esbuild.mjs",
