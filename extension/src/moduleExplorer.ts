@@ -89,7 +89,7 @@ export function registerModuleExplorer(context: vscode.ExtensionContext): void {
   rebuildWatcher()
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(VIEW_ID, provider),
+    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider, showCollapseAll: true }),
     vscode.commands.registerCommand(REFRESH_COMMAND, refresh),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       rebuildWatcher()

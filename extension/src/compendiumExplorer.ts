@@ -5,15 +5,17 @@ import * as vscode from 'vscode'
 const VIEW_ID = 'mpx.compendiumExplorer'
 
 const CATEGORIES = [
-  { label: 'Items', folder: 'items' },
-  { label: 'Spells', folder: 'spells' },
-  { label: 'Roll Tables', folder: 'tables' },
+  { label: 'Monsters', folder: 'monsters', icon: 'snake' },
+  { label: 'Spells', folder: 'spells', icon: 'wand' },
+  { label: 'Items', folder: 'items', icon: 'archive' },
+  { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered' },
 ] as const
 
 class CompendiumCategoryItem extends vscode.TreeItem {
   constructor(
     label: string,
     readonly folderPath: string,
+    readonly icon: string,
   ) {
     super(label, vscode.TreeItemCollapsibleState.Collapsed)
     this.iconPath = new vscode.ThemeIcon('folder-library')
@@ -21,9 +23,9 @@ class CompendiumCategoryItem extends vscode.TreeItem {
 }
 
 class CompendiumEntryItem extends vscode.TreeItem {
-  constructor(label: string, filePath: string) {
+  constructor(label: string, filePath: string, icon: string) {
     super(label, vscode.TreeItemCollapsibleState.None)
-    this.iconPath = new vscode.ThemeIcon('symbol-object')
+    this.iconPath = new vscode.ThemeIcon(icon)
     this.command = {
       command: 'vscode.open',
       title: 'Open',
@@ -41,13 +43,13 @@ async function entryLabel(filePath: string, fallback: string): Promise<string> {
     .catch(() => fallback)
 }
 
-async function listEntries(folderPath: string): Promise<CompendiumEntryItem[]> {
+async function listEntries(folderPath: string, icon: string): Promise<CompendiumEntryItem[]> {
   const entries = await readdir(folderPath, { withFileTypes: true }).catch(() => [])
   const files = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
   const items = await Promise.all(
     files.map(async (entry) => {
       const filePath = join(folderPath, entry.name)
-      return new CompendiumEntryItem(await entryLabel(filePath, entry.name), filePath)
+      return new CompendiumEntryItem(await entryLabel(filePath, entry.name), filePath, icon)
     }),
   )
   return items.sort((a, b) => String(a.label).localeCompare(String(b.label)))
@@ -67,7 +69,7 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
 
   async getChildren(element?: CompendiumItem): Promise<CompendiumItem[]> {
     if (element instanceof CompendiumCategoryItem) {
-      return listEntries(element.folderPath)
+      return listEntries(element.folderPath, element.icon)
     }
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
@@ -81,7 +83,7 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
       const folderPath = join(projectRoot, category.folder)
       const entries = await readdir(folderPath).catch(() => [] as string[])
       if (entries.some((name) => name.endsWith('.json'))) {
-        categories.push(new CompendiumCategoryItem(category.label, folderPath))
+        categories.push(new CompendiumCategoryItem(category.label, folderPath, category.icon))
       }
     }
     return categories
@@ -104,7 +106,7 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
     }
 
     watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, '{items,spells,tables}/**/*.json'),
+      new vscode.RelativePattern(workspaceFolder, '{items,spells,tables,monsters}/**/*.json'),
     )
     watcher.onDidCreate(refresh)
     watcher.onDidChange(refresh)
@@ -114,7 +116,7 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
   rebuildWatcher()
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(VIEW_ID, provider),
+    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider, showCollapseAll: true }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       rebuildWatcher()
       refresh()

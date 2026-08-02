@@ -1301,3 +1301,264 @@ test('buildModule rejects duplicate roll table ids and slugs', async () => {
     },
   )
 })
+
+test('buildModule omits monsters.json when there are no monsters', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.monsterCount, 0)
+  assert.ok(!listZipEntries(summary.outputPath).includes('monsters.json'))
+})
+
+test('buildModule writes monsters.json and copies both image and token', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(join(root, 'monsters', 'illustration.png'), 'fake-image-bytes')
+  await writeFile(join(root, 'monsters', 'token.png'), 'fake-token-bytes')
+  await writeFile(
+    join(root, 'monsters', 'elemental.json'),
+    JSON.stringify({
+      id: '2C8AB919-3EDA-442A-9546-C23BDC624660',
+      name: 'Nom du montre',
+      slug: 'nom-du-montre',
+      attributes: { measurement: 'metric', ruleset: '5.5e' },
+      data: {
+        size: 'M',
+        type: 'elemental',
+        alignment: 'CG',
+        ac: '12',
+        hp: '16 (1d8+34)',
+        speed: { burrow: 12, walk: 9 },
+        abilities: { str: 12, dex: 14, con: 18, int: 15, wis: 10, cha: 9 },
+        savingThrows: { str: 2, int: 3 },
+        skills: { animalHandling: 12, insight: 2, medicine: 5 },
+        conditionImmunities: ['Aveuglé', 'Effrayé'],
+        damageImmunities: ['force', 'radiant'],
+        damageResistances: ['lightning', 'radiant'],
+        damageVulnerabilities: ['cold', 'radiant'],
+        senses: { tremorsense: 12 },
+        passivePerception: 14,
+        languages: ['common', 'elvish'],
+        cr: '1/4',
+        initiativeBonus: 2,
+        proficiencyBonus: 2,
+        environments: ['forest', 'coastal'],
+        traits: [{ name: 'Trait 1', text: 'La description du trait.', usage: '2/jour' }],
+        actions: [
+          { name: 'Action 1', text: "La description de l'action.", usage: 'Champ' },
+          { name: 'Action 2', text: 'La description.' },
+        ],
+        bonusActions: [{ name: 'Action bonus 1', text: 'La description.' }],
+        reactions: [{ name: 'Réaction 1', text: 'La description.' }],
+        legendaryActions: [{ name: 'Action légendaire', text: 'la description' }],
+      },
+      descr: 'La description du monstre',
+      image: 'monsters/illustration.png',
+      token: 'monsters/token.png',
+      sources: [{ name: 'Source', page: 12 }],
+    }),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.monsterCount, 1)
+  const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
+  assert.equal(monsters.length, 1)
+  assert.equal(monsters[0].name, 'Nom du montre')
+  assert.equal(monsters[0].data.type, 'elemental')
+  assert.deepEqual(monsters[0].data.speed, { burrow: 12, walk: 9 })
+  assert.deepEqual(monsters[0].data.savingThrows, { str: 2, int: 3 })
+  const zipEntries = listZipEntries(summary.outputPath)
+  assert.ok(zipEntries.includes('monsters/illustration.png'))
+  assert.ok(zipEntries.includes('monsters/token.png'))
+})
+
+test('buildModule rejects a monster with an unrecognized data.type', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'bad.json'),
+    JSON.stringify({
+      id: '2C8AB919-3EDA-442A-9546-C23BDC624660',
+      name: 'Bad',
+      slug: 'bad',
+      data: { type: 'notAType' },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('not a recognized monster type')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a monster with an unrecognized challenge rating', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'bad.json'),
+    JSON.stringify({
+      id: '2C8AB919-3EDA-442A-9546-C23BDC624660',
+      name: 'Bad',
+      slug: 'bad',
+      data: { cr: '1/3' },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('not a recognized challenge rating')))
+      return true
+    },
+  )
+})
+
+test('buildModule accepts a custom monster language and environment alongside the standard list', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'custom.json'),
+    JSON.stringify({
+      id: '2C8AB919-3EDA-442A-9546-C23BDC624660',
+      name: 'Custom',
+      slug: 'custom',
+      data: {
+        languages: ['common', 'Thieves’ Cant'],
+        environments: ['forest', 'The Feywild'],
+        cr: '1/8',
+      },
+    }),
+  )
+
+  const summary = await buildModule(root)
+  const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
+  assert.deepEqual(monsters[0].data.languages, ['common', 'Thieves’ Cant'])
+  assert.deepEqual(monsters[0].data.environments, ['forest', 'The Feywild'])
+  assert.equal(monsters[0].data.cr, '1/8')
+})
+
+test('buildModule rejects a monster with an unrecognized savingThrows key', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'bad.json'),
+    JSON.stringify({
+      id: '2C8AB919-3EDA-442A-9546-C23BDC624660',
+      name: 'Bad',
+      slug: 'bad',
+      data: { savingThrows: { strength: 2 } },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('not a recognized ability')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a monster feature entry with a non-string text', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'bad.json'),
+    JSON.stringify({
+      id: '2C8AB919-3EDA-442A-9546-C23BDC624660',
+      name: 'Bad',
+      slug: 'bad',
+      data: { actions: [{ name: 'Bite', text: 42 }] },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes("data.actions entries' text must be a string")))
+      return true
+    },
+  )
+})
+
+test('buildModule strips empty optional monster fields and drops empty savingThrows/skills', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'exhaustive.json'),
+    JSON.stringify({
+      id: '2C8AB919-3EDA-442A-9546-C23BDC624660',
+      name: 'Exhaustive Monster',
+      slug: 'exhaustive-monster',
+      attributes: { measurement: '', ruleset: '' },
+      data: {
+        size: '',
+        type: '',
+        typeDetail: '',
+        alignment: '',
+        ac: '',
+        hp: '',
+        speed: { walk: 0, burrow: 0, climb: 0, fly: 0, hover: false, swim: 0, other: '' },
+        abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        savingThrows: {},
+        skills: {},
+        conditionImmunities: [],
+        damageImmunities: [],
+        damageResistances: [],
+        damageVulnerabilities: [],
+        senses: { blindsight: 0, darkvision: 0, tremorsense: 0, truesight: 0, other: '' },
+        passivePerception: 0,
+        languages: [],
+        cr: '',
+        initiativeBonus: 0,
+        proficiencyBonus: 0,
+        environments: [],
+        traits: [],
+        actions: [],
+        bonusActions: [],
+        reactions: [],
+        legendaryActions: [],
+      },
+      descr: '',
+      image: 'monsters/',
+      token: 'monsters/',
+      sources: [],
+      tags: [],
+    }),
+  )
+
+  const summary = await buildModule(root)
+  const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
+
+  assert.equal(monsters.length, 1)
+  const monster = monsters[0]
+  assert.equal(monster.attributes, undefined)
+  assert.equal(monster.descr, undefined)
+  assert.equal(monster.sources, undefined)
+  assert.equal(monster.tags, undefined)
+  assert.deepEqual(monster.data, {
+    speed: { walk: 0, burrow: 0, climb: 0, fly: 0, hover: false, swim: 0 },
+    abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+    senses: { blindsight: 0, darkvision: 0, tremorsense: 0, truesight: 0 },
+    passivePerception: 0,
+    initiativeBonus: 0,
+    proficiencyBonus: 0,
+  })
+})

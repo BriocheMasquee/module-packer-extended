@@ -99,6 +99,66 @@ export function createSpell(moduleRoot: string, name: string): Promise<CreatedCo
   })
 }
 
+export function createMonster(moduleRoot: string, name: string): Promise<CreatedContentEntry> {
+  const slug = slugify(name)
+  return writeCompendiumEntry(moduleRoot, 'monster', 'monsters', name, {
+    id: randomUUID(),
+    name,
+    slug,
+    attributes: {
+      measurement: '',
+      ruleset: '',
+    },
+    data: {
+      size: '',
+      type: '',
+      typeDetail: '',
+      alignment: '',
+      ac: '',
+      hp: '',
+      speed: {
+        walk: 0,
+        burrow: 0,
+        climb: 0,
+        fly: 0,
+        hover: false,
+        swim: 0,
+        other: '',
+      },
+      abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+      savingThrows: {} as Record<string, number>,
+      skills: {} as Record<string, number>,
+      conditionImmunities: [] as string[],
+      damageImmunities: [] as string[],
+      damageResistances: [] as string[],
+      damageVulnerabilities: [] as string[],
+      senses: {
+        blindsight: 0,
+        darkvision: 0,
+        tremorsense: 0,
+        truesight: 0,
+        other: '',
+      },
+      passivePerception: 0,
+      languages: [] as string[],
+      cr: '',
+      initiativeBonus: 0,
+      proficiencyBonus: 0,
+      environments: [] as string[],
+      traits: [] as { name: string; text: string; usage?: string }[],
+      actions: [] as { name: string; text: string; usage?: string }[],
+      bonusActions: [] as { name: string; text: string; usage?: string }[],
+      reactions: [] as { name: string; text: string; usage?: string }[],
+      legendaryActions: [] as { name: string; text: string; usage?: string }[],
+    },
+    descr: '',
+    image: 'monsters/',
+    token: 'monsters/',
+    sources: [] as { name: string; page?: number }[],
+    tags: [] as string[],
+  })
+}
+
 export function createRollTable(moduleRoot: string, name: string): Promise<CreatedContentEntry> {
   const slug = slugify(name)
   return writeCompendiumEntry(moduleRoot, 'roll table', 'tables', name, {

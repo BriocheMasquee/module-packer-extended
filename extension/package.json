@@ -82,28 +82,28 @@
         "icon": "$(package)"
       },
       {
+        "command": "mpx.createMonster",
+        "title": "Create Monster",
+        "category": "MPX",
+        "icon": "$(snake)"
+      },
+      {
+        "command": "mpx.createSpell",
+        "title": "Create Spell",
+        "category": "MPX",
+        "icon": "$(wand)"
+      },
+      {
         "command": "mpx.createItem",
         "title": "Create Item",
         "category": "MPX",
         "icon": "$(archive)"
       },
       {
-        "command": "mpx.createSpell",
-        "title": "Create Spell",
-        "category": "MPX",
-        "icon": "$(sparkle)"
-      },
-      {
         "command": "mpx.createRollTable",
         "title": "Create Roll Table",
         "category": "MPX",
         "icon": "$(list-unordered)"
-      },
-      {
-        "command": "mpx.createMonster",
-        "title": "Create Monster",
-        "category": "MPX",
-        "icon": "$(new-file)"
       }
     ],
     "viewsContainers": {
@@ -162,6 +162,10 @@
       {
         "fileMatch": "/tables/*.json",
         "url": "./resources/schemas/table.schema.json"
+      },
+      {
+        "fileMatch": "/monsters/*.json",
+        "url": "./resources/schemas/monster.schema.json"
       }
     ],
     "markdown.markdownItPlugins": true,
@@ -216,7 +220,7 @@
           "group": "navigation@1"
         },
         {
-          "command": "mpx.createItem",
+          "command": "mpx.createMonster",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@1"
         },
@@ -226,12 +230,12 @@
           "group": "navigation@2"
         },
         {
-          "command": "mpx.createRollTable",
+          "command": "mpx.createItem",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@3"
         },
         {
-          "command": "mpx.createMonster",
+          "command": "mpx.createRollTable",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@4"
         }
