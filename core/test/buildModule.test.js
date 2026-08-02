@@ -88,6 +88,34 @@ test('buildModule generates and persists a module id when missing', async () => 
   assert.match(moduleJson.id, /^[0-9a-f-]{36}$/)
 })
 
+test('buildModule bumps the patch version after a successful build when autoIncrementVersion is set', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+
+  const summary = await buildModule(root, { autoIncrementVersion: true })
+
+  const builtModuleJson = JSON.parse(readZipEntry(summary.outputPath, 'module.json'))
+  assert.equal(builtModuleJson.version, '1.0.0', 'the archive keeps the version it was built with')
+
+  const projectModuleJson = JSON.parse(await readFile(join(root, 'module.json'), 'utf8'))
+  assert.equal(projectModuleJson.version, '1.0.1', 'the project file is bumped for the next build')
+
+  assert.equal(summary.builtVersion, '1.0.0')
+  assert.equal(summary.nextVersion, '1.0.1')
+})
+
+test('buildModule leaves the version untouched when autoIncrementVersion is not set', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+
+  const summary = await buildModule(root)
+
+  const projectModuleJson = JSON.parse(await readFile(join(root, 'module.json'), 'utf8'))
+  assert.equal(projectModuleJson.version, '1.0.0')
+  assert.equal(summary.builtVersion, '1.0.0')
+  assert.equal(summary.nextVersion, undefined)
+})
+
 test('buildModule collects every validation issue instead of stopping at the first one', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)

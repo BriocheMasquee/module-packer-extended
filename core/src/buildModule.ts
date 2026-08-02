@@ -8,6 +8,7 @@ import { listFilesRecursively } from './fileScan.js'
 import { readExportArchive } from './mapEncounterExport.js'
 import { createMarkdownRenderer } from './markdownRenderer.js'
 import { MODULE_CATEGORIES } from './moduleProject.js'
+import { incrementPatchVersion } from './version.js'
 import { resolveProjectFile } from './projectPath.js'
 import { createUuidV5, isUuid } from './uuid.js'
 
@@ -29,6 +30,10 @@ export interface BuildSummary {
   groupCount: number
   mapCount: number
   encounterCount: number
+  /** The version the .module archive was actually built with. */
+  builtVersion: string
+  /** Set only when autoIncrementVersion bumped module.json for the next build. */
+  nextVersion?: string
 }
 
 type EntryKind = 'page' | 'group' | 'map' | 'encounter'
@@ -458,7 +463,14 @@ async function addDirectoryToZip(zip: ZipFile, sourceDir: string, zipFolder: str
   }
 }
 
-export async function buildModule(moduleRoot: string): Promise<BuildSummary> {
+export interface BuildOptions {
+  /** Bumps module.json's patch version after a successful build, so the next
+   * build starts from a new value — the .module just produced always keeps
+   * the version it was built with. */
+  autoIncrementVersion?: boolean
+}
+
+export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
   const issues: BuildIssue[] = []
 
   const moduleJson = await readModuleJson(moduleRoot, issues)
@@ -551,11 +563,25 @@ export async function buildModule(moduleRoot: string): Promise<BuildSummary> {
     zip.end()
   })
 
+  const builtVersion = moduleJson.version as string
+  let nextVersion: string | undefined
+  if (options.autoIncrementVersion && isNonEmptyString(moduleJson.version)) {
+    nextVersion = incrementPatchVersion(moduleJson.version)
+    if (nextVersion !== moduleJson.version) {
+      moduleJson.version = nextVersion
+      await writeFile(join(moduleRoot, 'module.json'), `${JSON.stringify(moduleJson, null, 2)}\n`, 'utf8')
+    } else {
+      nextVersion = undefined
+    }
+  }
+
   return {
     outputPath,
     pageCount: pageRecords.length,
     groupCount: groupRecords.length,
     mapCount: mapRecords.length,
     encounterCount: encounterRecords.length,
+    builtVersion,
+    nextVersion,
   }
 }

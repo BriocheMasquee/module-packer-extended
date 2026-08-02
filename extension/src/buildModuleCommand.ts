@@ -41,15 +41,23 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
 
   await vscode.workspace.saveAll(false)
 
+  const autoIncrementVersion = vscode.workspace
+    .getConfiguration('mpx', vscode.Uri.file(moduleFolder))
+    .get<boolean>('autoIncrementVersion', true)
+
   try {
     const summary = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'MPX is building the module…' },
-      () => buildModule(moduleFolder),
+      () => buildModule(moduleFolder, { autoIncrementVersion }),
     )
 
+    const versionNote = summary.nextVersion
+      ? ` module.json is now set to ${summary.nextVersion} for the next build.`
+      : ''
     const selection = await vscode.window.showInformationMessage(
-      `Module built: ${summary.pageCount} page(s), ${summary.groupCount} group(s), ` +
-        `${summary.mapCount} map(s), ${summary.encounterCount} encounter(s).`,
+      `Module built as version ${summary.builtVersion}: ${summary.pageCount} page(s), ` +
+        `${summary.groupCount} group(s), ${summary.mapCount} map(s), ${summary.encounterCount} encounter(s).` +
+        versionNote,
       'Reveal Module',
     )
     if (selection === 'Reveal Module') {

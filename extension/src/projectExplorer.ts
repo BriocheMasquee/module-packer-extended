@@ -17,6 +17,18 @@ class SummaryItem extends vscode.TreeItem {
   }
 }
 
+class ProjectSettingsItem extends vscode.TreeItem {
+  constructor(filePath: string) {
+    super('Project Settings', vscode.TreeItemCollapsibleState.None)
+    this.iconPath = new vscode.ThemeIcon('settings-gear')
+    this.command = {
+      command: 'vscode.open',
+      title: 'Open',
+      arguments: [vscode.Uri.file(filePath)],
+    }
+  }
+}
+
 class ImageResourceItem extends vscode.TreeItem {
   constructor(label: string, filePath: string) {
     super(label, vscode.TreeItemCollapsibleState.None)
@@ -51,7 +63,12 @@ class ProjectFileItem extends vscode.TreeItem {
   }
 }
 
-type ProjectItem = SummaryItem | ImageResourceItem | ProjectFolderItem | ProjectFileItem
+type ProjectItem =
+  | SummaryItem
+  | ProjectSettingsItem
+  | ImageResourceItem
+  | ProjectFolderItem
+  | ProjectFileItem
 
 async function fileExists(filePath: string): Promise<boolean> {
   return access(filePath).then(
@@ -111,6 +128,11 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
       const description = [version ? `v${version}` : undefined, system].filter(Boolean).join(' · ')
       items.push(new SummaryItem(name, description || undefined, moduleJsonPath))
 
+      const settingsPath = join(projectRoot, '.vscode', 'settings.json')
+      if (await fileExists(settingsPath)) {
+        items.push(new ProjectSettingsItem(settingsPath))
+      }
+
       for (const [field, label] of [
         ['image', 'Cover Image'],
         ['banner', 'Banner'],
@@ -147,7 +169,7 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
       return
     }
     watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, '{module.json,images/**,assets/**}'),
+      new vscode.RelativePattern(workspaceFolder, '{module.json,.vscode/settings.json,images/**,assets/**}'),
     )
     watcher.onDidCreate(refresh)
     watcher.onDidChange(refresh)
