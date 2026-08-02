@@ -4,7 +4,7 @@ Compiles the current module project into a single `.module` file, ready to impor
 
 ## How to use it
 
-Run `MPX: Build Module` (palette or the panel's title bar button). Open files are saved automatically first. If more than one workspace folder is open, you're asked which one to build.
+Run `MPX: Build Module` (palette, or the button in the [Project section](Project-Panel)'s title bar). Open files are saved automatically first. If more than one workspace folder is open, you're asked which one to build.
 
 ## What happens
 

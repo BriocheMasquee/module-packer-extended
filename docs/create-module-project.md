@@ -6,7 +6,7 @@ Initializes a new, empty EncounterPlus V5 module project, ready to be edited.
 
 Three equivalent entry points:
 
-1. **Sidebar welcome view**: open the MPX panel (activity bar icon) before opening any folder, or after opening an empty folder. Click "Create Module Project".
+1. **Sidebar welcome view**: open the MPX panel (activity bar icon) before opening any folder, or after opening an empty folder — the [Project section](Project-Panel) shows a "Create Module Project" button. Click it.
 2. **Command palette**: run `MPX: Create Module Project`.
 3. Same command either way — if no folder is open, you'll be asked to pick an empty folder first; if more than one workspace folder is open, you'll be asked which one to use.
 

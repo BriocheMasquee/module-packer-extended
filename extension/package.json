@@ -83,6 +83,11 @@
     "views": {
       "mpx": [
         {
+          "id": "mpx.projectExplorer",
+          "name": "Project",
+          "icon": "resources/mpx-icon-mono.svg"
+        },
+        {
           "id": "mpx.moduleExplorer",
           "name": "Module",
           "icon": "resources/mpx-icon-mono.svg"
@@ -91,12 +96,12 @@
     },
     "viewsWelcome": [
       {
-        "view": "mpx.moduleExplorer",
+        "view": "mpx.projectExplorer",
         "contents": "Welcome to Module Packer Extended.\n[Create Module Project](command:mpx.createModuleProject)",
         "when": "mpx.workspaceKind == empty || mpx.workspaceKind == noFolder"
       },
       {
-        "view": "mpx.moduleExplorer",
+        "view": "mpx.projectExplorer",
         "contents": "This folder is neither empty nor a recognized MPX project.",
         "when": "mpx.workspaceKind == unsupported"
       }
@@ -124,14 +129,14 @@
           "group": "navigation@4"
         },
         {
-          "command": "mpx.buildModule",
+          "command": "mpx.refreshExplorer",
           "when": "view == mpx.moduleExplorer",
           "group": "navigation@5"
         },
         {
-          "command": "mpx.refreshExplorer",
-          "when": "view == mpx.moduleExplorer",
-          "group": "navigation@6"
+          "command": "mpx.buildModule",
+          "when": "view == mpx.projectExplorer",
+          "group": "navigation@1"
         }
       ]
     }
