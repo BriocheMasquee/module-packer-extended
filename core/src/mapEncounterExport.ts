@@ -25,7 +25,7 @@ export async function readExportArchive(
   try {
     directory = await Open.file(archivePath)
   } catch (error) {
-    throw new Error(`is not a readable export archive: ${(error as Error).message}`)
+    throw new Error(`is not a readable export archive: ${(error as Error).message}`, { cause: error })
   }
 
   const manifestEntry = directory.files.find(
@@ -39,7 +39,7 @@ export async function readExportArchive(
   try {
     parsed = JSON.parse((await manifestEntry.buffer()).toString('utf8'))
   } catch (error) {
-    throw new Error(`contains an invalid ${manifestFileName}: ${(error as Error).message}`)
+    throw new Error(`contains an invalid ${manifestFileName}: ${(error as Error).message}`, { cause: error })
   }
   if (!Array.isArray(parsed) || parsed.length !== 1) {
     throw new Error(`must contain exactly one object in ${manifestFileName}.`)
