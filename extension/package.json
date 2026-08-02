@@ -109,6 +109,18 @@
       {
         "fileMatch": "/module.json",
         "url": "./resources/schemas/module.schema.json"
+      },
+      {
+        "fileMatch": "/groups/*.json",
+        "url": "./resources/schemas/group.schema.json"
+      },
+      {
+        "fileMatch": "/maps/*.json",
+        "url": "./resources/schemas/map.schema.json"
+      },
+      {
+        "fileMatch": "/encounters/*.json",
+        "url": "./resources/schemas/encounter.schema.json"
       }
     ],
     "viewsWelcome": [

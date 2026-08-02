@@ -8,6 +8,7 @@ import { listFilesRecursively } from './fileScan.js'
 import { readExportArchive } from './mapEncounterExport.js'
 import { createMarkdownRenderer } from './markdownRenderer.js'
 import { MODULE_CATEGORIES } from './moduleProject.js'
+import { isValidSlug } from './slug.js'
 import { incrementPatchVersion } from './version.js'
 import { resolveProjectFile } from './projectPath.js'
 import { createUuidV5, isUuid } from './uuid.js'
@@ -67,6 +68,35 @@ const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', '
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
+}
+
+const MODULE_JSON_OPTIONAL_FIELDS = [
+  'acronym',
+  'category',
+  'author',
+  'shortDescr',
+  'descr',
+  'tags',
+  'image',
+  'banner',
+  'website',
+  'repository',
+  'package',
+]
+
+/** EncounterPlus expects an unset optional field to be absent from
+ * module.json, not an empty string/array — the project's own module.json
+ * still keeps every field, for editing; only the built copy is trimmed. */
+function stripEmptyOptionalFields(moduleJson: Record<string, unknown>): Record<string, unknown> {
+  const cleaned = { ...moduleJson }
+  for (const field of MODULE_JSON_OPTIONAL_FIELDS) {
+    const value = cleaned[field]
+    const isEmpty = (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0)
+    if (isEmpty) {
+      delete cleaned[field]
+    }
+  }
+  return cleaned
 }
 
 function numericOrUndefined(value: unknown): number | undefined {
@@ -134,6 +164,12 @@ async function validateModuleJson(
       issues.push({ file: 'module.json', message: `Must contain a non-empty "${field}".` })
     }
   }
+  if (isNonEmptyString(data.slug) && !isValidSlug(data.slug)) {
+    issues.push({
+      file: 'module.json',
+      message: '"slug" must contain only lowercase letters, digits, and hyphens (no spaces or accents).',
+    })
+  }
   if (data.id !== undefined && !isUuid(data.id)) {
     issues.push({ file: 'module.json', message: '"id" must be a valid UUID when provided.' })
   }
@@ -154,6 +190,15 @@ async function validateModuleJson(
     if (isNonEmptyString(resourcePath)) {
       await checkResourceReference(moduleRoot, 'module.json', `"${field}"`, resourcePath, issues)
     }
+  }
+}
+
+function validateSlugFormat(relativePath: string, slug: unknown, issues: BuildIssue[]): void {
+  if (isNonEmptyString(slug) && !isValidSlug(slug)) {
+    issues.push({
+      file: relativePath,
+      message: 'slug must contain only lowercase letters, digits, and hyphens (no spaces or accents).',
+    })
   }
 }
 
@@ -188,6 +233,7 @@ async function readPages(moduleRoot: string, issues: BuildIssue[]): Promise<Reso
     if (!isNonEmptyString(data.slug)) {
       issues.push({ file: relativePath, message: 'Must contain a non-empty slug.' })
     }
+    validateSlugFormat(relativePath, data.slug, issues)
     const rank = numericOrUndefined(data.rank)
     if (rank === undefined) {
       issues.push({ file: relativePath, message: 'Must contain a numeric rank.' })
@@ -234,6 +280,7 @@ async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<Res
     if (!isNonEmptyString(data.slug)) {
       issues.push({ file: relativePath, message: 'Must contain a non-empty slug.' })
     }
+    validateSlugFormat(relativePath, data.slug, issues)
     const rank = numericOrUndefined(data.rank)
     if (rank === undefined) {
       issues.push({ file: relativePath, message: 'Must contain a numeric rank.' })
@@ -333,6 +380,7 @@ async function readMapOrEncounterEntries(
       issues.push({ file: relativePath, message: 'Must contain a non-empty slug.' })
       continue
     }
+    validateSlugFormat(relativePath, slug, issues)
     const rank = numericOrUndefined(localData.rank) ?? numericOrUndefined(exported.record.rank)
     if (rank === undefined) {
       issues.push({ file: relativePath, message: 'Must contain a numeric rank.' })
@@ -536,7 +584,11 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const addJson = (data: unknown, archivePath: string): void => {
     zip.addBuffer(Buffer.from(JSON.stringify(data)), archivePath, { compress: false })
   }
-  zip.addBuffer(Buffer.from(`${JSON.stringify(moduleJson, null, 2)}\n`), 'module.json', { compress: false })
+  zip.addBuffer(
+    Buffer.from(`${JSON.stringify(stripEmptyOptionalFields(moduleJson), null, 2)}\n`),
+    'module.json',
+    { compress: false },
+  )
   addJson(pageRecords, 'pages.json')
   addJson(groupRecords, 'groups.json')
   addJson(mapRecords, 'maps.json')
