@@ -7,7 +7,7 @@ A "Compendium" section in the MPX sidebar, alongside [Project](Project-Panel) an
 1. Run the command (palette, or the corresponding button in the Compendium panel's title bar, in this order: `MPX: Create Monster`, `MPX: Create Spell`, `MPX: Create Item`, `MPX: Create Roll Table`).
 2. Enter a name. `slug` is generated automatically from it.
 3. The file is created and opens automatically.
-4. It appears under its category (Monsters / Spells / Items / Roll Tables) in the panel, labeled by its `name` and using the same icon as its "Create" button — the panel watches the folder and refreshes automatically as files are created, edited, or deleted.
+4. It appears under its category (Monsters / Spells / Items / Roll Tables — each labeled with its entry count in parentheses, e.g. "Monsters (3)") in the panel, labeled by its `name` and using the same icon as its "Create" button — the panel watches the folder and refreshes automatically as files are created, edited, or deleted.
 
 If the generated slug already matches an existing file of the same type, the command fails with a clear error — nothing is overwritten.
 

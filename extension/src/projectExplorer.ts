@@ -29,6 +29,18 @@ class ProjectSettingsItem extends vscode.TreeItem {
   }
 }
 
+class CompendiumSummaryItem extends vscode.TreeItem {
+  constructor(description: string) {
+    super('Compendium :', vscode.TreeItemCollapsibleState.None)
+    this.description = description
+    this.iconPath = new vscode.ThemeIcon('library')
+    this.command = {
+      command: 'mpx.compendiumExplorer.focus',
+      title: 'Reveal',
+    }
+  }
+}
+
 class ImageResourceItem extends vscode.TreeItem {
   constructor(label: string, filePath: string) {
     super(label, vscode.TreeItemCollapsibleState.None)
@@ -65,6 +77,7 @@ class ProjectFileItem extends vscode.TreeItem {
 
 type ProjectItem =
   | SummaryItem
+  | CompendiumSummaryItem
   | ProjectSettingsItem
   | ImageResourceItem
   | ProjectFolderItem
@@ -75,6 +88,19 @@ async function fileExists(filePath: string): Promise<boolean> {
     () => true,
     () => false,
   )
+}
+
+async function countJsonFiles(folderPath: string): Promise<number> {
+  const entries = await readdir(folderPath).catch(() => [] as string[])
+  return entries.filter((name) => name.endsWith('.json')).length
+}
+
+const COMPENDIUM_FOLDERS = ['monsters', 'spells', 'items', 'tables']
+
+async function buildCompendiumSummary(projectRoot: string): Promise<CompendiumSummaryItem> {
+  const counts = await Promise.all(COMPENDIUM_FOLDERS.map((folder) => countJsonFiles(join(projectRoot, folder))))
+  const total = counts.reduce((sum, count) => sum + count, 0)
+  return new CompendiumSummaryItem(`${total} entries`)
 }
 
 async function listFolderChildren(folderPath: string): Promise<ProjectItem[]> {
@@ -128,11 +154,6 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
       const description = [version ? `v${version}` : undefined, system].filter(Boolean).join(' · ')
       items.push(new SummaryItem(name, description || undefined, moduleJsonPath))
 
-      const settingsPath = join(projectRoot, '.vscode', 'settings.json')
-      if (await fileExists(settingsPath)) {
-        items.push(new ProjectSettingsItem(settingsPath))
-      }
-
       for (const [field, label] of [
         ['image', 'Cover Image'],
         ['banner', 'Banner'],
@@ -145,6 +166,13 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
           }
         }
       }
+
+      const settingsPath = join(projectRoot, '.vscode', 'settings.json')
+      if (await fileExists(settingsPath)) {
+        items.push(new ProjectSettingsItem(settingsPath))
+      }
+
+      items.push(await buildCompendiumSummary(projectRoot))
     }
 
     items.push(new ProjectFolderItem('images', join(projectRoot, 'images')))
@@ -169,7 +197,10 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
       return
     }
     watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, '{module.json,.vscode/settings.json,images/**,assets/**}'),
+      new vscode.RelativePattern(
+        workspaceFolder,
+        '{module.json,.vscode/settings.json,images/**,assets/**,items/*.json,spells/*.json,tables/*.json,monsters/*.json}',
+      ),
     )
     watcher.onDidCreate(refresh)
     watcher.onDidChange(refresh)
@@ -179,7 +210,7 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
   rebuildWatcher()
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(VIEW_ID, provider),
+    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider, showCollapseAll: true }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       rebuildWatcher()
       refresh()

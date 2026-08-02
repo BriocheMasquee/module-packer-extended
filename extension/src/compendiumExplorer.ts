@@ -82,8 +82,9 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
     for (const category of CATEGORIES) {
       const folderPath = join(projectRoot, category.folder)
       const entries = await readdir(folderPath).catch(() => [] as string[])
-      if (entries.some((name) => name.endsWith('.json'))) {
-        categories.push(new CompendiumCategoryItem(category.label, folderPath, category.icon))
+      const count = entries.filter((name) => name.endsWith('.json')).length
+      if (count > 0) {
+        categories.push(new CompendiumCategoryItem(`${category.label} (${count})`, folderPath, category.icon))
       }
     }
     return categories
