@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { cp, mkdir, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { slugify } from './slug.js'
 
 export interface ModuleJson {
   id: string
@@ -15,15 +16,6 @@ export interface ModuleJson {
 }
 
 export type WorkspaceKind = 'empty' | 'mpxProject' | 'unsupported'
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
 
 export async function detectWorkspaceKind(folder: string): Promise<WorkspaceKind> {
   const entries = await readdir(folder).catch(() => [] as string[])
