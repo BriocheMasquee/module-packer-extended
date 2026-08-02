@@ -50,6 +50,33 @@ test('createModuleProject writes module.json, images/, and the theme assets', as
   assert.deepEqual(await readdir(join(folder, 'assets', 'css')), ['global.css'])
 })
 
+test('createModuleProject writes every module.json field the EncounterPlus schema defines', async () => {
+  const folder = await makeTempDir()
+  const theme = await makeThemeFixture()
+
+  await createModuleProject(folder, theme)
+
+  const moduleJson = JSON.parse(await readFile(join(folder, 'module.json'), 'utf8'))
+  assert.deepEqual(Object.keys(moduleJson).sort(), [
+    'acronym',
+    'author',
+    'banner',
+    'category',
+    'descr',
+    'id',
+    'image',
+    'name',
+    'package',
+    'repository',
+    'shortDescr',
+    'slug',
+    'system',
+    'tags',
+    'version',
+    'website',
+  ])
+})
+
 test('createModuleProject refuses a non-empty folder', async () => {
   const folder = await makeTempDir()
   const theme = await makeThemeFixture()

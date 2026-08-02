@@ -240,6 +240,54 @@ test('buildModule rejects a resource path that escapes the project (path travers
   )
 })
 
+test('buildModule rejects an invalid module.json category', async () => {
+  const root = await makeTempModule()
+  await writeFile(
+    join(root, 'module.json'),
+    JSON.stringify({
+      name: 'Test Module',
+      slug: 'test-module',
+      system: 'dnd5e',
+      version: '1.0.0',
+      category: 'not-a-real-category',
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.equal(error.issues.length, 1)
+      assert.match(error.issues[0].message, /"category" must be one of/)
+      return true
+    },
+  )
+})
+
+test('buildModule rejects module.json tags that are not an array of strings', async () => {
+  const root = await makeTempModule()
+  await writeFile(
+    join(root, 'module.json'),
+    JSON.stringify({
+      name: 'Test Module',
+      slug: 'test-module',
+      system: 'dnd5e',
+      version: '1.0.0',
+      tags: ['ok', 42],
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.equal(error.issues.length, 1)
+      assert.match(error.issues[0].message, /"tags" must be an array of strings/)
+      return true
+    },
+  )
+})
+
 test('buildModule accepts a minimal map export with no image/floor resource', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)

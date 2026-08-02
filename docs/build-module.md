@@ -8,7 +8,7 @@ Run `MPX: Build Module` (palette or the panel's title bar button). Open files ar
 
 ## What happens
 
-- `module.json` is read and validated. If it has no `id`, one is generated and written back so it stays stable across builds.
+- `module.json` is read and validated. If it has no `id`, one is generated and written back so it stays stable across builds. Beyond the required fields, `category` (if set) must be one of the EncounterPlus-defined values, and `tags` (if set) must be an array of strings.
 - Every page, group, map, and encounter is read and validated.
 - **All issues are collected before failing** — if several files have problems, you get the full list at once (in the "MPX" output channel), not one at a time.
 - IDs are resolved: for pages/groups, an explicit `id` is kept if it's a valid UUID, otherwise one is derived deterministically from the slug (same slug → same id across builds). For maps/encounters, the id is **always** recomputed from the slug — any `id` present in the reference file or the export archive is ignored.

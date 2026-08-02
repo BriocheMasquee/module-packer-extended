@@ -3,16 +3,26 @@ import { cp, mkdir, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { slugify } from './slug.js'
 
+export const MODULE_CATEGORIES = ['', 'adventure', 'pack', 'rules', 'compendium', 'other'] as const
+export type ModuleCategory = (typeof MODULE_CATEGORIES)[number]
+
 export interface ModuleJson {
   id: string
   name: string
   slug: string
   version: string
   system: string
+  acronym: string
+  category: ModuleCategory
   author: string
+  shortDescr: string
   descr: string
   tags: string[]
   image: string
+  banner: string
+  website: string
+  repository: string
+  package: string
 }
 
 export type WorkspaceKind = 'empty' | 'mpxProject' | 'unsupported'
@@ -44,10 +54,17 @@ export async function createModuleProject(
     slug: slugify(folderName),
     version: '1.0.0',
     system: 'dnd5e',
+    acronym: '',
+    category: '',
     author: '',
+    shortDescr: '',
     descr: '',
     tags: [],
     image: '',
+    banner: '',
+    website: '',
+    repository: '',
+    package: '',
   }
 
   await writeFile(join(targetFolder, 'module.json'), `${JSON.stringify(moduleJson, null, 2)}\n`, 'utf8')
