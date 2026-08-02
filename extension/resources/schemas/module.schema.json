@@ -32,6 +32,8 @@
       "type": "string",
       "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens.",
       "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
       "examples": [
         "my-encounterplus-module"
       ]

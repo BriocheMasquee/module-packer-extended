@@ -19,8 +19,10 @@ If the generated slug already matches an existing file, the command fails with a
 
 `slug` is generated automatically from the name.
 
+While editing any of these files, VSCode validates them against their EncounterPlus schema (autocomplete, hover docs, red squiggles on missing/invalid fields) — including a stricter authoring hint for map/encounter `path` (must look like `maps/file-name.zip` / `encounters/file-name.zip`) than what a build actually requires.
+
 ## Not included (yet)
 
 - No parent picker at creation time — `parent` is always written empty; set it by hand in the file. The Module Explorer will pick up the nesting once you do.
 - No automatic rank calculation — `rank` is always `0`; reorder siblings by hand if needed.
-- No authoring assistance (schema validation/autocomplete) while filling in the created file — tracked separately in [issue #1](https://github.com/BriocheMasquee/mpx-bis/issues/1).
+- No authoring assistance for Markdown page front matter (no native VSCode schema support for that) — tracked separately in [issue #1](https://github.com/BriocheMasquee/mpx-bis/issues/1).

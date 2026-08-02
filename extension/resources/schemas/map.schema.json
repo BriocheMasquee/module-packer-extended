@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Map Reference",
+  "description": "Source reference to an individual map exported from EncounterPlus V5.",
+  "type": "object",
+  "required": [
+    "name",
+    "path",
+    "slug",
+    "rank"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "markdownDescription": "*Required.* Display name of the map. This value replaces the name stored in the EncounterPlus export.",
+      "minLength": 1,
+      "examples": [
+        "Dungeon Map"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "markdownDescription": "*Required.* Relative path to the individual ZIP exported from EncounterPlus V5. Save the ZIP directly inside the `maps` folder at the project root.",
+      "pattern": "^maps/[^/]+\\.zip$",
+      "patternErrorMessage": "The path must use the form maps/file-name.zip and point to a ZIP stored directly inside the project's maps folder.",
+      "default": "maps/",
+      "examples": [
+        "maps/map_rhSA.zip"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens. Each content item in the module must use a different slug.",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
+      "examples": [
+        "dungeon-map"
+      ]
+    },
+    "rank": {
+      "type": "number",
+      "markdownDescription": "*Required.* Numeric order among contents sharing the same parent.",
+      "default": 0,
+      "examples": [
+        0
+      ]
+    },
+    "parent": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Slug of the parent page or group. Leave empty to place the map at the module root.",
+      "default": "",
+      "examples": [
+        "chapter-one"
+      ]
+    },
+    "descr": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Description of the map. This value replaces the description stored in the EncounterPlus export, including when left empty.",
+      "default": "",
+      "examples": [
+        "A tactical map of the dungeon entrance."
+      ]
+    }
+  },
+  "additionalProperties": true
+}

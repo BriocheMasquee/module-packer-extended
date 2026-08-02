@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Encounter Reference",
+  "description": "Source reference to an individual encounter exported from EncounterPlus V5.",
+  "type": "object",
+  "required": [
+    "name",
+    "path",
+    "slug",
+    "rank"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "markdownDescription": "*Required.* Display name of the encounter. This value replaces the name stored in the EncounterPlus export.",
+      "minLength": 1,
+      "examples": [
+        "Goblin Ambush"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "markdownDescription": "*Required.* Relative path to the individual ZIP exported from EncounterPlus V5. Save the ZIP directly inside the `encounters` folder at the project root.",
+      "pattern": "^encounters/[^/]+\\.zip$",
+      "patternErrorMessage": "The path must use the form encounters/file-name.zip and point to a ZIP stored directly inside the project's encounters folder.",
+      "default": "encounters/",
+      "examples": [
+        "encounters/encounter_sdvHCO.zip"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens. Each content item in the module must use a different slug.",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
+      "examples": [
+        "goblin-ambush"
+      ]
+    },
+    "rank": {
+      "type": "number",
+      "markdownDescription": "*Required.* Numeric order among contents sharing the same parent.",
+      "default": 0,
+      "examples": [
+        0
+      ]
+    },
+    "parent": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Slug of the parent page or group. Leave empty to place the encounter at the module root.",
+      "default": "",
+      "examples": [
+        "chapter-one"
+      ]
+    },
+    "descr": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Description of the encounter. This value replaces the description stored in the EncounterPlus export, including when left empty.",
+      "default": "",
+      "examples": [
+        "An ambush staged along the forest road."
+      ]
+    }
+  },
+  "additionalProperties": true
+}

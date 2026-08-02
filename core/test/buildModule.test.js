@@ -268,6 +268,113 @@ test('buildModule rejects a resource path that escapes the project (path travers
   )
 })
 
+test('buildModule rejects a module.json slug containing spaces or accents', async () => {
+  const root = await makeTempModule()
+  await writeFile(
+    join(root, 'module.json'),
+    JSON.stringify({
+      name: 'Test Module',
+      slug: 'Módule Slug',
+      system: 'dnd5e',
+      version: '1.0.0',
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.equal(error.issues.length, 1)
+      assert.match(error.issues[0].message, /"slug" must contain only lowercase letters/)
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a page slug containing spaces or accents', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(join(root, 'pages', 'a.md'), '---\nname: A\nslug: bad slug\nrank: 0\n---\n')
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.equal(error.issues.length, 1)
+      assert.match(error.issues[0].message, /slug must contain only lowercase letters/)
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a map slug containing spaces or accents', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'maps'), { recursive: true })
+  await writeExportArchive(join(root, 'maps', 'export.zip'), 'maps.json', { slug: 'town', rank: 0 })
+  await writeFile(
+    join(root, 'maps', 'town.json'),
+    JSON.stringify({ slug: 'bad slug', rank: 0, parent: '', path: 'maps/export.zip', descr: '' }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.equal(error.issues.length, 1)
+      assert.match(error.issues[0].message, /slug must contain only lowercase letters/)
+      return true
+    },
+  )
+})
+
+test('buildModule strips empty optional module.json fields from the built archive, keeping the project file exhaustive', async () => {
+  const root = await makeTempModule()
+  await writeFile(
+    join(root, 'module.json'),
+    JSON.stringify({
+      name: 'Test Module',
+      slug: 'test-module',
+      system: 'dnd5e',
+      version: '1.0.0',
+      acronym: '',
+      category: '',
+      author: '',
+      shortDescr: '',
+      descr: '',
+      tags: [],
+      image: '',
+      banner: '',
+      website: '',
+      repository: '',
+      package: '',
+    }),
+  )
+
+  const summary = await buildModule(root)
+
+  const builtModuleJson = JSON.parse(readZipEntry(summary.outputPath, 'module.json'))
+  for (const field of [
+    'acronym',
+    'category',
+    'author',
+    'shortDescr',
+    'descr',
+    'tags',
+    'image',
+    'banner',
+    'website',
+    'repository',
+    'package',
+  ]) {
+    assert.ok(!(field in builtModuleJson), `expected "${field}" to be absent from the built module.json`)
+  }
+
+  const projectModuleJson = JSON.parse(await readFile(join(root, 'module.json'), 'utf8'))
+  assert.ok('category' in projectModuleJson, 'the project file keeps every field for editing')
+})
+
 test('buildModule rejects an invalid module.json category', async () => {
   const root = await makeTempModule()
   await writeFile(

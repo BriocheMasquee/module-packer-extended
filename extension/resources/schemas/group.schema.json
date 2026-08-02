@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Group",
+  "description": "Source definition of a group in an EncounterPlus V5 module project.",
+  "type": "object",
+  "required": [
+    "name",
+    "slug",
+    "rank"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "markdownDescription": "*Required.* Display name of the group.",
+      "minLength": 1,
+      "examples": [
+        "Chapter One"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens. Each content item in the module must use a different slug.",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
+      "examples": [
+        "chapter-one"
+      ]
+    },
+    "rank": {
+      "type": "number",
+      "markdownDescription": "*Required.* Numeric order among contents sharing the same parent.",
+      "default": 0,
+      "examples": [
+        0
+      ]
+    },
+    "parent": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Slug of the parent page or group. Leave empty to place the group at the module root.",
+      "default": "",
+      "examples": [
+        "adventure-overview"
+      ]
+    }
+  },
+  "additionalProperties": true
+}
