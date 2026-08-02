@@ -97,6 +97,95 @@ function installFrontMatterHiding(markdown: MarkdownIt): void {
   markdown.block.ruler.before('hr', 'mpx_front_matter', rule)
 }
 
+/** EncounterPlus-specific Markdown extension: `![alt](src =WIDTHxHEIGHT)` (or
+ * `=WIDTHx` / `=xHEIGHT` for a single dimension) sets width/height attributes
+ * on the rendered <img>. Reuses the same 'image' token type as the standard
+ * rule, so it goes through installImageRendering (captions, path fixes) too. */
+function imageWithSize(state: MarkdownIt.StateInline, silent: boolean): boolean {
+  const startPos = state.pos
+  const maxPos = state.posMax
+
+  if (state.src.charCodeAt(startPos) !== 0x21 || state.src.charCodeAt(startPos + 1) !== 0x5b) {
+    return false
+  }
+
+  const labelStart = startPos + 2
+  const labelEnd = state.md.helpers.parseLinkLabel(state, startPos + 1, false)
+  if (labelEnd < 0 || state.src.charCodeAt(labelEnd + 1) !== 0x28) {
+    return false
+  }
+
+  let pos = labelEnd + 2
+  while (pos < maxPos && /\s/.test(state.src[pos])) {
+    pos += 1
+  }
+
+  const destination = state.md.helpers.parseLinkDestination(state.src, pos, maxPos)
+  if (!destination.ok) {
+    return false
+  }
+  const source = state.md.normalizeLink(destination.str)
+  if (!state.md.validateLink(source)) {
+    return false
+  }
+  pos = destination.pos
+
+  const whitespaceStart = pos
+  while (pos < maxPos && /\s/.test(state.src[pos])) {
+    pos += 1
+  }
+  if (pos === whitespaceStart) {
+    return false
+  }
+
+  const dimensions = /^=(\d*)x(\d*)/.exec(state.src.slice(pos, maxPos))
+  if (!dimensions || (!dimensions[1] && !dimensions[2])) {
+    return false
+  }
+  const width = dimensions[1]
+  const height = dimensions[2]
+  if ((width && Number.parseInt(width, 10) <= 0) || (height && Number.parseInt(height, 10) <= 0)) {
+    return false
+  }
+
+  pos += dimensions[0].length
+  while (pos < maxPos && /\s/.test(state.src[pos])) {
+    pos += 1
+  }
+  if (state.src.charCodeAt(pos) !== 0x29) {
+    return false
+  }
+  pos += 1
+
+  if (!silent) {
+    const content = state.src.slice(labelStart, labelEnd)
+    const children: MarkdownIt.Token[] = []
+    state.md.inline.parse(content, state.md, state.env, children)
+
+    const token = state.push('image', 'img', 0)
+    token.attrs = [
+      ['src', source],
+      ['alt', ''],
+    ]
+    token.children = children
+    token.content = content
+    if (width) {
+      token.attrSet('width', width)
+    }
+    if (height) {
+      token.attrSet('height', height)
+    }
+  }
+
+  state.pos = pos
+  state.posMax = maxPos
+  return true
+}
+
+function installImageSizeSyntax(markdown: MarkdownIt): void {
+  markdown.inline.ruler.before('image', 'mpx_image_size', imageWithSize)
+}
+
 /** Handles both image concerns together, since both rewrite the same
  * renderer rule:
  * - In preview only: a page's Markdown file lives in pages/, one folder
@@ -167,6 +256,7 @@ export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): M
     .use(underline)
 
   installBlockquoteWrapping(markdown)
+  installImageSizeSyntax(markdown)
   installImageRendering(markdown, options)
 
   if (options.preview) {

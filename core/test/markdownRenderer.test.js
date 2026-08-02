@@ -106,3 +106,36 @@ test('createMarkdownRenderer renders a plain "float-left" image without a figure
   assert.doesNotMatch(html, /<figure>/)
   assert.match(html, /<img[^>]*class="float-left"/)
 })
+
+test('createMarkdownRenderer supports the =WIDTHxHEIGHT image size syntax', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('![alt](images/banner.png =300x200)\n')
+  assert.match(html, /<img[^>]*width="300"[^>]*height="200"/)
+})
+
+test('createMarkdownRenderer supports a width-only size (=WIDTHx)', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('![alt](images/banner.png =150x)\n')
+  assert.match(html, /<img[^>]*width="150"/)
+  assert.doesNotMatch(html, /height=/)
+})
+
+test('createMarkdownRenderer supports a height-only size (=xHEIGHT)', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('![alt](images/banner.png =x200)\n')
+  assert.match(html, /<img[^>]*height="200"/)
+  assert.doesNotMatch(html, /width=/)
+})
+
+test('createMarkdownRenderer combines the size syntax with {.caption} and other classes', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('![My caption](images/banner.png =300x200){.caption .center}\n')
+  assert.match(html, /<figure><img[^>]*width="300"[^>]*height="200"[^>]*class="center"[^>]*><figcaption>My caption<\/figcaption><\/figure>/)
+})
+
+test('createMarkdownRenderer falls back to a plain image when the size syntax is malformed', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('![alt](images/banner.png =0x0)\n')
+  assert.doesNotMatch(html, /width=/)
+  assert.match(html, /=0x0/)
+})
