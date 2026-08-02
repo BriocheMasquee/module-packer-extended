@@ -14,13 +14,13 @@ The target folder must be empty. If it already contains files (including an exis
 
 ## What gets created
 
-- `module.json` at the project root:
+- `module.json` at the project root, with every field the EncounterPlus V5 schema defines — required ones pre-filled, the rest present but empty so you know they exist:
   - `id`: a randomly generated UUID (v4).
   - `name`: derived from the folder name.
   - `slug`: a URL-safe version of the name.
   - `version`: `1.0.0`.
   - `system`: `dnd5e`.
-  - `author`, `description`, `tags`, `image`: empty, to be filled in.
+  - `acronym`, `category`, `author`, `shortDescr`, `descr`, `tags` (`[]`), `image`, `banner`, `website`, `repository`, `package`: empty, to be filled in as needed.
 - `images/`: empty folder for the project's images.
 - `assets/`: populated with the default MPX theme (`css/`, `font/`, `img/`, `js/`).
 

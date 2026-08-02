@@ -7,6 +7,7 @@ import { ZipFile } from 'yazl'
 import { listFilesRecursively } from './fileScan.js'
 import { readExportArchive } from './mapEncounterExport.js'
 import { createMarkdownRenderer } from './markdownRenderer.js'
+import { MODULE_CATEGORIES } from './moduleProject.js'
 import { resolveProjectFile } from './projectPath.js'
 import { createUuidV5, isUuid } from './uuid.js'
 
@@ -130,6 +131,18 @@ async function validateModuleJson(
   }
   if (data.id !== undefined && !isUuid(data.id)) {
     issues.push({ file: 'module.json', message: '"id" must be a valid UUID when provided.' })
+  }
+  if (
+    data.category !== undefined &&
+    !(MODULE_CATEGORIES as readonly unknown[]).includes(data.category)
+  ) {
+    issues.push({
+      file: 'module.json',
+      message: `"category" must be one of ${MODULE_CATEGORIES.map((value) => `"${value}"`).join(', ')} when provided.`,
+    })
+  }
+  if (data.tags !== undefined && (!Array.isArray(data.tags) || !data.tags.every((tag) => typeof tag === 'string'))) {
+    issues.push({ file: 'module.json', message: '"tags" must be an array of strings when provided.' })
   }
   for (const field of ['image', 'banner']) {
     const resourcePath = data[field]
