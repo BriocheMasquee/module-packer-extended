@@ -9,6 +9,10 @@ const {
   createGroup,
   createMapReference,
   createEncounterReference,
+  createItem,
+  createSpell,
+  createMonster,
+  createRollTable,
 } = require('../dist/index.js')
 
 async function makeTempModule() {
@@ -66,4 +70,46 @@ test('createEncounterReference writes a JSON file with path and descr fields', a
     path: 'encounters/',
     descr: '',
   })
+})
+
+test('createItem prefills attributes.measurement and hardcodes ruleset to 5.5e', async () => {
+  const root = await makeTempModule()
+  const result = await createItem(root, 'Longsword', 'metric')
+
+  const data = JSON.parse(await readFile(result.filePath, 'utf8'))
+  assert.deepEqual(data.attributes, { measurement: 'metric', ruleset: '5.5e' })
+})
+
+test('createItem defaults measurement to an empty string when not provided', async () => {
+  const root = await makeTempModule()
+  const result = await createItem(root, 'Dagger')
+
+  const data = JSON.parse(await readFile(result.filePath, 'utf8'))
+  assert.deepEqual(data.attributes, { measurement: '', ruleset: '5.5e' })
+})
+
+test('createSpell prefills attributes.measurement and hardcodes ruleset to 5.5e', async () => {
+  const root = await makeTempModule()
+  const result = await createSpell(root, 'Fireball', 'imperial')
+
+  const data = JSON.parse(await readFile(result.filePath, 'utf8'))
+  assert.deepEqual(data.attributes, { measurement: 'imperial', ruleset: '5.5e' })
+})
+
+test('createMonster prefills attributes.measurement and hardcodes ruleset to 5.5e', async () => {
+  const root = await makeTempModule()
+  const result = await createMonster(root, 'Air Elemental', 'metric')
+
+  const data = JSON.parse(await readFile(result.filePath, 'utf8'))
+  assert.deepEqual(data.attributes, { measurement: 'metric', ruleset: '5.5e' })
+})
+
+test('createRollTable writes columns/rows with no attributes field', async () => {
+  const root = await makeTempModule()
+  const result = await createRollTable(root, 'Wild Magic Surge')
+
+  const data = JSON.parse(await readFile(result.filePath, 'utf8'))
+  assert.equal(data.attributes, undefined)
+  assert.deepEqual(data.columns, [{ name: 'D20' }, { name: 'Result' }])
+  assert.deepEqual(data.rows, [['1', '']])
 })

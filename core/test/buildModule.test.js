@@ -895,7 +895,7 @@ test('buildModule strips empty optional item fields but keeps meaningful default
 
   assert.equal(items.length, 1)
   const item = items[0]
-  assert.equal(item.attributes, undefined)
+  assert.deepEqual(item.attributes, { measurement: 'imperial', ruleset: '5.5e' })
   assert.equal(item.descr, undefined)
   assert.equal(item.sources, undefined)
   assert.equal(item.tags, undefined)
@@ -1112,7 +1112,7 @@ test('buildModule strips empty optional spell fields but keeps meaningful defaul
 
   assert.equal(spells.length, 1)
   const spell = spells[0]
-  assert.equal(spell.attributes, undefined)
+  assert.deepEqual(spell.attributes, { measurement: 'imperial', ruleset: '5.5e' })
   assert.equal(spell.descr, undefined)
   assert.equal(spell.sources, undefined)
   assert.equal(spell.tags, undefined)
@@ -1549,7 +1549,7 @@ test('buildModule strips empty optional monster fields and drops empty savingThr
 
   assert.equal(monsters.length, 1)
   const monster = monsters[0]
-  assert.equal(monster.attributes, undefined)
+  assert.deepEqual(monster.attributes, { measurement: 'imperial', ruleset: '5.5e' })
   assert.equal(monster.descr, undefined)
   assert.equal(monster.sources, undefined)
   assert.equal(monster.tags, undefined)
@@ -1561,4 +1561,44 @@ test('buildModule strips empty optional monster fields and drops empty savingThr
     initiativeBonus: 0,
     proficiencyBonus: 0,
   })
+})
+
+test('buildModule fills empty attributes.measurement/ruleset from defaultMeasurement but keeps an explicit value', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'unset.json'),
+    JSON.stringify({ id: '9D36046F-200E-44A4-ADBE-64521193DAFF', name: 'Unset', slug: 'unset' }),
+  )
+  await writeFile(
+    join(root, 'items', 'explicit.json'),
+    JSON.stringify({
+      id: 'C607D322-AA92-43E9-A022-1120A9891E11',
+      name: 'Explicit',
+      slug: 'explicit',
+      attributes: { measurement: 'imperial', ruleset: '5e' },
+    }),
+  )
+
+  const summary = await buildModule(root, { defaultMeasurement: 'metric' })
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json')).sort((a, b) => a.name.localeCompare(b.name))
+
+  assert.deepEqual(items[0].attributes, { measurement: 'imperial', ruleset: '5e' })
+  assert.deepEqual(items[1].attributes, { measurement: 'metric', ruleset: '5.5e' })
+})
+
+test('buildModule defaults to imperial when no defaultMeasurement option is passed', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'unset.json'),
+    JSON.stringify({ id: '9D36046F-200E-44A4-ADBE-64521193DAFF', name: 'Unset', slug: 'unset' }),
+  )
+
+  const summary = await buildModule(root)
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json'))
+
+  assert.deepEqual(items[0].attributes, { measurement: 'imperial', ruleset: '5.5e' })
 })

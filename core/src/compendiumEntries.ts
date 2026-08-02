@@ -4,6 +4,10 @@ import { join } from 'node:path'
 import { slugify } from './slug.js'
 import type { CreatedContentEntry } from './contentEntries.js'
 
+// Not yet configurable — our schemas/templates are only verified against
+// real 5.5e data; a proper 5e format audit is future work.
+export const COMPENDIUM_RULESET = '5.5e'
+
 async function writeCompendiumEntry(
   moduleRoot: string,
   kind: string,
@@ -25,15 +29,15 @@ async function writeCompendiumEntry(
   return { slug, filePath }
 }
 
-export function createItem(moduleRoot: string, name: string): Promise<CreatedContentEntry> {
+export function createItem(moduleRoot: string, name: string, measurement = ''): Promise<CreatedContentEntry> {
   const slug = slugify(name)
   return writeCompendiumEntry(moduleRoot, 'item', 'items', name, {
     id: randomUUID(),
     name,
     slug,
     attributes: {
-      measurement: '',
-      ruleset: '',
+      measurement,
+      ruleset: COMPENDIUM_RULESET,
     },
     data: {
       type: '',
@@ -62,15 +66,15 @@ export function createItem(moduleRoot: string, name: string): Promise<CreatedCon
   })
 }
 
-export function createSpell(moduleRoot: string, name: string): Promise<CreatedContentEntry> {
+export function createSpell(moduleRoot: string, name: string, measurement = ''): Promise<CreatedContentEntry> {
   const slug = slugify(name)
   return writeCompendiumEntry(moduleRoot, 'spell', 'spells', name, {
     id: randomUUID(),
     name,
     slug,
     attributes: {
-      measurement: '',
-      ruleset: '',
+      measurement,
+      ruleset: COMPENDIUM_RULESET,
     },
     data: {
       level: 0,
@@ -99,15 +103,15 @@ export function createSpell(moduleRoot: string, name: string): Promise<CreatedCo
   })
 }
 
-export function createMonster(moduleRoot: string, name: string): Promise<CreatedContentEntry> {
+export function createMonster(moduleRoot: string, name: string, measurement = ''): Promise<CreatedContentEntry> {
   const slug = slugify(name)
   return writeCompendiumEntry(moduleRoot, 'monster', 'monsters', name, {
     id: randomUUID(),
     name,
     slug,
     attributes: {
-      measurement: '',
-      ruleset: '',
+      measurement,
+      ruleset: COMPENDIUM_RULESET,
     },
     data: {
       size: '',
