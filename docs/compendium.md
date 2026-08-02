@@ -11,6 +11,8 @@ A "Compendium" section in the MPX sidebar, alongside [Project](Project-Panel) an
 
 If the generated slug already matches an existing file of the same type, the command fails with a clear error — nothing is overwritten.
 
+Right-click an entry and choose **Delete** to remove it without leaving the panel — the file is moved to the OS trash (recoverable), after a confirmation prompt.
+
 Both the Compendium and Module panels have a "Collapse All" button (VSCode's built-in tree action) at the end of their title bar, for quickly collapsing every expanded category/group.
 
 ## What gets created
@@ -23,6 +25,25 @@ Both the Compendium and Module panels have a "Collapse All" button (VSCode's bui
 Every field is written upfront, like `module.json` — delete whatever doesn't apply to this entry. Nothing is required beyond `id`/`name`/`slug` (see [Build Module](Build-Module) for exactly what's validated and how empty fields are handled at build time).
 
 While editing, VSCode validates each file against its own EncounterPlus schema — autocomplete (⌃Space / ⌥Esc depending on platform), hover documentation, and red squiggles on an invalid enum value, a malformed UUID, or a badly shaped `columns`/`rows` pair.
+
+## `attributes.measurement` / `attributes.ruleset`
+
+Item/Spell/Monster's `attributes.measurement` is prefilled at creation from two project-wide VSCode settings — never stored in `module.json`, since neither is attached to the module in EncounterPlus, only to the game system:
+
+- `mpx.contentLanguage`: `"en"` (default) or `"fr"`.
+- `mpx.defaultMeasurement`: `"auto"` (default), `"imperial"`, or `"metric"`.
+
+When left at `"auto"`, the measurement system is derived from the language — `"fr"` → `"metric"`, anything else → `"imperial"` — matching exactly how old MPX linked the two. Setting `mpx.defaultMeasurement` explicitly to `"imperial"` or `"metric"` always overrides the language-based fallback.
+
+Run `MPX: Select Content Language` or `MPX: Select Default Measurement` (command palette) for a QuickPick instead of editing `.vscode/settings.json` by hand — each shows the current choice and writes the setting at the workspace-folder scope.
+
+**Make this choice at the start of the project**, before creating Compendium entries. The resolved value is only ever *prefilled* — once an entry's `attributes.measurement` is written (even by this prefill), it's a real, explicit value, and neither creating new entries nor building will ever change it again. Switching `mpx.contentLanguage`/`mpx.defaultMeasurement` partway through a project only affects entries created *after* the change — every entry created before keeps its earlier value, so the Compendium ends up with a visible split between old and new entries instead of one consistent measurement system.
+
+At build time, any item/spell/monster that still has an empty/absent `attributes.measurement` gets filled in from this same resolved value — but an entry's own explicit value, once set, is never touched. This matches how real EncounterPlus exports treat the field: genuinely per-entity, not a project-wide constant to enforce (real exports show different items with different values).
+
+`attributes.ruleset` is currently hardcoded to `"5.5e"` everywhere (creation and build fallback alike) — there's no `mpx.ruleset` setting yet. Our schemas and templates have only been verified against real 5.5e data; supporting `"5e"` would need its own format audit first (planned once the 5.5e Compendium is complete).
+
+The translation catalog itself (actually localizing generated labels) is a separate, larger piece of work, deliberately not part of this — only the language↔measurement link is implemented so far.
 
 ## Mutually exclusive fields (Spell)
 

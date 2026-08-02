@@ -74,7 +74,11 @@ export async function createModuleProject(
   await mkdir(assetsFolder)
   await cp(themeSourceFolder, assetsFolder, { recursive: true })
 
-  const settingsJson = { 'mpx.autoIncrementVersion': true }
+  const settingsJson = {
+    'mpx.autoIncrementVersion': true,
+    'mpx.contentLanguage': 'en',
+    'mpx.defaultMeasurement': 'auto',
+  }
   await mkdir(join(targetFolder, '.vscode'), { recursive: true })
   await writeFile(
     join(targetFolder, '.vscode', 'settings.json'),

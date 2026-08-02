@@ -23,9 +23,14 @@ class CompendiumCategoryItem extends vscode.TreeItem {
 }
 
 class CompendiumEntryItem extends vscode.TreeItem {
-  constructor(label: string, filePath: string, icon: string) {
+  constructor(
+    label: string,
+    readonly filePath: string,
+    icon: string,
+  ) {
     super(label, vscode.TreeItemCollapsibleState.None)
     this.iconPath = new vscode.ThemeIcon(icon)
+    this.contextValue = 'mpxDeletableEntry'
     this.command = {
       command: 'vscode.open',
       title: 'Open',

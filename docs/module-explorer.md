@@ -10,6 +10,7 @@ Open the MPX panel (activity bar icon). The "Module" view lists the module's con
 - Within the same level, items are ordered by `rank`, then alphabetically by name.
 - Each item shows its `rank` in a muted color next to its name.
 - Clicking an item opens its file.
+- Right-click an item and choose **Delete** to remove it without leaving the panel — the file is moved to the OS trash (recoverable), after a confirmation prompt.
 - The tree refreshes automatically when a relevant file is created, changed, or deleted. A manual "Refresh" button is also available in the view's title bar, alongside VSCode's built-in "Collapse All".
 
 ## Content sources
@@ -24,4 +25,4 @@ If a `parent` value doesn't match exactly one other item's `slug` (missing, or m
 ## Not included (yet)
 
 - Items, spells, roll tables, and monsters don't appear here — they're flat compendium content with no `parent`/`rank`, shown instead in the separate [Compendium](Compendium) view.
-- No right-click context menu on tree items (create/rename/delete from a node) — matches the current command set, which only has "Create Module Project" so far.
+- No rename, and no way to create a child from a right-click on a node — only Delete is available so far.

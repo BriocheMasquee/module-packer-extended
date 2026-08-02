@@ -13,6 +13,8 @@ const ICON_BY_KIND: Record<ModuleTreeNode['kind'], string> = {
 }
 
 class ModuleTreeItem extends vscode.TreeItem {
+  readonly filePath: string
+
   constructor(readonly node: ModuleTreeNode) {
     super(
       node.name,
@@ -20,9 +22,11 @@ class ModuleTreeItem extends vscode.TreeItem {
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.None,
     )
+    this.filePath = node.filePath
     this.iconPath = new vscode.ThemeIcon(ICON_BY_KIND[node.kind])
     this.description = `rank ${node.rank}`
     this.tooltip = node.filePath
+    this.contextValue = 'mpxDeletableEntry'
     this.command = {
       command: 'vscode.open',
       title: 'Open',

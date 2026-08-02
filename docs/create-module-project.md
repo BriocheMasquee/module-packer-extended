@@ -23,7 +23,7 @@ The target folder must be empty. If it already contains files (including an exis
   - `acronym`, `category`, `author`, `shortDescr`, `descr`, `tags` (`[]`), `image`, `banner`, `website`, `repository`, `package`: empty, to be filled in as needed.
 - `images/`: empty folder for the project's images.
 - `assets/`: populated with the default MPX theme (`css/`, `font/`, `img/`, `js/`).
-- `.vscode/settings.json`: `{ "mpx.autoIncrementVersion": true }` — see [Build Module](Build-Module) for what this controls.
+- `.vscode/settings.json`: `{ "mpx.autoIncrementVersion": true, "mpx.contentLanguage": "en", "mpx.defaultMeasurement": "auto" }` — see [Build Module](Build-Module) for the first, and [Compendium](Compendium) for the other two.
 
 After creation, VSCode opens the project's folder as the workspace and opens `module.json` in the editor so you can fill in the metadata. While editing `module.json`, VSCode validates it against the EncounterPlus schema — missing required fields and invalid values are underlined, and field descriptions show on hover.
 

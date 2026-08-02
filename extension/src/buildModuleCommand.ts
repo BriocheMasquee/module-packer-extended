@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { buildModule, ModuleBuildError } from 'mpx-core'
+import { buildModule, ModuleBuildError, resolveMeasurementSystem } from 'mpx-core'
 
 const BUILD_COMMAND = 'mpx.buildModule'
 
@@ -41,14 +41,17 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
 
   await vscode.workspace.saveAll(false)
 
-  const autoIncrementVersion = vscode.workspace
-    .getConfiguration('mpx', vscode.Uri.file(moduleFolder))
-    .get<boolean>('autoIncrementVersion', true)
+  const config = vscode.workspace.getConfiguration('mpx', vscode.Uri.file(moduleFolder))
+  const autoIncrementVersion = config.get<boolean>('autoIncrementVersion', true)
+  const defaultMeasurement = resolveMeasurementSystem(
+    config.get<string>('defaultMeasurement', 'auto'),
+    config.get<string>('contentLanguage', 'en'),
+  )
 
   try {
     const summary = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'MPX is building the module…' },
-      () => buildModule(moduleFolder, { autoIncrementVersion }),
+      () => buildModule(moduleFolder, { autoIncrementVersion, defaultMeasurement }),
     )
 
     const versionNote = summary.nextVersion

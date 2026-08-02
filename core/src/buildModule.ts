@@ -12,6 +12,8 @@ import { isValidSlug } from './slug.js'
 import { incrementPatchVersion } from './version.js'
 import { resolveProjectFile } from './projectPath.js'
 import { createUuidV5, isUuid } from './uuid.js'
+import { COMPENDIUM_RULESET } from './compendiumEntries.js'
+import type { MeasurementSystem } from './localization.js'
 
 export interface BuildIssue {
   file: string
@@ -623,6 +625,24 @@ interface CompendiumEntryOptions {
   /** A second image-like field (e.g. monster "token"), validated/copied the
    * same way as "image". */
   secondaryImageField?: string
+  /** Fills `attributes.measurement`/`attributes.ruleset` when the file
+   * leaves them empty/absent — an explicit value in the file always wins. */
+  defaultMeasurement: MeasurementSystem
+}
+
+/** An explicit, non-empty value in the file always wins over the project
+ * default — matching how EncounterPlus treats this as a genuinely
+ * per-entity field (real exports show different items with different
+ * rulesets), not a project-wide constant to enforce. */
+function applyCompendiumAttributeDefaults(record: Record<string, unknown>, defaultMeasurement: MeasurementSystem): void {
+  const attributes = isPlainObject(record.attributes) ? { ...record.attributes } : {}
+  if (!isNonEmptyString(attributes.measurement)) {
+    attributes.measurement = defaultMeasurement
+  }
+  if (!isNonEmptyString(attributes.ruleset)) {
+    attributes.ruleset = COMPENDIUM_RULESET
+  }
+  record.attributes = attributes
 }
 
 /** Reads <folder>/**\/*.json (items, spells, ...). Unlike pages/groups/maps/
@@ -635,7 +655,8 @@ async function readCompendiumEntries(
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
 ): Promise<Record<string, unknown>[]> {
-  const { folder, kind, imagePattern, validateData, stripEmptyFields, secondaryImageField } = options
+  const { folder, kind, imagePattern, validateData, stripEmptyFields, secondaryImageField, defaultMeasurement } =
+    options
   const entries: Record<string, unknown>[] = []
   const pathById = new Map<string, string>()
   const pathBySlug = new Map<string, string>()
@@ -707,7 +728,9 @@ async function readCompendiumEntries(
       pathBySlug.set(slug, relativePath)
     }
 
-    entries.push(stripEmptyFields({ ...data, slug }))
+    const record = { ...data, slug }
+    applyCompendiumAttributeDefaults(record, defaultMeasurement)
+    entries.push(stripEmptyFields(record))
   }
 
   return entries.sort((a, b) => String(a.name).localeCompare(String(b.name)))
@@ -717,6 +740,7 @@ function readItems(
   moduleRoot: string,
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
+  defaultMeasurement: MeasurementSystem,
 ): Promise<Record<string, unknown>[]> {
   return readCompendiumEntries(
     moduleRoot,
@@ -726,6 +750,7 @@ function readItems(
       imagePattern: ITEM_IMAGE_PATTERN,
       validateData: validateItemData,
       stripEmptyFields: stripEmptyItemFields,
+      defaultMeasurement,
     },
     issues,
     imageResourcesOut,
@@ -736,6 +761,7 @@ function readSpells(
   moduleRoot: string,
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
+  defaultMeasurement: MeasurementSystem,
 ): Promise<Record<string, unknown>[]> {
   return readCompendiumEntries(
     moduleRoot,
@@ -745,6 +771,7 @@ function readSpells(
       imagePattern: SPELL_IMAGE_PATTERN,
       validateData: validateSpellData,
       stripEmptyFields: stripEmptySpellFields,
+      defaultMeasurement,
     },
     issues,
     imageResourcesOut,
@@ -1027,6 +1054,7 @@ function readMonsters(
   moduleRoot: string,
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
+  defaultMeasurement: MeasurementSystem,
 ): Promise<Record<string, unknown>[]> {
   return readCompendiumEntries(
     moduleRoot,
@@ -1037,6 +1065,7 @@ function readMonsters(
       validateData: validateMonsterData,
       stripEmptyFields: stripEmptyMonsterFields,
       secondaryImageField: 'token',
+      defaultMeasurement,
     },
     issues,
     imageResourcesOut,
@@ -1355,6 +1384,11 @@ export interface BuildOptions {
    * build starts from a new value — the .module just produced always keeps
    * the version it was built with. */
   autoIncrementVersion?: boolean
+  /** Fills an item/spell/monster's empty/absent `attributes.measurement`
+   * at build time — resolved from the project's `mpx.contentLanguage`/
+   * `mpx.defaultMeasurement` settings. Defaults to "imperial" (matching
+   * old MPX's own ultimate fallback) if not provided. */
+  defaultMeasurement?: MeasurementSystem
 }
 
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
@@ -1370,6 +1404,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   }
   await validateModuleJson(moduleRoot, moduleJson, issues)
 
+  const defaultMeasurement = options.defaultMeasurement ?? 'imperial'
   const exportedResources = new Map<string, { data: Buffer; sourceName: string }>()
   const itemImageResources = new Map<string, string>()
   const spellImageResources = new Map<string, string>()
@@ -1379,10 +1414,10 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
     readMapOrEncounterEntries(moduleRoot, 'encounter', issues, exportedResources),
-    readItems(moduleRoot, issues, itemImageResources),
-    readSpells(moduleRoot, issues, spellImageResources),
+    readItems(moduleRoot, issues, itemImageResources, defaultMeasurement),
+    readSpells(moduleRoot, issues, spellImageResources, defaultMeasurement),
     readRollTables(moduleRoot, issues),
-    readMonsters(moduleRoot, issues, monsterImageResources),
+    readMonsters(moduleRoot, issues, monsterImageResources, defaultMeasurement),
   ])
   const entries = [...pages, ...groups, ...maps, ...encounters]
 
