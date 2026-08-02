@@ -18,6 +18,12 @@ Run `MPX: Build Module` (palette, or the button in the [Project section](Project
 - `module.json`'s `image`/`banner` files (declared at the project root) are bundled at the archive root.
 - The archive is written uncompressed (stored), which is what EncounterPlus expects — a compressed archive fails to import.
 
+## Version auto-increment
+
+If the `mpx.autoIncrementVersion` setting is on (the default, in `.vscode/settings.json`, editable via the "Project Settings" entry in the [Project section](Project-Panel)), the patch number of `module.json`'s `version` is bumped after a successful build (e.g. `1.0.0` → `1.0.1`) — so the next build starts from a new value.
+
+The `.module` archive just produced always keeps the version it was built with; the bump only prepares `module.json` for the *next* build. If you edit the version by hand (e.g. to `2.0.0`), the very next build still uses `2.0.0` unchanged — only the build after that becomes `2.0.1`.
+
 ## Maps and encounters: the real export format
 
 A map or encounter reference file (`maps/<slug>.json` / `encounters/<slug>.json`) doesn't hold the map/encounter data itself — its `path` field must point to a real **EncounterPlus export archive** (a zip), which contains:

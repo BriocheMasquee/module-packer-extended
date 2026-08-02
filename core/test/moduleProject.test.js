@@ -50,6 +50,16 @@ test('createModuleProject writes module.json, images/, and the theme assets', as
   assert.deepEqual(await readdir(join(folder, 'assets', 'css')), ['global.css'])
 })
 
+test('createModuleProject writes .vscode/settings.json with auto-increment enabled by default', async () => {
+  const folder = await makeTempDir()
+  const theme = await makeThemeFixture()
+
+  await createModuleProject(folder, theme)
+
+  const settings = JSON.parse(await readFile(join(folder, '.vscode', 'settings.json'), 'utf8'))
+  assert.deepEqual(settings, { 'mpx.autoIncrementVersion': true })
+})
+
 test('createModuleProject writes every module.json field the EncounterPlus schema defines', async () => {
   const folder = await makeTempDir()
   const theme = await makeThemeFixture()

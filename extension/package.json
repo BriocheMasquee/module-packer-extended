@@ -27,6 +27,17 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "configuration": {
+      "title": "Module Packer Extended",
+      "properties": {
+        "mpx.autoIncrementVersion": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Automatically bump module.json's patch version (e.g. 1.0.0 -> 1.0.1) after each successful build."
+        }
+      }
+    },
     "commands": [
       {
         "command": "mpx.createModuleProject",
@@ -94,6 +105,12 @@
         }
       ]
     },
+    "jsonValidation": [
+      {
+        "fileMatch": "/module.json",
+        "url": "./resources/schemas/module.schema.json"
+      }
+    ],
     "viewsWelcome": [
       {
         "view": "mpx.projectExplorer",

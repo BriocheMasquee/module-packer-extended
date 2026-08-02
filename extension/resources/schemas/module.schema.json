@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Module",
+  "description": "Configuration for an EncounterPlus V5 module project created with Module Packer Extended.",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "slug",
+    "version",
+    "system"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Required. Persistent UUID of the module. Keep this value unchanged between releases of the same module.",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "patternErrorMessage": "The module id must be a valid UUID.",
+      "examples": [
+        "9D36046F-200E-44A4-ADBE-64521193DAFF"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": "Required. Display name of the module.",
+      "minLength": 1,
+      "examples": [
+        "My EncounterPlus Module"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "description": "Required. Stable text identifier without accents or spaces. Separate words with hyphens.",
+      "minLength": 1,
+      "examples": [
+        "my-encounterplus-module"
+      ]
+    },
+    "acronym": {
+      "type": "string",
+      "description": "Optional. Short name or acronym used to identify the module.",
+      "examples": [
+        "MEM"
+      ]
+    },
+    "version": {
+      "type": "string",
+      "description": "Required. Version of the module.",
+      "minLength": 1,
+      "default": "1.0.0",
+      "examples": [
+        "1.0.0"
+      ]
+    },
+    "system": {
+      "type": "string",
+      "description": "Required. EncounterPlus system ID, for example dnd5e.",
+      "minLength": 1,
+      "default": "dnd5e",
+      "examples": [
+        "dnd5e"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "description": "Optional. Category used by EncounterPlus to classify the module: adventure, pack, rules, compendium, or other. Leave empty until a category is chosen.",
+      "enum": [
+        "",
+        "adventure",
+        "pack",
+        "rules",
+        "compendium",
+        "other"
+      ]
+    },
+    "author": {
+      "type": "string",
+      "description": "Optional. Name of the module author or publisher.",
+      "examples": [
+        "Author Name"
+      ]
+    },
+    "shortDescr": {
+      "type": "string",
+      "description": "Optional. Short description of the module.",
+      "examples": [
+        "A short summary of the module."
+      ]
+    },
+    "descr": {
+      "type": "string",
+      "description": "Optional. Full description of the module.",
+      "examples": [
+        "A detailed description of the module and its contents."
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "description": "Optional. Array of keywords used to describe and find the module.",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "examples": [
+        [
+          "adventure",
+          "dnd5e"
+        ]
+      ]
+    },
+    "image": {
+      "type": "string",
+      "description": "Optional. File name of the module cover image, relative to the project root.",
+      "examples": [
+        "cover.jpg"
+      ]
+    },
+    "banner": {
+      "type": "string",
+      "description": "Optional. File name of the module banner image, relative to the project root.",
+      "examples": [
+        "banner.jpg"
+      ]
+    },
+    "website": {
+      "type": "string",
+      "description": "Optional. Website URL for the module or its author.",
+      "examples": [
+        "https://example.com"
+      ]
+    },
+    "repository": {
+      "type": "string",
+      "description": "Optional. Source repository URL for the module.",
+      "examples": [
+        "https://github.com/example/module"
+      ]
+    },
+    "package": {
+      "type": "string",
+      "description": "Optional. Package or download URL for the module.",
+      "examples": [
+        "https://example.com/module.module"
+      ]
+    }
+  },
+  "additionalProperties": true
+}
