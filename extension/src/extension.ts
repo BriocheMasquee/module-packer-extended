@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import * as vscode from 'vscode'
 import { createModuleProject, detectWorkspaceKind } from 'mpx-core'
 import { registerModuleExplorer } from './moduleExplorer.js'
+import { registerContentCommands } from './contentCommands.js'
 
 const CREATE_PROJECT_COMMAND = 'mpx.createModuleProject'
 const PENDING_MODULE_CONFIGURATION_KEY = 'mpx.pendingModuleConfiguration'
@@ -130,6 +131,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   )
   registerModuleExplorer(context)
+  registerContentCommands(context)
 
   void updateWorkspaceKindContext()
   void openPendingModuleConfiguration(context)

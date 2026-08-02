@@ -39,6 +39,30 @@
         "title": "Refresh Module Explorer",
         "category": "MPX",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "mpx.createPage",
+        "title": "Create Page",
+        "category": "MPX",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "mpx.createGroup",
+        "title": "Create Group",
+        "category": "MPX",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "mpx.createMapReference",
+        "title": "Create Map Reference",
+        "category": "MPX",
+        "icon": "$(map)"
+      },
+      {
+        "command": "mpx.createEncounterReference",
+        "title": "Create Encounter Reference",
+        "category": "MPX",
+        "icon": "$(target)"
       }
     ],
     "viewsContainers": {
@@ -74,9 +98,29 @@
     "menus": {
       "view/title": [
         {
+          "command": "mpx.createPage",
+          "when": "view == mpx.moduleExplorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mpx.createGroup",
+          "when": "view == mpx.moduleExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "mpx.createMapReference",
+          "when": "view == mpx.moduleExplorer",
+          "group": "navigation@3"
+        },
+        {
+          "command": "mpx.createEncounterReference",
+          "when": "view == mpx.moduleExplorer",
+          "group": "navigation@4"
+        },
+        {
           "command": "mpx.refreshExplorer",
           "when": "view == mpx.moduleExplorer",
-          "group": "navigation"
+          "group": "navigation@5"
         }
       ]
     }
