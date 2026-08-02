@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import * as vscode from 'vscode'
 import { createModuleProject, detectWorkspaceKind } from 'mpx-core'
 import { registerModuleExplorer } from './moduleExplorer.js'
+import { registerProjectExplorer } from './projectExplorer.js'
 import { registerContentCommands } from './contentCommands.js'
 import { registerBuildModuleCommand } from './buildModuleCommand.js'
 
@@ -131,6 +132,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void updateWorkspaceKindContext()
     }),
   )
+  registerProjectExplorer(context)
   registerModuleExplorer(context)
   registerContentCommands(context)
   registerBuildModuleCommand(context)
