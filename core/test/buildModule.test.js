@@ -1125,3 +1125,179 @@ test('buildModule strips empty optional spell fields but keeps meaningful defaul
     duration: 0,
   })
 })
+
+test('buildModule omits tables.json when there are no roll tables', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.tableCount, 0)
+  assert.ok(!listZipEntries(summary.outputPath).includes('tables.json'))
+})
+
+test('buildModule writes tables.json, drops "rolls", and strips a default rollMode', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'tables'), { recursive: true })
+  await writeFile(
+    join(root, 'tables', 'loot.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'Test de table V5',
+      slug: 'test-de-table-v5',
+      columns: [{ name: 'D4' }, { name: 'Objet' }],
+      rows: [
+        ['1', 'Blue'],
+        ['2', 'Red'],
+      ],
+      rollMode: 'normal',
+      rolls: [],
+      descr: 'La description de la table',
+      sources: [{ name: 'Source', page: 12 }],
+      tags: ['tag'],
+    }),
+  )
+  await writeFile(
+    join(root, 'tables', 'no-repeat.json'),
+    JSON.stringify({
+      id: '593D0D31-F4CA-4F5B-AC90-7990E0B30A88',
+      name: 'Table 2 Copy',
+      slug: 'table-2-copy',
+      columns: [{ name: 'D2' }, { name: 'Rang' }],
+      rows: [
+        ['1', '1'],
+        ['2', '2'],
+      ],
+      rollMode: 'noRepeat',
+      rolls: [],
+    }),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.tableCount, 2)
+  const tables = JSON.parse(readZipEntry(summary.outputPath, 'tables.json')).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  assert.equal(tables[0].name, 'Table 2 Copy')
+  assert.equal(tables[0].rollMode, 'noRepeat')
+  assert.equal(tables[0].rolls, undefined)
+  assert.equal(tables[0].sources, undefined)
+  assert.equal(tables[1].name, 'Test de table V5')
+  assert.equal(tables[1].rollMode, undefined)
+  assert.equal(tables[1].rolls, undefined)
+  assert.deepEqual(tables[1].sources, [{ name: 'Source', page: 12 }])
+})
+
+test('buildModule rejects a roll table with fewer than two columns', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'tables'), { recursive: true })
+  await writeFile(
+    join(root, 'tables', 'bad.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'Bad',
+      slug: 'bad',
+      columns: [{ name: 'D4' }],
+      rows: [['1']],
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('at least two entries')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a roll table row with the wrong number of cells', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'tables'), { recursive: true })
+  await writeFile(
+    join(root, 'tables', 'bad.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'Bad',
+      slug: 'bad',
+      columns: [{ name: 'D4' }, { name: 'Result' }],
+      rows: [['1', 'Blue', 'extra']],
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('matching the number of columns')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects an invalid roll table rollMode', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'tables'), { recursive: true })
+  await writeFile(
+    join(root, 'tables', 'bad.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'Bad',
+      slug: 'bad',
+      columns: [{ name: 'D4' }, { name: 'Result' }],
+      rows: [['1', 'Blue']],
+      rollMode: 'sometimes',
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('rollMode must be one of')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects duplicate roll table ids and slugs', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'tables'), { recursive: true })
+  await writeFile(
+    join(root, 'tables', 'a.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'A',
+      slug: 'dup-table',
+      columns: [{ name: 'D4' }, { name: 'Result' }],
+      rows: [['1', 'Blue']],
+    }),
+  )
+  await writeFile(
+    join(root, 'tables', 'b.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'B',
+      slug: 'dup-table',
+      columns: [{ name: 'D4' }, { name: 'Result' }],
+      rows: [['1', 'Red']],
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate roll table id')))
+      assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate roll table slug')))
+      return true
+    },
+  )
+})

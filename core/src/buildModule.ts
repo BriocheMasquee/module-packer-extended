@@ -33,6 +33,7 @@ export interface BuildSummary {
   encounterCount: number
   itemCount: number
   spellCount: number
+  tableCount: number
   /** The version the .module archive was actually built with. */
   builtVersion: string
   /** Set only when autoIncrementVersion bumped module.json for the next build. */
@@ -739,6 +740,108 @@ function readSpells(
   )
 }
 
+const ROLL_TABLE_ROLL_MODES = ['normal', 'noRepeat', 'eachRow']
+const ROLL_TABLE_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
+
+/** Reads tables/**\/*.json. Unlike items/spells, roll tables have no
+ * attributes/data/image envelope — just columns/rows and a few optional
+ * fields. `rolls` is an EncounterPlus-internal runtime field (roll history)
+ * that we never author and always drop, matching what a real compiled
+ * tables.json never carries from an externally-authored file either. */
+async function readRollTables(moduleRoot: string, issues: BuildIssue[]): Promise<Record<string, unknown>[]> {
+  const tables: Record<string, unknown>[] = []
+  const pathById = new Map<string, string>()
+  const pathBySlug = new Map<string, string>()
+
+  for (const filePath of await listFilesRecursively(join(moduleRoot, 'tables'), '.json')) {
+    const relativePath = toPortablePath(moduleRoot, filePath)
+    let data: Record<string, unknown>
+    try {
+      data = JSON.parse(await readFile(filePath, 'utf8')) as Record<string, unknown>
+    } catch (error) {
+      issues.push({ file: relativePath, message: `Invalid JSON: ${(error as Error).message}` })
+      continue
+    }
+
+    if (!isUuid(data.id)) {
+      issues.push({ file: relativePath, message: 'Must contain a valid UUID id.' })
+    }
+    if (!isNonEmptyString(data.name)) {
+      issues.push({ file: relativePath, message: 'Must contain a non-empty name.' })
+    }
+    if (!isNonEmptyString(data.slug)) {
+      issues.push({ file: relativePath, message: 'Must contain a non-empty slug.' })
+    }
+    validateSlugFormat(relativePath, data.slug, issues)
+
+    const columnCount = Array.isArray(data.columns) ? data.columns.length : undefined
+    if (
+      !Array.isArray(data.columns) ||
+      data.columns.length < 2 ||
+      data.columns.some((column) => !isPlainObject(column) || !isNonEmptyString(column.name))
+    ) {
+      issues.push({
+        file: relativePath,
+        message: 'columns must contain at least two entries, each with a non-empty name.',
+      })
+    }
+    if (
+      !Array.isArray(data.rows) ||
+      data.rows.some(
+        (row) => !Array.isArray(row) || row.length !== columnCount || row.some((cell) => typeof cell !== 'string'),
+      )
+    ) {
+      issues.push({ file: relativePath, message: 'rows must be arrays of strings matching the number of columns.' })
+    }
+    if (data.rollMode !== undefined && !ROLL_TABLE_ROLL_MODES.includes(data.rollMode as string)) {
+      issues.push({
+        file: relativePath,
+        message: `rollMode must be one of ${ROLL_TABLE_ROLL_MODES.map((mode) => `"${mode}"`).join(', ')}.`,
+      })
+    }
+    if (data.sources !== undefined && !Array.isArray(data.sources)) {
+      issues.push({ file: relativePath, message: 'sources must be an array when provided.' })
+    }
+    if (data.tags !== undefined && (!Array.isArray(data.tags) || !data.tags.every((tag) => typeof tag === 'string'))) {
+      issues.push({ file: relativePath, message: 'tags must be an array of strings when provided.' })
+    }
+
+    if (!isUuid(data.id) || !isNonEmptyString(data.slug)) {
+      continue
+    }
+    const slug = data.slug.trim()
+    const id = data.id
+
+    const existingIdPath = pathById.get(id)
+    if (existingIdPath) {
+      issues.push({
+        file: relativePath,
+        message: `Duplicate roll table id "${id}" in ${existingIdPath} and ${relativePath}.`,
+      })
+    } else {
+      pathById.set(id, relativePath)
+    }
+    const existingSlugPath = pathBySlug.get(slug)
+    if (existingSlugPath) {
+      issues.push({
+        file: relativePath,
+        message: `Duplicate roll table slug "${slug}" in ${existingSlugPath} and ${relativePath}.`,
+      })
+    } else {
+      pathBySlug.set(slug, relativePath)
+    }
+
+    const cleaned = stripEmptyValues({ ...data, slug }, ROLL_TABLE_OPTIONAL_FIELDS)
+    delete cleaned.rolls
+    if (cleaned.rollMode === 'normal') {
+      delete cleaned.rollMode
+    }
+    tables.push(cleaned)
+  }
+
+  return tables.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+}
+
 function isResourceNameReserved(name: string): boolean {
   return (
     RESERVED_RESOURCE_NAMES.has(name) || RESERVED_RESOURCE_PREFIXES.some((prefix) => name.startsWith(prefix))
@@ -967,13 +1070,14 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const exportedResources = new Map<string, { data: Buffer; sourceName: string }>()
   const itemImageResources = new Map<string, string>()
   const spellImageResources = new Map<string, string>()
-  const [pages, groups, maps, encounters, items, spells] = await Promise.all([
+  const [pages, groups, maps, encounters, items, spells, tables] = await Promise.all([
     readPages(moduleRoot, issues),
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
     readMapOrEncounterEntries(moduleRoot, 'encounter', issues, exportedResources),
     readItems(moduleRoot, issues, itemImageResources),
     readSpells(moduleRoot, issues, spellImageResources),
+    readRollTables(moduleRoot, issues),
   ])
   const entries = [...pages, ...groups, ...maps, ...encounters]
 
@@ -1036,6 +1140,9 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   if (spells.length > 0) {
     addJson(spells, 'spells.json')
   }
+  if (tables.length > 0) {
+    addJson(tables, 'tables.json')
+  }
 
   await addDirectoryToZip(zip, join(moduleRoot, 'images'), 'images')
   await addDirectoryToZip(zip, join(moduleRoot, 'assets'), 'assets')
@@ -1085,6 +1192,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     encounterCount: encounterRecords.length,
     itemCount: items.length,
     spellCount: spells.length,
+    tableCount: tables.length,
     builtVersion,
     nextVersion,
   }

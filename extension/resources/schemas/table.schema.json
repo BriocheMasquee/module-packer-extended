@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Roll Table",
+  "description": "A compendium roll table authored directly as a project file.",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "slug",
+    "columns",
+    "rows"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "markdownDescription": "*Required.* Persistent UUID of the roll table. Keep this value unchanged once the table has been used in a build.",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "patternErrorMessage": "The roll table id must be a valid UUID.",
+      "examples": [
+        "9D36046F-200E-44A4-ADBE-64521193DAFF"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "markdownDescription": "*Required.* Display name of the roll table.",
+      "minLength": 1,
+      "examples": [
+        "Wild Magic Surge"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens. Each content item in the module must use a different slug.",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
+      "examples": [
+        "wild-magic-surge"
+      ]
+    },
+    "columns": {
+      "type": "array",
+      "markdownDescription": "*Required.* At least two columns, e.g. a die roll column and a result column.\n\nExample: `[{ \"name\": \"D20\" }, { \"name\": \"Result\" }]`",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "markdownDescription": "*Required.* Column header.",
+            "minLength": 1
+          }
+        }
+      },
+      "examples": [
+        [
+          {
+            "name": "D20"
+          },
+          {
+            "name": "Result"
+          }
+        ]
+      ]
+    },
+    "rows": {
+      "type": "array",
+      "markdownDescription": "*Required.* One entry per row, each an array of cell strings, in the same order as `columns` and with the same number of cells.\n\nExample: `[[\"1\", \"You grow a beard.\"], [\"2\", \"You turn into a sheep for one minute.\"], [\"3-19\", \"Nothing happens.\"], [\"20\", \"You cast fireball centered on yourself.\"]]`",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        [
+          [
+            "1",
+            "You grow a beard."
+          ],
+          [
+            "2",
+            "You turn into a sheep for one minute."
+          ],
+          [
+            "3-19",
+            "Nothing happens."
+          ],
+          [
+            "20",
+            "You cast fireball centered on yourself."
+          ]
+        ]
+      ]
+    },
+    "rollMode": {
+      "type": "string",
+      "markdownDescription": "*Optional.* How rolling this table behaves in EncounterPlus.\n\nPossible values: `\"normal\"` (default), `\"noRepeat\"`, `\"eachRow\"`.",
+      "enum": [
+        "normal",
+        "noRepeat",
+        "eachRow"
+      ]
+    },
+    "descr": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Description of the roll table.",
+      "examples": [
+        "Roll on this table whenever wild magic surges."
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Sourcebook references for this roll table.\n\nExample: `[{ \"name\": \"Player's Handbook\", \"page\": 104 }]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "markdownDescription": "*Required.* Name of the sourcebook."
+          },
+          "page": {
+            "type": "number",
+            "markdownDescription": "*Optional.* Page number in the sourcebook."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "default": [],
+      "examples": [
+        [
+          {
+            "name": "Player's Handbook",
+            "page": 104
+          }
+        ]
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Array of keywords used to describe and find the roll table.\n\nExample: `[\"random\", \"magic\"]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "examples": [
+        [
+          "random",
+          "magic"
+        ]
+      ]
+    }
+  },
+  "additionalProperties": true
+}

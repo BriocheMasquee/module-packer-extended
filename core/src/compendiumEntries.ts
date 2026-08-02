@@ -98,3 +98,17 @@ export function createSpell(moduleRoot: string, name: string): Promise<CreatedCo
     tags: [] as string[],
   })
 }
+
+export function createRollTable(moduleRoot: string, name: string): Promise<CreatedContentEntry> {
+  const slug = slugify(name)
+  return writeCompendiumEntry(moduleRoot, 'roll table', 'tables', name, {
+    id: randomUUID(),
+    name,
+    slug,
+    columns: [{ name: 'D20' }, { name: 'Result' }],
+    rows: [['1', '']],
+    descr: '',
+    sources: [] as { name: string; page?: number }[],
+    tags: [] as string[],
+  })
+}

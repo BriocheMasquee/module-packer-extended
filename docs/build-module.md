@@ -39,7 +39,18 @@ At build time, MPX reads that archive, merges its resources **flat at the root o
 - If two different exports (map or encounter) contain a resource with the same internal name, or a resource's name collides with a reserved module file/folder (`images/`, `assets/`, `*.json` manifests, etc.), the build fails rather than silently overwriting one with the other.
 - `path` is protected against path traversal (it can't resolve outside the project folder) — the same protection applies to `module.json`'s `image`/`banner`.
 
+## Items, spells, and roll tables
+
+Unlike maps/encounters, these are authored directly as standalone JSON files — `items/<slug>.json`, `spells/<slug>.json`, `tables/<slug>.json` — created with the [Compendium](Compendium) panel's buttons and validated against their own EncounterPlus schema while editing.
+
+- Each file needs its own explicit, permanent UUID `id` — unlike maps/encounters, it's never recomputed from the slug.
+- Every enum-like field (item `type`/`rarity`/`properties`/`mastery`/`dmgType`, spell `school`/`rangeType`/`areaEffectShape`/`components`/`durationType`/`durationUnit`/`activation.unit`) is checked against the real EncounterPlus value list.
+- In the built archive, empty optional fields are stripped the same way as `module.json` — including nested objects (`attributes`, item/spell `data`, spell `data.activation`): if everything inside one is empty, the whole object is dropped rather than kept as `{}`. Numbers and booleans are never stripped (`0`/`false` are real answers, not "unset").
+- An item's or spell's `image` (if set to a real file, not just the `items/`/`spells/` placeholder) must exist in the project and is copied into the archive.
+- A roll table's `rolls` field (an EncounterPlus-internal roll history, never authored by hand) is always dropped, and `rollMode` is omitted when it's `"normal"` (the default).
+- `items.json`/`spells.json`/`tables.json` are only written to the archive when there's at least one entry.
+
 ## Not included (yet)
 
-- No items/spells/roll tables/monsters — Compendium content isn't implemented yet, so the build only produces pages/groups/maps/encounters.
-- No inline content blocks in Markdown pages (items/spells/monsters/tables defined directly inside a page) — depends on Compendium support.
+- No monsters — tracked as the next Compendium content type.
+- No inline content blocks in Markdown pages (items/spells/monsters/tables defined directly inside a page, or roll tables auto-detected from a Markdown table) — a separate, not-yet-scoped extension of Compendium support.
