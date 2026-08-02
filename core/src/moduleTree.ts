@@ -8,6 +8,7 @@ export interface ModuleTreeNode {
   kind: ModuleTreeNodeKind
   name: string
   slug?: string
+  rank: number
   filePath: string
   children: ModuleTreeNode[]
 }
@@ -144,6 +145,7 @@ function buildHierarchy(entries: ParsedEntry[]): ModuleTreeNode[] {
       kind: entry.kind,
       name: entry.name,
       slug: entry.slug,
+      rank: entry.rank,
       filePath: entry.filePath,
       children: (childrenByParent.get(entry) ?? []).sort(compareEntries).map(toNode),
     }

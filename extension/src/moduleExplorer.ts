@@ -21,6 +21,7 @@ class ModuleTreeItem extends vscode.TreeItem {
         : vscode.TreeItemCollapsibleState.None,
     )
     this.iconPath = new vscode.ThemeIcon(ICON_BY_KIND[node.kind])
+    this.description = `rank ${node.rank}`
     this.tooltip = node.filePath
     this.command = {
       command: 'vscode.open',

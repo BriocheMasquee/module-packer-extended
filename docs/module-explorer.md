@@ -8,6 +8,7 @@ Open the MPX panel (activity bar icon). The "Module" view lists the module's con
 
 - Pages, groups, maps, and encounters are nested according to each item's `parent` field (matched by `slug`).
 - Within the same level, items are ordered by `rank`, then alphabetically by name.
+- Each item shows its `rank` in a muted color next to its name.
 - Clicking an item opens its file.
 - The tree refreshes automatically when a relevant file is created, changed, or deleted. A manual "Refresh" button is also available in the view's title bar.
 
