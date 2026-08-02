@@ -1,0 +1,80 @@
+import * as vscode from 'vscode'
+import { buildModule, ModuleBuildError } from 'mpx-core'
+
+const BUILD_COMMAND = 'mpx.buildModule'
+
+async function resolveModuleFolder(): Promise<string | undefined> {
+  const workspaceFolders = vscode.workspace.workspaceFolders ?? []
+  if (workspaceFolders.length === 0) {
+    await vscode.window.showErrorMessage('Open an MPX module project first.')
+    return undefined
+  }
+  if (workspaceFolders.length === 1) {
+    return workspaceFolders[0].uri.fsPath
+  }
+
+  const selection = await vscode.window.showQuickPick(
+    workspaceFolders.map((workspaceFolder) => ({
+      label: workspaceFolder.name,
+      description: workspaceFolder.uri.fsPath,
+      moduleFolder: workspaceFolder.uri.fsPath,
+    })),
+    { placeHolder: 'Select the module project to build' },
+  )
+  return selection?.moduleFolder
+}
+
+function reportIssues(outputChannel: vscode.OutputChannel, error: ModuleBuildError): void {
+  outputChannel.clear()
+  outputChannel.appendLine(`MPX build failed with ${error.issues.length} issue(s):`)
+  for (const issue of error.issues) {
+    outputChannel.appendLine(`  ${issue.file}: ${issue.message}`)
+  }
+  outputChannel.show(true)
+}
+
+async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<void> {
+  const moduleFolder = await resolveModuleFolder()
+  if (!moduleFolder) {
+    return
+  }
+
+  await vscode.workspace.saveAll(false)
+
+  try {
+    const summary = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'MPX is building the module…' },
+      () => buildModule(moduleFolder),
+    )
+
+    const selection = await vscode.window.showInformationMessage(
+      `Module built: ${summary.pageCount} page(s), ${summary.groupCount} group(s), ` +
+        `${summary.mapCount} map(s), ${summary.encounterCount} encounter(s).`,
+      'Reveal Module',
+    )
+    if (selection === 'Reveal Module') {
+      await vscode.commands.executeCommand(
+        'revealFileInOS',
+        vscode.Uri.file(summary.outputPath),
+      )
+    }
+    await vscode.commands.executeCommand('mpx.refreshExplorer')
+  } catch (error) {
+    if (error instanceof ModuleBuildError) {
+      reportIssues(outputChannel, error)
+      await vscode.window.showErrorMessage(
+        `MPX build failed with ${error.issues.length} issue(s) — see the "MPX" output channel for details.`,
+      )
+      return
+    }
+    await vscode.window.showErrorMessage(`MPX module build failed: ${(error as Error).message}`)
+  }
+}
+
+export function registerBuildModuleCommand(context: vscode.ExtensionContext): void {
+  const outputChannel = vscode.window.createOutputChannel('MPX')
+  context.subscriptions.push(
+    outputChannel,
+    vscode.commands.registerCommand(BUILD_COMMAND, () => executeBuildModule(outputChannel)),
+  )
+}

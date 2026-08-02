@@ -10,9 +10,22 @@
     "test": "npm run compile && node --test test/*.test.js"
   },
   "dependencies": {
-    "gray-matter": "^4.0.3"
+    "gray-matter": "^4.0.3",
+    "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-attrs": "^5.0.0",
+    "markdown-it-mark": "^4.0.0",
+    "markdown-it-multimd-table": "^4.2.3",
+    "markdown-it-sub": "^2.0.0",
+    "markdown-it-sup": "^2.0.0",
+    "markdown-it-underline": "^1.0.1",
+    "unzipper": "^0.12.3",
+    "yazl": "^3.3.1"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5"
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^22.10.5",
+    "@types/unzipper": "^0.10.11",
+    "@types/yazl": "^3.3.1"
   }
 }

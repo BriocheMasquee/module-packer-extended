@@ -10,7 +10,7 @@ export interface ModuleJson {
   version: string
   system: string
   author: string
-  description: string
+  descr: string
   tags: string[]
   image: string
 }
@@ -45,7 +45,7 @@ export async function createModuleProject(
     version: '1.0.0',
     system: 'dnd5e',
     author: '',
-    description: '',
+    descr: '',
     tags: [],
     image: '',
   }

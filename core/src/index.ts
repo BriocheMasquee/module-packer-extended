@@ -9,3 +9,5 @@ export {
   createEncounterReference,
 } from './contentEntries.js'
 export type { ContentEntryKind, CreatedContentEntry } from './contentEntries.js'
+export { buildModule, ModuleBuildError } from './buildModule.js'
+export type { BuildIssue, BuildSummary } from './buildModule.js'

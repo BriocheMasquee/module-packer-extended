@@ -131,6 +131,19 @@ test('parseModuleTree mixes groups, maps, and encounters under a common parent',
   )
 })
 
+test('parseModuleTree uses a map/encounter\'s name field over its slug when present', async () => {
+  const root = await makeTempModule()
+  await mkdir(join(root, 'maps'), { recursive: true })
+  await writeFile(
+    join(root, 'maps', 'town.json'),
+    JSON.stringify({ name: 'Town Map', slug: 'town-map', rank: 0 }),
+  )
+
+  const tree = await parseModuleTree(root)
+
+  assert.equal(tree[0].name, 'Town Map')
+})
+
 test('parseModuleTree returns an empty tree when there is no content yet', async () => {
   const root = await makeTempModule()
   assert.deepEqual(await parseModuleTree(root), [])

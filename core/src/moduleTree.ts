@@ -1,6 +1,8 @@
 import matter from 'gray-matter'
-import { readdir, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
+import { listFilesRecursively } from './fileScan.js'
+import { resolveParents } from './parentResolution.js'
 
 export type ModuleTreeNodeKind = 'page' | 'group' | 'map' | 'encounter'
 
@@ -30,20 +32,6 @@ function numericRankOf(value: unknown): number {
   return typeof value === 'number' ? value : 0
 }
 
-async function listFilesRecursively(root: string, extension: string): Promise<string[]> {
-  const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
-  const files: string[] = []
-  for (const entry of entries) {
-    const entryPath = join(root, entry.name)
-    if (entry.isDirectory()) {
-      files.push(...(await listFilesRecursively(entryPath, extension)))
-    } else if (entry.isFile() && entry.name.endsWith(extension)) {
-      files.push(entryPath)
-    }
-  }
-  return files
-}
-
 async function parsePageFile(filePath: string): Promise<ParsedEntry> {
   const source = await readFile(filePath, 'utf8')
   const data = matter(source).data
@@ -64,10 +52,7 @@ async function parseJsonEntryFile(
   const source = await readFile(filePath, 'utf8')
   const data = JSON.parse(source) as Record<string, unknown>
   const slug = trimmedOrUndefined(data.slug)
-  const name =
-    (kind === 'group' ? trimmedOrUndefined(data.name) : undefined) ??
-    slug ??
-    basename(filePath, '.json')
+  const name = trimmedOrUndefined(data.name) ?? slug ?? basename(filePath, '.json')
   return {
     kind,
     name,
@@ -85,53 +70,12 @@ function compareEntries(a: ParsedEntry, b: ParsedEntry): number {
 function buildHierarchy(entries: ParsedEntry[]): ModuleTreeNode[] {
   entries.sort(compareEntries)
 
-  const entriesBySlug = new Map<string, ParsedEntry[]>()
-  for (const entry of entries) {
-    if (!entry.slug) {
-      continue
-    }
-    const matches = entriesBySlug.get(entry.slug) ?? []
-    matches.push(entry)
-    entriesBySlug.set(entry.slug, matches)
-  }
-
-  const candidateParent = new Map<ParsedEntry, ParsedEntry>()
-  for (const entry of entries) {
-    if (!entry.parentSlug) {
-      continue
-    }
-    const matches = entriesBySlug.get(entry.parentSlug)
-    if (matches?.length === 1 && matches[0] !== entry) {
-      candidateParent.set(entry, matches[0])
-    }
-  }
-
-  const validAncestry = new Map<ParsedEntry, boolean>()
-  function canNest(entry: ParsedEntry, visiting: Set<ParsedEntry>): boolean {
-    const cached = validAncestry.get(entry)
-    if (cached !== undefined) {
-      return cached
-    }
-    if (visiting.has(entry)) {
-      return false
-    }
-    const parent = candidateParent.get(entry)
-    if (!parent) {
-      validAncestry.set(entry, true)
-      return true
-    }
-    const nextVisiting = new Set(visiting)
-    nextVisiting.add(entry)
-    const result = canNest(parent, nextVisiting)
-    validAncestry.set(entry, result)
-    return result
-  }
-
+  const parentOf = resolveParents(entries)
   const childrenByParent = new Map<ParsedEntry, ParsedEntry[]>()
   const roots: ParsedEntry[] = []
   for (const entry of entries) {
-    const parent = candidateParent.get(entry)
-    if (parent && canNest(entry, new Set())) {
+    const parent = parentOf.get(entry)
+    if (parent) {
       const children = childrenByParent.get(parent) ?? []
       children.push(entry)
       childrenByParent.set(parent, children)
