@@ -34,6 +34,18 @@ export default tseslint.config(
     },
   },
   {
+    files: ['extension/resources/preview/*.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        document: 'readonly',
+        window: 'readonly',
+        getComputedStyle: 'readonly',
+        MutationObserver: 'readonly',
+      },
+    },
+  },
+  {
     ignores: ['**/dist/**', '**/node_modules/**'],
   },
 )

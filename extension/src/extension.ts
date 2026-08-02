@@ -1,10 +1,15 @@
 import { join } from 'node:path'
 import * as vscode from 'vscode'
-import { createModuleProject, detectWorkspaceKind } from 'mpx-core'
+import { createMarkdownRenderer, createModuleProject, detectWorkspaceKind } from 'mpx-core'
 import { registerModuleExplorer } from './moduleExplorer.js'
 import { registerProjectExplorer } from './projectExplorer.js'
 import { registerContentCommands } from './contentCommands.js'
 import { registerBuildModuleCommand } from './buildModuleCommand.js'
+import { registerPreviewConfiguration } from './previewConfiguration.js'
+
+interface MarkdownItExtensionApi {
+  extendMarkdownIt: (markdownIt: unknown) => unknown
+}
 
 const CREATE_PROJECT_COMMAND = 'mpx.createModuleProject'
 const PENDING_MODULE_CONFIGURATION_KEY = 'mpx.pendingModuleConfiguration'
@@ -123,7 +128,7 @@ async function updateWorkspaceKindContext(): Promise<void> {
   await vscode.commands.executeCommand('setContext', 'mpx.workspaceKind', workspaceKind)
 }
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(context: vscode.ExtensionContext): MarkdownItExtensionApi {
   context.subscriptions.push(
     vscode.commands.registerCommand(CREATE_PROJECT_COMMAND, () =>
       executeCreateModuleProject(context),
@@ -136,9 +141,18 @@ export function activate(context: vscode.ExtensionContext): void {
   registerModuleExplorer(context)
   registerContentCommands(context)
   registerBuildModuleCommand(context)
+  registerPreviewConfiguration(context)
 
   void updateWorkspaceKindContext()
   void openPendingModuleConfiguration(context)
+
+  return {
+    // VSCode ignores the markdown-it instance it passes in and just uses
+    // whatever this returns — our renderer needs preview-specific behavior
+    // (hidden front matter, adjusted image paths, #page wrapper) that the
+    // build's renderer doesn't, so we build our own rather than extend theirs.
+    extendMarkdownIt: () => createMarkdownRenderer({ preview: true }),
+  }
 }
 
 export function deactivate(): void {}

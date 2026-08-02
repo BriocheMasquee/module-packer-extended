@@ -1,0 +1,7 @@
+html, body.vscode-body {
+  padding: 0;
+}
+
+#page .blockquote-wrap > blockquote {
+  border-left: 0;
+}

@@ -123,6 +123,13 @@
         "url": "./resources/schemas/encounter.schema.json"
       }
     ],
+    "markdown.markdownItPlugins": true,
+    "markdown.previewStyles": [
+      "resources/preview/vscode.css"
+    ],
+    "markdown.previewScripts": [
+      "resources/preview/catalyst.js"
+    ],
     "viewsWelcome": [
       {
         "view": "mpx.projectExplorer",
