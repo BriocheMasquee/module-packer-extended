@@ -9,6 +9,7 @@ export {
   createEncounterReference,
 } from './contentEntries.js'
 export type { ContentEntryKind, CreatedContentEntry } from './contentEntries.js'
+export { createItem, createSpell } from './compendiumEntries.js'
 export { buildModule, ModuleBuildError } from './buildModule.js'
 export type { BuildIssue, BuildOptions, BuildSummary } from './buildModule.js'
 export { incrementPatchVersion } from './version.js'

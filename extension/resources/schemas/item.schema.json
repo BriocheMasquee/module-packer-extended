@@ -1,0 +1,328 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Item",
+  "description": "A compendium item authored directly as a project file.",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "slug"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "markdownDescription": "*Required.* Persistent UUID of the item. Keep this value unchanged once the item has been used in a build.",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "patternErrorMessage": "The item id must be a valid UUID.",
+      "examples": [
+        "9D36046F-200E-44A4-ADBE-64521193DAFF"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "markdownDescription": "*Required.* Display name of the item.",
+      "minLength": 1,
+      "examples": [
+        "Longsword"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens. Each content item in the module must use a different slug.",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
+      "examples": [
+        "longsword"
+      ]
+    },
+    "attributes": {
+      "type": "object",
+      "markdownDescription": "*Optional.* Measurement system and ruleset this item's values are written for.",
+      "properties": {
+        "measurement": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Measurement system used for weight and distance values.\n\nPossible values: `\"\"` (default), `\"metric\"`, `\"imperial\"`.",
+          "enum": [
+            "",
+            "metric",
+            "imperial"
+          ]
+        },
+        "ruleset": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Ruleset this item's data follows.\n\nPossible values: `\"\"` (default), `\"5e\"`, `\"5.5e\"`.",
+          "enum": [
+            "",
+            "5e",
+            "5.5e"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "data": {
+      "type": "object",
+      "markdownDescription": "*Optional.* Item statistics. Every field is itself optional — delete any that don't apply to this item.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Item type, used to pick which of the fields below apply.\n\nPossible values: `\"\"` (default), `\"custom\"`, `\"armor\"`, `\"weapon\"`, `\"lightArmor\"`, `\"mediumArmor\"`, `\"heavyArmor\"`, `\"shield\"`, `\"meleeWeapon\"`, `\"rangedWeapon\"`, `\"ammunition\"`, `\"rod\"`, `\"staff\"`, `\"wand\"`, `\"potion\"`, `\"ring\"`, `\"scroll\"`, `\"wondrousItem\"`, `\"adventuringGear\"`, `\"wealth\"`, `\"gemstone\"`, `\"tool\"`, `\"poison\"`, `\"instrument\"`, `\"arcaneFocus\"`, `\"holySymbol\"`, `\"mount\"`, `\"equipmentPack\"`, `\"tradeGood\"`, `\"druidicFocus\"`, `\"vehicleLand\"`, `\"vehicleWater\"`, `\"vehicleSpace\"`.",
+          "enum": [
+            "",
+            "custom",
+            "armor",
+            "weapon",
+            "lightArmor",
+            "mediumArmor",
+            "heavyArmor",
+            "shield",
+            "meleeWeapon",
+            "rangedWeapon",
+            "ammunition",
+            "rod",
+            "staff",
+            "wand",
+            "potion",
+            "ring",
+            "scroll",
+            "wondrousItem",
+            "adventuringGear",
+            "wealth",
+            "gemstone",
+            "tool",
+            "poison",
+            "instrument",
+            "arcaneFocus",
+            "holySymbol",
+            "mount",
+            "equipmentPack",
+            "tradeGood",
+            "druidicFocus",
+            "vehicleLand",
+            "vehicleWater",
+            "vehicleSpace"
+          ]
+        },
+        "typeDetail": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Free-text detail shown for armor and weapon types (e.g. the specific weapon or armor name).",
+          "examples": [
+            "Chain shirt"
+          ]
+        },
+        "rarity": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Item rarity.\n\nPossible values: `\"\"` (default), `\"common\"`, `\"uncommon\"`, `\"rare\"`, `\"veryrare\"`, `\"legendary\"`, `\"artifact\"`, `\"unknown\"`.",
+          "enum": [
+            "",
+            "common",
+            "uncommon",
+            "rare",
+            "veryrare",
+            "legendary",
+            "artifact",
+            "unknown"
+          ]
+        },
+        "attunement": {
+          "type": "boolean",
+          "markdownDescription": "*Optional.* Whether the item requires attunement.\n\nPossible values: `true` or `false` (default)."
+        },
+        "attunementDetail": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Free-text attunement requirement, shown when `attunement` is `true`.",
+          "examples": [
+            "by a spellcaster"
+          ]
+        },
+        "value": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Item value, in gold pieces.",
+          "default": 0
+        },
+        "weight": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Item weight, in the unit set by `attributes.measurement`.",
+          "default": 0
+        },
+        "ac": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Armor class, for armor and shield types.",
+          "default": 0
+        },
+        "stealth": {
+          "type": "boolean",
+          "markdownDescription": "*Optional.* Whether wearing this armor gives disadvantage on Stealth checks.\n\nPossible values: `true` or `false` (default)."
+        },
+        "str": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Minimum Strength score required to wear this armor without penalty.",
+          "default": 0
+        },
+        "properties": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Weapon properties.\n\nPossible values: `\"ammunition\"`, `\"finesse\"`, `\"heavy\"`, `\"light\"`, `\"loading\"`, `\"range\"`, `\"reach\"`, `\"special\"`, `\"thrown\"`, `\"twoHanded\"`, `\"versatile\"`, `\"cleave\"`, `\"graze\"`, `\"nick\"`, `\"push\"`, `\"sap\"`, `\"slow\"`, `\"topple\"`, `\"vex\"`.\n\nExample: `[\"finesse\", \"thrown\"]`\n\nEmpty: `[]`",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ammunition",
+              "finesse",
+              "heavy",
+              "light",
+              "loading",
+              "range",
+              "reach",
+              "special",
+              "thrown",
+              "twoHanded",
+              "versatile",
+              "cleave",
+              "graze",
+              "nick",
+              "push",
+              "sap",
+              "slow",
+              "topple",
+              "vex"
+            ]
+          },
+          "default": [],
+          "examples": [
+            [
+              "finesse",
+              "thrown"
+            ]
+          ]
+        },
+        "mastery": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Weapon mastery property (5.5e).\n\nPossible values: `\"\"` (default), `\"cleave\"`, `\"graze\"`, `\"nick\"`, `\"push\"`, `\"sap\"`, `\"slow\"`, `\"topple\"`, `\"vex\"`.",
+          "enum": [
+            "",
+            "cleave",
+            "graze",
+            "nick",
+            "push",
+            "sap",
+            "slow",
+            "topple",
+            "vex"
+          ]
+        },
+        "dmg1": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Primary damage dice.",
+          "examples": [
+            "1d6+3"
+          ]
+        },
+        "dmg2": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Versatile damage dice, shown when `properties` includes `\"versatile\"`.",
+          "examples": [
+            "1d8+3"
+          ]
+        },
+        "dmgType": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Damage type.\n\nPossible values: `\"\"` (default), `\"acid\"`, `\"bludgeoning\"`, `\"cold\"`, `\"fire\"`, `\"force\"`, `\"lightning\"`, `\"necrotic\"`, `\"piercing\"`, `\"poison\"`, `\"psychic\"`, `\"radiant\"`, `\"slashing\"`, `\"thunder\"`.",
+          "enum": [
+            "",
+            "acid",
+            "bludgeoning",
+            "cold",
+            "fire",
+            "force",
+            "lightning",
+            "necrotic",
+            "piercing",
+            "poison",
+            "psychic",
+            "radiant",
+            "slashing",
+            "thunder"
+          ]
+        },
+        "range": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Weapon range, in feet.",
+          "examples": [
+            "80/320"
+          ]
+        },
+        "container": {
+          "type": "boolean",
+          "markdownDescription": "*Optional.* Whether this item can hold other items.\n\nPossible values: `true` or `false` (default)."
+        },
+        "capacity": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Carrying capacity, in the unit set by `attributes.measurement`, shown when `container` is `true`. Leave at `0` for unlimited.",
+          "default": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "descr": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Description of the item.",
+      "examples": [
+        "A finely crafted blade."
+      ]
+    },
+    "image": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Path to the item's image, relative to the project root. Save the image directly inside the `items` folder at the project root.",
+      "pattern": "^items/[^/\\\\]*$",
+      "patternErrorMessage": "The image path must point to a file stored directly inside the project's items folder.",
+      "default": "items/",
+      "examples": [
+        "items/longsword.png"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Sourcebook references for this item.\n\nExample: `[{ \"name\": \"Player's Handbook\", \"page\": 12 }]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "markdownDescription": "*Required.* Name of the sourcebook."
+          },
+          "page": {
+            "type": "number",
+            "markdownDescription": "*Optional.* Page number in the sourcebook."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "default": [],
+      "examples": [
+        [
+          {
+            "name": "Player's Handbook",
+            "page": 12
+          }
+        ]
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Array of keywords used to describe and find the item.\n\nExample: `[\"magic\", \"rare\"]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "examples": [
+        [
+          "magic",
+          "rare"
+        ]
+      ]
+    }
+  },
+  "additionalProperties": true
+}

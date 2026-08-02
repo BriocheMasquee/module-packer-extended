@@ -1,0 +1,293 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Spell",
+  "description": "A compendium spell authored directly as a project file.",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "slug"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "markdownDescription": "*Required.* Persistent UUID of the spell. Keep this value unchanged once the spell has been used in a build.",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "patternErrorMessage": "The spell id must be a valid UUID.",
+      "examples": [
+        "9D36046F-200E-44A4-ADBE-64521193DAFF"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "markdownDescription": "*Required.* Display name of the spell.",
+      "minLength": 1,
+      "examples": [
+        "Fireball"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens. Each content item in the module must use a different slug.",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
+      "examples": [
+        "fireball"
+      ]
+    },
+    "attributes": {
+      "type": "object",
+      "markdownDescription": "*Optional.* Measurement system and ruleset this spell's values are written for.",
+      "properties": {
+        "measurement": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Measurement system used for range and area values.\n\nPossible values: `\"\"` (default), `\"metric\"`, `\"imperial\"`.",
+          "enum": [
+            "",
+            "metric",
+            "imperial"
+          ]
+        },
+        "ruleset": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Ruleset this spell's data follows.\n\nPossible values: `\"\"` (default), `\"5e\"`, `\"5.5e\"`.",
+          "enum": [
+            "",
+            "5e",
+            "5.5e"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "data": {
+      "type": "object",
+      "markdownDescription": "*Optional.* Spell statistics. Every field is itself optional — delete any that don't apply to this spell.",
+      "properties": {
+        "level": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Spell level, `0` for a cantrip.\n\nPossible values: `0`-`9`.",
+          "minimum": 0,
+          "maximum": 9,
+          "default": 0
+        },
+        "school": {
+          "type": "string",
+          "markdownDescription": "*Optional.* School of magic.\n\nPossible values: `\"\"` (default), `\"abjuration\"`, `\"conjuration\"`, `\"divination\"`, `\"enchantment\"`, `\"evocation\"`, `\"illusion\"`, `\"necromancy\"`, `\"transmutation\"`.",
+          "enum": [
+            "",
+            "abjuration",
+            "conjuration",
+            "divination",
+            "enchantment",
+            "evocation",
+            "illusion",
+            "necromancy",
+            "transmutation"
+          ]
+        },
+        "ritual": {
+          "type": "boolean",
+          "markdownDescription": "*Optional.* Whether the spell can be cast as a ritual.\n\nPossible values: `true` or `false` (default)."
+        },
+        "activation": {
+          "type": "object",
+          "markdownDescription": "*Optional.* Casting time.",
+          "properties": {
+            "time": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Casting time value, in the unit set by `unit`.",
+              "default": 0
+            },
+            "unit": {
+              "type": "string",
+              "markdownDescription": "*Optional.* Casting time unit.\n\nPossible values: `\"\"` (default), `\"action\"`, `\"bonusAction\"`, `\"reaction\"`, `\"hour\"`, `\"minute\"`.",
+              "enum": [
+                "",
+                "action",
+                "bonusAction",
+                "reaction",
+                "hour",
+                "minute"
+              ]
+            },
+            "condition": {
+              "type": "string",
+              "markdownDescription": "*Optional.* Trigger condition, shown when `unit` is `\"reaction\"`.",
+              "examples": [
+                "which you take when you see a creature within 60 feet of you casting a spell"
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "rangeType": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Special range category. Leave unset (and use `range` instead) for a spell with a distance measured in feet — the two are mutually exclusive.\n\nPossible values: `\"\"` (default), `\"self\"`, `\"touch\"`, `\"sight\"`, `\"unlimited\"`.",
+          "enum": [
+            "",
+            "self",
+            "touch",
+            "sight",
+            "unlimited"
+          ]
+        },
+        "range": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Range, in feet, when `rangeType` is not set.",
+          "default": 0
+        },
+        "areaEffectShape": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Area of effect shape.\n\nPossible values: `\"\"` (default), `\"cone\"`, `\"cube\"`, `\"cylinder\"`, `\"line\"`, `\"square\"`, `\"sphere\"`, `\"emanation\"`.",
+          "enum": [
+            "",
+            "cone",
+            "cube",
+            "cylinder",
+            "line",
+            "square",
+            "sphere",
+            "emanation"
+          ]
+        },
+        "areaEffectSize": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Area of effect size, in feet.",
+          "default": 0
+        },
+        "components": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Spell components.\n\nPossible values: `\"V\"` (verbal), `\"S\"` (somatic), `\"M\"` (material).\n\nExample: `[\"V\", \"S\", \"M\"]`\n\nEmpty: `[]`",
+          "items": {
+            "type": "string",
+            "enum": [
+              "V",
+              "S",
+              "M"
+            ]
+          },
+          "default": [],
+          "examples": [
+            [
+              "V",
+              "S",
+              "M"
+            ]
+          ]
+        },
+        "componentsDetail": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Material component detail, shown when `components` includes `\"M\"`.",
+          "examples": [
+            "a tiny ball of bat guano and sulfur"
+          ]
+        },
+        "durationType": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Duration category. Leave unset (and use `duration`/`durationUnit`) for a plain timed duration; `\"concentration\"` also uses `duration`/`durationUnit` alongside it.\n\nPossible values: `\"\"` (default), `\"concentration\"`, `\"instantaneous\"`, `\"special\"`, `\"dispel\"`, `\"dispelOrTrigger\"`.",
+          "enum": [
+            "",
+            "concentration",
+            "instantaneous",
+            "special",
+            "dispel",
+            "dispelOrTrigger"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Duration value, in the unit set by `durationUnit`, used when `durationType` is unset or `\"concentration\"`.",
+          "default": 0
+        },
+        "durationUnit": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Duration unit.\n\nPossible values: `\"\"` (default), `\"round\"`, `\"minute\"`, `\"hour\"`, `\"day\"`.",
+          "enum": [
+            "",
+            "round",
+            "minute",
+            "hour",
+            "day"
+          ]
+        },
+        "classes": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Classes that can cast this spell, referencing a class entity as `\"ClassName|sourceCode\"`. Class entities aren't validated yet.\n\nExample: `[\"Wizard|phb-2024\"]`\n\nEmpty: `[]`",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "examples": [
+            [
+              "Wizard|phb-2024"
+            ]
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "descr": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Description of the spell.",
+      "examples": [
+        "A bright streak flashes from your pointing finger."
+      ]
+    },
+    "image": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Path to the spell's image, relative to the project root. Save the image directly inside the `spells` folder at the project root.",
+      "pattern": "^spells/[^/\\\\]*$",
+      "patternErrorMessage": "The image path must point to a file stored directly inside the project's spells folder.",
+      "default": "spells/",
+      "examples": [
+        "spells/fireball.png"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Sourcebook references for this spell.\n\nExample: `[{ \"name\": \"Player's Handbook\", \"page\": 241 }]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "markdownDescription": "*Required.* Name of the sourcebook."
+          },
+          "page": {
+            "type": "number",
+            "markdownDescription": "*Optional.* Page number in the sourcebook."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "default": [],
+      "examples": [
+        [
+          {
+            "name": "Player's Handbook",
+            "page": 241
+          }
+        ]
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Array of keywords used to describe and find the spell.\n\nExample: `[\"damage\", \"fire\"]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "examples": [
+        [
+          "damage",
+          "fire"
+        ]
+      ]
+    }
+  },
+  "additionalProperties": true
+}

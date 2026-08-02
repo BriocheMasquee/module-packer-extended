@@ -703,3 +703,425 @@ test('buildModule rejects a parent cycle', async () => {
     },
   )
 })
+
+test('buildModule omits items.json when there are no items', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.itemCount, 0)
+  assert.ok(!listZipEntries(summary.outputPath).includes('items.json'))
+})
+
+test('buildModule writes items.json and copies referenced item images', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(join(root, 'items', 'cover.png'), 'fake-image-bytes')
+  await writeFile(
+    join(root, 'items', 'longsword.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Longsword',
+      slug: 'longsword',
+      attributes: { measurement: '', ruleset: '' },
+      data: {
+        type: 'meleeWeapon',
+        rarity: 'common',
+        properties: ['versatile'],
+        dmg1: '1d8',
+        dmg2: '1d10',
+      },
+      descr: '',
+      image: 'items/cover.png',
+      sources: [],
+      tags: [],
+    }),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.itemCount, 1)
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json'))
+  assert.equal(items.length, 1)
+  assert.equal(items[0].name, 'Longsword')
+  assert.equal(items[0].slug, 'longsword')
+  assert.ok(listZipEntries(summary.outputPath).includes('items/cover.png'))
+})
+
+test('buildModule rejects an item with an invalid id', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'bad.json'),
+    JSON.stringify({ id: 'not-a-uuid', name: 'Bad', slug: 'bad' }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('valid UUID')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects an item with an unrecognized data.type', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'weird.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Weird',
+      slug: 'weird',
+      data: { type: 'notAType' },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('not a recognized item type')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects duplicate item ids and slugs', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'a.json'),
+    JSON.stringify({ id: '9D36046F-200E-44A4-ADBE-64521193DAFF', name: 'A', slug: 'dup-item' }),
+  )
+  await writeFile(
+    join(root, 'items', 'b.json'),
+    JSON.stringify({ id: '9D36046F-200E-44A4-ADBE-64521193DAFF', name: 'B', slug: 'dup-item' }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate item id')))
+      assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate item slug')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects an item image path outside the items folder', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'a.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'A',
+      slug: 'a',
+      image: 'images/cover.png',
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('directly inside the items folder')))
+      return true
+    },
+  )
+})
+
+test('buildModule allows the "items/" placeholder image with no file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'a.json'),
+    JSON.stringify({ id: '9D36046F-200E-44A4-ADBE-64521193DAFF', name: 'A', slug: 'a', image: 'items/' }),
+  )
+
+  const summary = await buildModule(root)
+  assert.equal(summary.itemCount, 1)
+})
+
+test('buildModule strips empty optional item fields but keeps meaningful defaults', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'exhaustive.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Exhaustive Item',
+      slug: 'exhaustive-item',
+      attributes: { measurement: '', ruleset: '' },
+      data: {
+        ac: 0,
+        attunement: false,
+        attunementDetail: '',
+        capacity: 0,
+        container: false,
+        dmg1: '',
+        dmgType: '',
+        mastery: '',
+        properties: [],
+        rarity: '',
+        stealth: false,
+        str: 0,
+        type: 'custom',
+        typeDetail: '',
+        value: 0,
+        weight: 0,
+      },
+      descr: '',
+      image: 'items/',
+      sources: [],
+      tags: [],
+    }),
+  )
+
+  const summary = await buildModule(root)
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json'))
+
+  assert.equal(items.length, 1)
+  const item = items[0]
+  assert.equal(item.attributes, undefined)
+  assert.equal(item.descr, undefined)
+  assert.equal(item.sources, undefined)
+  assert.equal(item.tags, undefined)
+  assert.deepEqual(item.data, {
+    ac: 0,
+    attunement: false,
+    capacity: 0,
+    container: false,
+    stealth: false,
+    str: 0,
+    type: 'custom',
+    value: 0,
+    weight: 0,
+  })
+})
+
+test('buildModule drops a data object that becomes empty after stripping', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'minimal.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Minimal',
+      slug: 'minimal',
+      data: { type: '', rarity: '' },
+    }),
+  )
+
+  const summary = await buildModule(root)
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json'))
+
+  assert.equal(items[0].data, undefined)
+})
+
+test('buildModule omits spells.json when there are no spells', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.spellCount, 0)
+  assert.ok(!listZipEntries(summary.outputPath).includes('spells.json'))
+})
+
+test('buildModule writes spells.json with rangeType/range and duration handled per real EncounterPlus exports', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'fireball.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Fireball',
+      slug: 'fireball',
+      data: {
+        level: 3,
+        school: 'evocation',
+        ritual: false,
+        activation: { time: 1, unit: 'action' },
+        range: 150,
+        areaEffectShape: 'sphere',
+        areaEffectSize: 20,
+        components: ['V', 'S', 'M'],
+        durationType: 'instantaneous',
+        classes: ['Sorcerer|phb-2024', 'Wizard|phb-2024'],
+      },
+      descr: 'A bright streak flashes.',
+    }),
+  )
+  await writeFile(
+    join(root, 'spells', 'guidance.json'),
+    JSON.stringify({
+      id: 'C696B1C4-CA42-48FF-8120-2395C3DBD013',
+      name: 'Guidance',
+      slug: 'guidance',
+      data: {
+        level: 0,
+        school: 'divination',
+        rangeType: 'touch',
+        durationType: 'concentration',
+        duration: 1,
+        durationUnit: 'minute',
+      },
+    }),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.spellCount, 2)
+  const spells = JSON.parse(readZipEntry(summary.outputPath, 'spells.json')).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  assert.equal(spells[0].name, 'Fireball')
+  assert.equal(spells[0].data.range, 150)
+  assert.equal(spells[0].data.rangeType, undefined)
+  assert.deepEqual(spells[0].data.classes, ['Sorcerer|phb-2024', 'Wizard|phb-2024'])
+  assert.equal(spells[1].name, 'Guidance')
+  assert.equal(spells[1].data.rangeType, 'touch')
+  assert.equal(spells[1].data.range, undefined)
+  assert.equal(spells[1].data.duration, 1)
+  assert.equal(spells[1].data.durationUnit, 'minute')
+})
+
+test('buildModule rejects a spell with an unrecognized data.school', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'weird.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Weird',
+      slug: 'weird',
+      data: { school: 'notASchool' },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('not a recognized spell school')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a spell with a level outside 0-9', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'bad.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Bad',
+      slug: 'bad',
+      data: { level: 10 },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('integer between 0 and 9')))
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a spell with an invalid activation.unit', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'bad.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Bad',
+      slug: 'bad',
+      data: { activation: { time: 1, unit: 'notAUnit' } },
+    }),
+  )
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.ok(error.issues.some((issue) => issue.message.includes('not a recognized activation unit')))
+      return true
+    },
+  )
+})
+
+test('buildModule strips empty optional spell fields but keeps meaningful defaults', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'exhaustive.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Exhaustive Spell',
+      slug: 'exhaustive-spell',
+      attributes: { measurement: '', ruleset: '' },
+      data: {
+        level: 0,
+        school: '',
+        ritual: false,
+        activation: { time: 0, unit: '', condition: '' },
+        rangeType: '',
+        range: 0,
+        areaEffectShape: '',
+        areaEffectSize: 0,
+        components: [],
+        componentsDetail: '',
+        durationType: '',
+        duration: 0,
+        durationUnit: '',
+        classes: [],
+      },
+      descr: '',
+      image: 'spells/',
+      sources: [],
+      tags: [],
+    }),
+  )
+
+  const summary = await buildModule(root)
+  const spells = JSON.parse(readZipEntry(summary.outputPath, 'spells.json'))
+
+  assert.equal(spells.length, 1)
+  const spell = spells[0]
+  assert.equal(spell.attributes, undefined)
+  assert.equal(spell.descr, undefined)
+  assert.equal(spell.sources, undefined)
+  assert.equal(spell.tags, undefined)
+  assert.deepEqual(spell.data, {
+    level: 0,
+    ritual: false,
+    activation: { time: 0 },
+    range: 0,
+    areaEffectSize: 0,
+    duration: 0,
+  })
+})

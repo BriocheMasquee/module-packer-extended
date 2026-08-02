@@ -82,6 +82,18 @@
         "icon": "$(package)"
       },
       {
+        "command": "mpx.createItem",
+        "title": "Create Item",
+        "category": "MPX",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "mpx.createSpell",
+        "title": "Create Spell",
+        "category": "MPX",
+        "icon": "$(sparkle)"
+      },
+      {
         "command": "mpx.createMonster",
         "title": "Create Monster",
         "category": "MPX",
@@ -132,6 +144,14 @@
       {
         "fileMatch": "/encounters/*.json",
         "url": "./resources/schemas/encounter.schema.json"
+      },
+      {
+        "fileMatch": "/items/*.json",
+        "url": "./resources/schemas/item.schema.json"
+      },
+      {
+        "fileMatch": "/spells/*.json",
+        "url": "./resources/schemas/spell.schema.json"
       }
     ],
     "markdown.markdownItPlugins": true,
@@ -186,9 +206,19 @@
           "group": "navigation@1"
         },
         {
-          "command": "mpx.createMonster",
+          "command": "mpx.createItem",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@1"
+        },
+        {
+          "command": "mpx.createSpell",
+          "when": "view == mpx.compendiumExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "mpx.createMonster",
+          "when": "view == mpx.compendiumExplorer",
+          "group": "navigation@3"
         }
       ]
     }

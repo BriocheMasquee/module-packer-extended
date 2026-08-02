@@ -31,6 +31,8 @@ export interface BuildSummary {
   groupCount: number
   mapCount: number
   encounterCount: number
+  itemCount: number
+  spellCount: number
   /** The version the .module archive was actually built with. */
   builtVersion: string
   /** Set only when autoIncrementVersion bumped module.json for the next build. */
@@ -84,19 +86,39 @@ const MODULE_JSON_OPTIONAL_FIELDS = [
   'package',
 ]
 
-/** EncounterPlus expects an unset optional field to be absent from
- * module.json, not an empty string/array — the project's own module.json
- * still keeps every field, for editing; only the built copy is trimmed. */
-function stripEmptyOptionalFields(moduleJson: Record<string, unknown>): Record<string, unknown> {
-  const cleaned = { ...moduleJson }
-  for (const field of MODULE_JSON_OPTIONAL_FIELDS) {
-    const value = cleaned[field]
-    const isEmpty = (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0)
-    if (isEmpty) {
+function isEmptyOptionalValue(value: unknown): boolean {
+  return (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0)
+}
+
+function stripEmptyValues(record: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
+  const cleaned = { ...record }
+  for (const field of fields) {
+    if (isEmptyOptionalValue(cleaned[field])) {
       delete cleaned[field]
     }
   }
   return cleaned
+}
+
+/** EncounterPlus expects an unset optional field to be absent from
+ * module.json, not an empty string/array — the project's own module.json
+ * still keeps every field, for editing; only the built copy is trimmed. */
+function stripEmptyOptionalFields(moduleJson: Record<string, unknown>): Record<string, unknown> {
+  return stripEmptyValues(moduleJson, MODULE_JSON_OPTIONAL_FIELDS)
+}
+
+/** Strips a nested object's own empty optional fields in place, then drops
+ * the whole field if nothing meaningful is left in it. */
+function stripEmptyNestedField(record: Record<string, unknown>, field: string, optionalFields: readonly string[]): void {
+  if (!isPlainObject(record[field])) {
+    return
+  }
+  const cleaned = stripEmptyValues(record[field], optionalFields)
+  if (Object.keys(cleaned).length === 0) {
+    delete record[field]
+  } else {
+    record[field] = cleaned
+  }
 }
 
 function numericOrUndefined(value: unknown): number | undefined {
@@ -304,6 +326,417 @@ async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<Res
   }
 
   return entries
+}
+
+const ITEM_TYPES = [
+  '',
+  'custom',
+  'armor',
+  'weapon',
+  'lightArmor',
+  'mediumArmor',
+  'heavyArmor',
+  'shield',
+  'meleeWeapon',
+  'rangedWeapon',
+  'ammunition',
+  'rod',
+  'staff',
+  'wand',
+  'potion',
+  'ring',
+  'scroll',
+  'wondrousItem',
+  'adventuringGear',
+  'wealth',
+  'gemstone',
+  'tool',
+  'poison',
+  'instrument',
+  'arcaneFocus',
+  'holySymbol',
+  'mount',
+  'equipmentPack',
+  'tradeGood',
+  'druidicFocus',
+  'vehicleLand',
+  'vehicleWater',
+  'vehicleSpace',
+]
+const ITEM_RARITIES = ['', 'common', 'uncommon', 'rare', 'veryrare', 'legendary', 'artifact', 'unknown']
+const ITEM_PROPERTIES = [
+  'ammunition',
+  'finesse',
+  'heavy',
+  'light',
+  'loading',
+  'range',
+  'reach',
+  'special',
+  'thrown',
+  'twoHanded',
+  'versatile',
+  'cleave',
+  'graze',
+  'nick',
+  'push',
+  'sap',
+  'slow',
+  'topple',
+  'vex',
+]
+const ITEM_MASTERIES = ['', 'cleave', 'graze', 'nick', 'push', 'sap', 'slow', 'topple', 'vex']
+const ITEM_DAMAGE_TYPES = [
+  '',
+  'acid',
+  'bludgeoning',
+  'cold',
+  'fire',
+  'force',
+  'lightning',
+  'necrotic',
+  'piercing',
+  'poison',
+  'psychic',
+  'radiant',
+  'slashing',
+  'thunder',
+]
+const ITEM_IMAGE_PATTERN = /^items\/[^/\\]+$/
+
+const COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS = ['measurement', 'ruleset']
+
+const ITEM_TOP_LEVEL_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
+const ITEM_DATA_OPTIONAL_FIELDS = [
+  'type',
+  'typeDetail',
+  'rarity',
+  'attunementDetail',
+  'mastery',
+  'dmg1',
+  'dmg2',
+  'dmgType',
+  'range',
+  'properties',
+]
+
+/** EncounterPlus stores an unfilled data/attributes field as absent, not as
+ * an empty string/array — the project's own item file still keeps every
+ * field, for editing; only the built copy is trimmed. Unlike module.json,
+ * a nested object (attributes/data) that ends up fully empty is dropped
+ * entirely rather than left behind as `{}`. */
+function stripEmptyItemFields(item: Record<string, unknown>): Record<string, unknown> {
+  const cleaned = stripEmptyValues(item, ITEM_TOP_LEVEL_OPTIONAL_FIELDS)
+  stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
+  stripEmptyNestedField(cleaned, 'data', ITEM_DATA_OPTIONAL_FIELDS)
+  return cleaned
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function validateItemData(relativePath: string, data: unknown, issues: BuildIssue[]): void {
+  if (data === undefined) {
+    return
+  }
+  if (!isPlainObject(data)) {
+    issues.push({ file: relativePath, message: 'data must be an object when provided.' })
+    return
+  }
+  if (data.type !== undefined && !ITEM_TYPES.includes(data.type as string)) {
+    issues.push({ file: relativePath, message: `data.type "${String(data.type)}" is not a recognized item type.` })
+  }
+  if (data.rarity !== undefined && !ITEM_RARITIES.includes(data.rarity as string)) {
+    issues.push({ file: relativePath, message: `data.rarity "${String(data.rarity)}" is not a recognized rarity.` })
+  }
+  if (data.dmgType !== undefined && !ITEM_DAMAGE_TYPES.includes(data.dmgType as string)) {
+    issues.push({ file: relativePath, message: `data.dmgType "${String(data.dmgType)}" is not a recognized damage type.` })
+  }
+  if (data.mastery !== undefined && !ITEM_MASTERIES.includes(data.mastery as string)) {
+    issues.push({ file: relativePath, message: `data.mastery "${String(data.mastery)}" is not a recognized mastery.` })
+  }
+  if (
+    data.properties !== undefined &&
+    (!Array.isArray(data.properties) || !data.properties.every((property) => ITEM_PROPERTIES.includes(property)))
+  ) {
+    issues.push({ file: relativePath, message: 'data.properties must be an array of recognized item properties.' })
+  }
+  for (const field of ['value', 'weight', 'ac', 'str', 'capacity']) {
+    if (data[field] !== undefined && typeof data[field] !== 'number') {
+      issues.push({ file: relativePath, message: `data.${field} must be a number when provided.` })
+    }
+  }
+  for (const field of ['attunement', 'stealth', 'container']) {
+    if (data[field] !== undefined && typeof data[field] !== 'boolean') {
+      issues.push({ file: relativePath, message: `data.${field} must be a boolean when provided.` })
+    }
+  }
+  for (const field of ['typeDetail', 'attunementDetail', 'dmg1', 'dmg2', 'range']) {
+    if (data[field] !== undefined && typeof data[field] !== 'string') {
+      issues.push({ file: relativePath, message: `data.${field} must be a string when provided.` })
+    }
+  }
+}
+
+const SPELL_SCHOOLS = [
+  '',
+  'abjuration',
+  'conjuration',
+  'divination',
+  'enchantment',
+  'evocation',
+  'illusion',
+  'necromancy',
+  'transmutation',
+]
+const SPELL_ACTIVATION_UNITS = ['', 'action', 'bonusAction', 'reaction', 'hour', 'minute']
+const SPELL_RANGE_TYPES = ['', 'self', 'touch', 'sight', 'unlimited']
+const SPELL_AREA_EFFECT_SHAPES = ['', 'cone', 'cube', 'cylinder', 'line', 'square', 'sphere', 'emanation']
+const SPELL_COMPONENTS = ['V', 'S', 'M']
+const SPELL_DURATION_TYPES = ['', 'concentration', 'instantaneous', 'special', 'dispel', 'dispelOrTrigger']
+const SPELL_DURATION_UNITS = ['', 'round', 'minute', 'hour', 'day']
+const SPELL_IMAGE_PATTERN = /^spells\/[^/\\]+$/
+
+const SPELL_TOP_LEVEL_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
+const SPELL_DATA_OPTIONAL_FIELDS = [
+  'school',
+  'rangeType',
+  'areaEffectShape',
+  'componentsDetail',
+  'durationType',
+  'durationUnit',
+  'components',
+  'classes',
+]
+const SPELL_ACTIVATION_OPTIONAL_FIELDS = ['unit', 'condition']
+
+function validateSpellData(relativePath: string, data: unknown, issues: BuildIssue[]): void {
+  if (data === undefined) {
+    return
+  }
+  if (!isPlainObject(data)) {
+    issues.push({ file: relativePath, message: 'data must be an object when provided.' })
+    return
+  }
+  if (
+    data.level !== undefined &&
+    (typeof data.level !== 'number' || !Number.isInteger(data.level) || data.level < 0 || data.level > 9)
+  ) {
+    issues.push({ file: relativePath, message: 'data.level must be an integer between 0 and 9 when provided.' })
+  }
+  if (data.school !== undefined && !SPELL_SCHOOLS.includes(data.school as string)) {
+    issues.push({ file: relativePath, message: `data.school "${String(data.school)}" is not a recognized spell school.` })
+  }
+  if (data.ritual !== undefined && typeof data.ritual !== 'boolean') {
+    issues.push({ file: relativePath, message: 'data.ritual must be a boolean when provided.' })
+  }
+  if (data.activation !== undefined) {
+    if (!isPlainObject(data.activation)) {
+      issues.push({ file: relativePath, message: 'data.activation must be an object when provided.' })
+    } else {
+      const activation = data.activation
+      if (activation.time !== undefined && typeof activation.time !== 'number') {
+        issues.push({ file: relativePath, message: 'data.activation.time must be a number when provided.' })
+      }
+      if (activation.unit !== undefined && !SPELL_ACTIVATION_UNITS.includes(activation.unit as string)) {
+        issues.push({
+          file: relativePath,
+          message: `data.activation.unit "${String(activation.unit)}" is not a recognized activation unit.`,
+        })
+      }
+      if (activation.condition !== undefined && typeof activation.condition !== 'string') {
+        issues.push({ file: relativePath, message: 'data.activation.condition must be a string when provided.' })
+      }
+    }
+  }
+  if (data.rangeType !== undefined && !SPELL_RANGE_TYPES.includes(data.rangeType as string)) {
+    issues.push({ file: relativePath, message: `data.rangeType "${String(data.rangeType)}" is not a recognized range type.` })
+  }
+  if (data.range !== undefined && typeof data.range !== 'number') {
+    issues.push({ file: relativePath, message: 'data.range must be a number when provided.' })
+  }
+  if (data.areaEffectShape !== undefined && !SPELL_AREA_EFFECT_SHAPES.includes(data.areaEffectShape as string)) {
+    issues.push({
+      file: relativePath,
+      message: `data.areaEffectShape "${String(data.areaEffectShape)}" is not a recognized area effect shape.`,
+    })
+  }
+  if (data.areaEffectSize !== undefined && typeof data.areaEffectSize !== 'number') {
+    issues.push({ file: relativePath, message: 'data.areaEffectSize must be a number when provided.' })
+  }
+  if (
+    data.components !== undefined &&
+    (!Array.isArray(data.components) || !data.components.every((component) => SPELL_COMPONENTS.includes(component)))
+  ) {
+    issues.push({ file: relativePath, message: 'data.components must be an array of recognized spell components.' })
+  }
+  if (data.componentsDetail !== undefined && typeof data.componentsDetail !== 'string') {
+    issues.push({ file: relativePath, message: 'data.componentsDetail must be a string when provided.' })
+  }
+  if (data.durationType !== undefined && !SPELL_DURATION_TYPES.includes(data.durationType as string)) {
+    issues.push({
+      file: relativePath,
+      message: `data.durationType "${String(data.durationType)}" is not a recognized duration type.`,
+    })
+  }
+  if (data.duration !== undefined && typeof data.duration !== 'number') {
+    issues.push({ file: relativePath, message: 'data.duration must be a number when provided.' })
+  }
+  if (data.durationUnit !== undefined && !SPELL_DURATION_UNITS.includes(data.durationUnit as string)) {
+    issues.push({
+      file: relativePath,
+      message: `data.durationUnit "${String(data.durationUnit)}" is not a recognized duration unit.`,
+    })
+  }
+  if (
+    data.classes !== undefined &&
+    (!Array.isArray(data.classes) || !data.classes.every((entry) => typeof entry === 'string'))
+  ) {
+    issues.push({ file: relativePath, message: 'data.classes must be an array of strings when provided.' })
+  }
+}
+
+function stripEmptySpellFields(spell: Record<string, unknown>): Record<string, unknown> {
+  const cleaned = stripEmptyValues(spell, SPELL_TOP_LEVEL_OPTIONAL_FIELDS)
+  stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
+  if (isPlainObject(cleaned.data)) {
+    const data = stripEmptyValues(cleaned.data, SPELL_DATA_OPTIONAL_FIELDS)
+    stripEmptyNestedField(data, 'activation', SPELL_ACTIVATION_OPTIONAL_FIELDS)
+    if (Object.keys(data).length === 0) {
+      delete cleaned.data
+    } else {
+      cleaned.data = data
+    }
+  }
+  return cleaned
+}
+
+interface CompendiumEntryOptions {
+  folder: string
+  kind: string
+  imagePattern: RegExp
+  validateData: (relativePath: string, data: unknown, issues: BuildIssue[]) => void
+  stripEmptyFields: (record: Record<string, unknown>) => Record<string, unknown>
+}
+
+/** Reads <folder>/**\/*.json (items, spells, ...). Unlike pages/groups/maps/
+ * encounters, these carry no rank/parent — they're flat compendium content,
+ * each requiring its own explicit, permanent UUID (never recomputed from the
+ * slug). */
+async function readCompendiumEntries(
+  moduleRoot: string,
+  options: CompendiumEntryOptions,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+): Promise<Record<string, unknown>[]> {
+  const { folder, kind, imagePattern, validateData, stripEmptyFields } = options
+  const entries: Record<string, unknown>[] = []
+  const pathById = new Map<string, string>()
+  const pathBySlug = new Map<string, string>()
+
+  for (const filePath of await listFilesRecursively(join(moduleRoot, folder), '.json')) {
+    const relativePath = toPortablePath(moduleRoot, filePath)
+    let data: Record<string, unknown>
+    try {
+      data = JSON.parse(await readFile(filePath, 'utf8')) as Record<string, unknown>
+    } catch (error) {
+      issues.push({ file: relativePath, message: `Invalid JSON: ${(error as Error).message}` })
+      continue
+    }
+
+    if (!isUuid(data.id)) {
+      issues.push({ file: relativePath, message: 'Must contain a valid UUID id.' })
+    }
+    if (!isNonEmptyString(data.name)) {
+      issues.push({ file: relativePath, message: 'Must contain a non-empty name.' })
+    }
+    if (!isNonEmptyString(data.slug)) {
+      issues.push({ file: relativePath, message: 'Must contain a non-empty slug.' })
+    }
+    validateSlugFormat(relativePath, data.slug, issues)
+    if (data.attributes !== undefined && !isPlainObject(data.attributes)) {
+      issues.push({ file: relativePath, message: 'attributes must be an object when provided.' })
+    }
+    validateData(relativePath, data.data, issues)
+    if (data.sources !== undefined && !Array.isArray(data.sources)) {
+      issues.push({ file: relativePath, message: 'sources must be an array when provided.' })
+    }
+    if (data.tags !== undefined && (!Array.isArray(data.tags) || !data.tags.every((tag) => typeof tag === 'string'))) {
+      issues.push({ file: relativePath, message: 'tags must be an array of strings when provided.' })
+    }
+    if (isNonEmptyString(data.image) && data.image !== `${folder}/`) {
+      if (!imagePattern.test(data.image)) {
+        issues.push({ file: relativePath, message: `image must be a path to a file directly inside the ${folder} folder.` })
+      } else {
+        const resolved = await checkResourceReference(moduleRoot, relativePath, '"image"', data.image, issues)
+        if (resolved) {
+          imageResourcesOut.set(data.image, resolved)
+        }
+      }
+    }
+
+    if (!isUuid(data.id) || !isNonEmptyString(data.slug)) {
+      continue
+    }
+    const slug = data.slug.trim()
+    const id = data.id
+
+    const existingIdPath = pathById.get(id)
+    if (existingIdPath) {
+      issues.push({ file: relativePath, message: `Duplicate ${kind} id "${id}" in ${existingIdPath} and ${relativePath}.` })
+    } else {
+      pathById.set(id, relativePath)
+    }
+    const existingSlugPath = pathBySlug.get(slug)
+    if (existingSlugPath) {
+      issues.push({ file: relativePath, message: `Duplicate ${kind} slug "${slug}" in ${existingSlugPath} and ${relativePath}.` })
+    } else {
+      pathBySlug.set(slug, relativePath)
+    }
+
+    entries.push(stripEmptyFields({ ...data, slug }))
+  }
+
+  return entries.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+}
+
+function readItems(
+  moduleRoot: string,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+): Promise<Record<string, unknown>[]> {
+  return readCompendiumEntries(
+    moduleRoot,
+    {
+      folder: 'items',
+      kind: 'item',
+      imagePattern: ITEM_IMAGE_PATTERN,
+      validateData: validateItemData,
+      stripEmptyFields: stripEmptyItemFields,
+    },
+    issues,
+    imageResourcesOut,
+  )
+}
+
+function readSpells(
+  moduleRoot: string,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+): Promise<Record<string, unknown>[]> {
+  return readCompendiumEntries(
+    moduleRoot,
+    {
+      folder: 'spells',
+      kind: 'spell',
+      imagePattern: SPELL_IMAGE_PATTERN,
+      validateData: validateSpellData,
+      stripEmptyFields: stripEmptySpellFields,
+    },
+    issues,
+    imageResourcesOut,
+  )
 }
 
 function isResourceNameReserved(name: string): boolean {
@@ -532,11 +965,15 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   await validateModuleJson(moduleRoot, moduleJson, issues)
 
   const exportedResources = new Map<string, { data: Buffer; sourceName: string }>()
-  const [pages, groups, maps, encounters] = await Promise.all([
+  const itemImageResources = new Map<string, string>()
+  const spellImageResources = new Map<string, string>()
+  const [pages, groups, maps, encounters, items, spells] = await Promise.all([
     readPages(moduleRoot, issues),
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
     readMapOrEncounterEntries(moduleRoot, 'encounter', issues, exportedResources),
+    readItems(moduleRoot, issues, itemImageResources),
+    readSpells(moduleRoot, issues, spellImageResources),
   ])
   const entries = [...pages, ...groups, ...maps, ...encounters]
 
@@ -593,6 +1030,12 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   addJson(groupRecords, 'groups.json')
   addJson(mapRecords, 'maps.json')
   addJson(encounterRecords, 'encounters.json')
+  if (items.length > 0) {
+    addJson(items, 'items.json')
+  }
+  if (spells.length > 0) {
+    addJson(spells, 'spells.json')
+  }
 
   await addDirectoryToZip(zip, join(moduleRoot, 'images'), 'images')
   await addDirectoryToZip(zip, join(moduleRoot, 'assets'), 'assets')
@@ -601,6 +1044,13 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   // EncounterPlus never sees the original export zips, only their contents.
   for (const [resourceName, resource] of exportedResources) {
     zip.addBuffer(resource.data, resourceName, { compress: false })
+  }
+
+  for (const [archivePath, resolvedPath] of itemImageResources) {
+    zip.addFile(resolvedPath, archivePath, { compress: false })
+  }
+  for (const [archivePath, resolvedPath] of spellImageResources) {
+    zip.addFile(resolvedPath, archivePath, { compress: false })
   }
 
   for (const field of ['image', 'banner']) {
@@ -633,6 +1083,8 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     groupCount: groupRecords.length,
     mapCount: mapRecords.length,
     encounterCount: encounterRecords.length,
+    itemCount: items.length,
+    spellCount: spells.length,
     builtVersion,
     nextVersion,
   }
