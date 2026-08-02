@@ -1,0 +1,595 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MPX EncounterPlus V5 Monster",
+  "description": "A compendium monster authored directly as a project file.",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "slug"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "markdownDescription": "*Required.* Persistent UUID of the monster. Keep this value unchanged once the monster has been used in a build.",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "patternErrorMessage": "The monster id must be a valid UUID.",
+      "examples": [
+        "9D36046F-200E-44A4-ADBE-64521193DAFF"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "markdownDescription": "*Required.* Display name of the monster.",
+      "minLength": 1,
+      "examples": [
+        "Air Elemental"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens. Each content item in the module must use a different slug.",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "patternErrorMessage": "The slug must contain only lowercase letters, digits, and hyphens (no spaces, accents, or uppercase).",
+      "examples": [
+        "air-elemental"
+      ]
+    },
+    "attributes": {
+      "type": "object",
+      "markdownDescription": "*Optional.* Measurement system and ruleset this monster's values are written for.",
+      "properties": {
+        "measurement": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Measurement system used for speed and distance values.\n\nPossible values: `\"\"` (default), `\"metric\"`, `\"imperial\"`.",
+          "enum": [
+            "",
+            "metric",
+            "imperial"
+          ]
+        },
+        "ruleset": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Ruleset this monster's data follows.\n\nPossible values: `\"\"` (default), `\"5e\"`, `\"5.5e\"`.",
+          "enum": [
+            "",
+            "5e",
+            "5.5e"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "data": {
+      "type": "object",
+      "markdownDescription": "*Optional.* Monster statistics. Every field is itself optional — delete any that don't apply to this monster.",
+      "properties": {
+        "size": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Creature size.\n\nPossible values: `\"\"` (default), `\"T\"` (Tiny), `\"S\"` (Small), `\"M\"` (Medium), `\"L\"` (Large), `\"H\"` (Huge), `\"G\"` (Gargantuan), `\"C\"` (Colossal).",
+          "enum": [
+            "",
+            "T",
+            "S",
+            "M",
+            "L",
+            "H",
+            "G",
+            "C"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Creature type.\n\nPossible values: `\"\"` (default), `\"aberration\"`, `\"beast\"`, `\"celestial\"`, `\"construct\"`, `\"dragon\"`, `\"elemental\"`, `\"fey\"`, `\"fiend\"`, `\"giant\"`, `\"humanoid\"`, `\"monstrosity\"`, `\"ooze\"`, `\"plant\"`, `\"undead\"`.",
+          "enum": [
+            "",
+            "aberration",
+            "beast",
+            "celestial",
+            "construct",
+            "dragon",
+            "elemental",
+            "fey",
+            "fiend",
+            "giant",
+            "humanoid",
+            "monstrosity",
+            "ooze",
+            "plant",
+            "undead"
+          ]
+        },
+        "typeDetail": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Free-text detail shown next to the type.",
+          "examples": [
+            "any evil alignment"
+          ]
+        },
+        "alignment": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Creature alignment.\n\nPossible values: `\"\"` (default), `\"LG\"`, `\"NG\"`, `\"CG\"`, `\"LN\"`, `\"NN\"`, `\"CN\"`, `\"LE\"`, `\"NE\"`, `\"CE\"`, `\"UU\"` (unaligned).",
+          "enum": [
+            "",
+            "LG",
+            "NG",
+            "CG",
+            "LN",
+            "NN",
+            "CN",
+            "LE",
+            "NE",
+            "CE",
+            "UU"
+          ]
+        },
+        "ac": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Armor class, as free text (a real EncounterPlus export stores this as a string, not a number).",
+          "examples": [
+            "15 (natural armor)"
+          ]
+        },
+        "hp": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Hit points, as free text.",
+          "examples": [
+            "90 (12d10+24)"
+          ]
+        },
+        "speed": {
+          "type": "object",
+          "markdownDescription": "*Optional.* Movement speeds. Every field is itself optional.",
+          "properties": {
+            "walk": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Walking speed, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "burrow": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Burrowing speed, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "climb": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Climbing speed, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "fly": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Flying speed, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "hover": {
+              "type": "boolean",
+              "markdownDescription": "*Optional.* Whether the creature can hover.\n\nPossible values: `true` or `false` (default)."
+            },
+            "swim": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Swimming speed, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "other": {
+              "type": "string",
+              "markdownDescription": "*Optional.* Free-text additional movement detail."
+            }
+          },
+          "additionalProperties": true
+        },
+        "abilities": {
+          "type": "object",
+          "markdownDescription": "*Optional.* Ability scores.",
+          "properties": {
+            "str": {
+              "type": "number",
+              "default": 10
+            },
+            "dex": {
+              "type": "number",
+              "default": 10
+            },
+            "con": {
+              "type": "number",
+              "default": 10
+            },
+            "int": {
+              "type": "number",
+              "default": 10
+            },
+            "wis": {
+              "type": "number",
+              "default": 10
+            },
+            "cha": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          "additionalProperties": true
+        },
+        "savingThrows": {
+          "type": "object",
+          "markdownDescription": "*Optional.* Saving throw bonuses, keyed by ability.\n\nPossible keys: `\"str\"`, `\"dex\"`, `\"con\"`, `\"int\"`, `\"wis\"`, `\"cha\"`.\n\nExample: `{ \"str\": 5, \"con\": 3 }`\n\nEmpty: `{}`",
+          "propertyNames": {
+            "enum": [
+              "str",
+              "dex",
+              "con",
+              "int",
+              "wis",
+              "cha"
+            ]
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "examples": [
+            {
+              "str": 5,
+              "con": 3
+            }
+          ]
+        },
+        "skills": {
+          "type": "object",
+          "markdownDescription": "*Optional.* Skill bonuses, keyed by skill name.\n\nPossible keys: `\"acrobatics\"`, `\"animalHandling\"`, `\"arcana\"`, `\"athletics\"`, `\"deception\"`, `\"history\"`, `\"insight\"`, `\"intimidation\"`, `\"investigation\"`, `\"medicine\"`, `\"nature\"`, `\"perception\"`, `\"performance\"`, `\"persuasion\"`, `\"religion\"`, `\"sleightOfHand\"`, `\"stealth\"`, `\"survival\"`.\n\nExample: `{ \"perception\": 4, \"stealth\": 2 }`\n\nEmpty: `{}`",
+          "propertyNames": {
+            "enum": [
+              "acrobatics",
+              "animalHandling",
+              "arcana",
+              "athletics",
+              "deception",
+              "history",
+              "insight",
+              "intimidation",
+              "investigation",
+              "medicine",
+              "nature",
+              "perception",
+              "performance",
+              "persuasion",
+              "religion",
+              "sleightOfHand",
+              "stealth",
+              "survival"
+            ]
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "examples": [
+            {
+              "perception": 4,
+              "stealth": 2
+            }
+          ]
+        },
+        "conditionImmunities": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Condition immunities. Not validated against a fixed list yet — conditions aren't their own Compendium content type.\n\nExample: `[\"Blinded\", \"Frightened\"]`\n\nEmpty: `[]`",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "damageImmunities": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Damage type immunities.\n\nPossible values: `\"acid\"`, `\"bludgeoning\"`, `\"cold\"`, `\"fire\"`, `\"force\"`, `\"lightning\"`, `\"necrotic\"`, `\"piercing\"`, `\"poison\"`, `\"psychic\"`, `\"radiant\"`, `\"slashing\"`, `\"thunder\"`.\n\nEmpty: `[]`",
+          "items": {
+            "type": "string",
+            "enum": [
+              "acid",
+              "bludgeoning",
+              "cold",
+              "fire",
+              "force",
+              "lightning",
+              "necrotic",
+              "piercing",
+              "poison",
+              "psychic",
+              "radiant",
+              "slashing",
+              "thunder"
+            ]
+          },
+          "default": []
+        },
+        "damageResistances": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Damage type resistances. Same possible values as `damageImmunities`.\n\nEmpty: `[]`",
+          "items": {
+            "type": "string",
+            "enum": [
+              "acid",
+              "bludgeoning",
+              "cold",
+              "fire",
+              "force",
+              "lightning",
+              "necrotic",
+              "piercing",
+              "poison",
+              "psychic",
+              "radiant",
+              "slashing",
+              "thunder"
+            ]
+          },
+          "default": []
+        },
+        "damageVulnerabilities": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Damage type vulnerabilities. Same possible values as `damageImmunities`.\n\nEmpty: `[]`",
+          "items": {
+            "type": "string",
+            "enum": [
+              "acid",
+              "bludgeoning",
+              "cold",
+              "fire",
+              "force",
+              "lightning",
+              "necrotic",
+              "piercing",
+              "poison",
+              "psychic",
+              "radiant",
+              "slashing",
+              "thunder"
+            ]
+          },
+          "default": []
+        },
+        "senses": {
+          "type": "object",
+          "markdownDescription": "*Optional.* Special senses. Every field is itself optional.",
+          "properties": {
+            "blindsight": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Blindsight range, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "darkvision": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Darkvision range, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "tremorsense": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Tremorsense range, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "truesight": {
+              "type": "number",
+              "markdownDescription": "*Optional.* Truesight range, in the unit set by `attributes.measurement` (feet or meters).",
+              "default": 0
+            },
+            "other": {
+              "type": "string",
+              "markdownDescription": "*Optional.* Free-text additional sense detail."
+            }
+          },
+          "additionalProperties": true
+        },
+        "passivePerception": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Passive Perception score.",
+          "default": 0
+        },
+        "languages": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Languages known. The real EncounterPlus form also allows a custom, freely-typed entry alongside the standard list below, so any string is accepted here too.\n\nCommon values: `\"common\"`, `\"dwarvish\"`, `\"elvish\"`, `\"giant\"`, `\"gnomish\"`, `\"goblin\"`, `\"halfling\"`, `\"orc\"`, `\"abyssal\"`, `\"celestial\"`, `\"deepSpeech\"`, `\"draconic\"`, `\"infernal\"`, `\"primordial\"`, `\"sylvan\"`, `\"undercommon\"`.\n\nEmpty: `[]`",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "cr": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Challenge rating — a closed list, confirmed against EncounterPlus's own challenge-rating-to-XP table.\n\nPossible values: `\"\"` (default), `\"0\"`, `\"1/8\"`, `\"1/4\"`, `\"1/2\"`, `\"1\"`-`\"30\"`.",
+          "enum": [
+            "",
+            "0",
+            "1/8",
+            "1/4",
+            "1/2",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20",
+            "21",
+            "22",
+            "23",
+            "24",
+            "25",
+            "26",
+            "27",
+            "28",
+            "29",
+            "30"
+          ],
+          "examples": [
+            "1/4",
+            "5"
+          ]
+        },
+        "initiativeBonus": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Initiative bonus override.",
+          "default": 0
+        },
+        "proficiencyBonus": {
+          "type": "number",
+          "markdownDescription": "*Optional.* Proficiency bonus override.",
+          "default": 0
+        },
+        "environments": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Environments this monster is found in. Same as `languages`, a custom entry is allowed alongside the standard list below.\n\nCommon values: `\"arctic\"`, `\"coastal\"`, `\"desert\"`, `\"forest\"`, `\"grassland\"`, `\"hill\"`, `\"mountain\"`, `\"swamp\"`, `\"underdark\"`, `\"underwater\"`, `\"urban\"`.\n\nEmpty: `[]`",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "traits": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Passive traits.\n\nExample: `[{ \"name\": \"Amphibious\", \"text\": \"The creature can breathe air and water.\" }]`\n\nEmpty: `[]`",
+          "items": {
+            "$ref": "#/$defs/monsterFeature"
+          },
+          "default": []
+        },
+        "actions": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Actions.\n\nExample: `[{ \"name\": \"Bite\", \"text\": \"Melee Weapon Attack: +4 to hit.\" }]`\n\nEmpty: `[]`",
+          "items": {
+            "$ref": "#/$defs/monsterFeature"
+          },
+          "default": []
+        },
+        "bonusActions": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Bonus actions.\n\nEmpty: `[]`",
+          "items": {
+            "$ref": "#/$defs/monsterFeature"
+          },
+          "default": []
+        },
+        "reactions": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Reactions.\n\nEmpty: `[]`",
+          "items": {
+            "$ref": "#/$defs/monsterFeature"
+          },
+          "default": []
+        },
+        "legendaryActions": {
+          "type": "array",
+          "markdownDescription": "*Optional.* Legendary actions.\n\nEmpty: `[]`",
+          "items": {
+            "$ref": "#/$defs/monsterFeature"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": true
+    },
+    "descr": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Description of the monster.",
+      "examples": [
+        "A swirling mass of animate air."
+      ]
+    },
+    "image": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Path to the monster's illustration, relative to the project root. Save the image directly inside the `monsters` folder at the project root.",
+      "pattern": "^monsters/[^/\\\\]*$",
+      "patternErrorMessage": "The image path must point to a file stored directly inside the project's monsters folder.",
+      "default": "monsters/",
+      "examples": [
+        "monsters/air-elemental.png"
+      ]
+    },
+    "token": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Path to the monster's map token image, relative to the project root — separate from `image`. Save it directly inside the `monsters` folder at the project root.",
+      "pattern": "^monsters/[^/\\\\]*$",
+      "patternErrorMessage": "The token path must point to a file stored directly inside the project's monsters folder.",
+      "default": "monsters/",
+      "examples": [
+        "monsters/air-elemental-token.png"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Sourcebook references for this monster.\n\nExample: `[{ \"name\": \"Monster Manual\", \"page\": 123 }]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "markdownDescription": "*Required.* Name of the sourcebook."
+          },
+          "page": {
+            "type": "number",
+            "markdownDescription": "*Optional.* Page number in the sourcebook."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "default": [],
+      "examples": [
+        [
+          {
+            "name": "Monster Manual",
+            "page": 123
+          }
+        ]
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "markdownDescription": "*Optional.* Array of keywords used to describe and find the monster.\n\nExample: `[\"elemental\", \"boss\"]`\n\nEmpty: `[]`",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "examples": [
+        [
+          "elemental",
+          "boss"
+        ]
+      ]
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "monsterFeature": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Feature name."
+        },
+        "text": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Feature description."
+        },
+        "usage": {
+          "type": "string",
+          "markdownDescription": "*Optional.* Usage limitation, e.g. a recharge or per-day limit.",
+          "examples": [
+            "Recharge 5-6",
+            "2/Day"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
