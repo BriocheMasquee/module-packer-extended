@@ -7,6 +7,7 @@ const VIEW_ID = 'mpx.compendiumExplorer'
 const CATEGORIES = [
   { label: 'Items', folder: 'items' },
   { label: 'Spells', folder: 'spells' },
+  { label: 'Roll Tables', folder: 'tables' },
 ] as const
 
 class CompendiumCategoryItem extends vscode.TreeItem {
@@ -103,7 +104,7 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
     }
 
     watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, '{items,spells}/**/*.json'),
+      new vscode.RelativePattern(workspaceFolder, '{items,spells,tables}/**/*.json'),
     )
     watcher.onDidCreate(refresh)
     watcher.onDidChange(refresh)

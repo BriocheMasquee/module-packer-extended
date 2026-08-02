@@ -94,6 +94,12 @@
         "icon": "$(sparkle)"
       },
       {
+        "command": "mpx.createRollTable",
+        "title": "Create Roll Table",
+        "category": "MPX",
+        "icon": "$(list-unordered)"
+      },
+      {
         "command": "mpx.createMonster",
         "title": "Create Monster",
         "category": "MPX",
@@ -152,6 +158,10 @@
       {
         "fileMatch": "/spells/*.json",
         "url": "./resources/schemas/spell.schema.json"
+      },
+      {
+        "fileMatch": "/tables/*.json",
+        "url": "./resources/schemas/table.schema.json"
       }
     ],
     "markdown.markdownItPlugins": true,
@@ -216,9 +226,14 @@
           "group": "navigation@2"
         },
         {
-          "command": "mpx.createMonster",
+          "command": "mpx.createRollTable",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@3"
+        },
+        {
+          "command": "mpx.createMonster",
+          "when": "view == mpx.compendiumExplorer",
+          "group": "navigation@4"
         }
       ]
     }

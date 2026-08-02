@@ -23,5 +23,5 @@ If a `parent` value doesn't match exactly one other item's `slug` (missing, or m
 
 ## Not included (yet)
 
-- No "Compendium" view (items, spells, roll tables, monsters) — that's a separate feature, to be built together with the commands that create that content.
+- Items, spells, and roll tables don't appear here — they're flat compendium content with no `parent`/`rank`, shown instead in the separate [Compendium](Compendium) view.
 - No right-click context menu on tree items (create/rename/delete from a node) — matches the current command set, which only has "Create Module Project" so far.
