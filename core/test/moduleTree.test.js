@@ -135,3 +135,16 @@ test('parseModuleTree returns an empty tree when there is no content yet', async
   const root = await makeTempModule()
   assert.deepEqual(await parseModuleTree(root), [])
 })
+
+test('parseModuleTree exposes each node\'s rank', async () => {
+  const root = await makeTempModule()
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    pageContent({ name: 'Intro', slug: 'intro', rank: 3 }),
+  )
+
+  const tree = await parseModuleTree(root)
+
+  assert.equal(tree[0].rank, 3)
+})
