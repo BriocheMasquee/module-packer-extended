@@ -16,7 +16,7 @@ Open the MPX panel (activity bar icon). The "Module" view lists the module's con
 
 - Pages: `pages/**/*.md`, metadata read from the Markdown front matter (`name`, `slug`, `rank`, `parent`).
 - Groups: `groups/**/*.json` (`name`, `slug`, `rank`, `parent`).
-- Maps: `maps/**/*.json` (`slug`, `rank`, `parent` — the slug is used as the display name).
+- Maps: `maps/**/*.json` (`name`, `slug`, `rank`, `parent` — falls back to the slug, then the file name, if `name` is missing).
 - Encounters: `encounters/**/*.json` (same shape as maps).
 
 If a `parent` value doesn't match exactly one other item's `slug` (missing, or matching more than one), or if following the parent chain would create a cycle, the item is placed at the root instead of being nested — the tree never breaks or hides content because of bad data.

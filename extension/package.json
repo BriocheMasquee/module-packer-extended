@@ -63,6 +63,12 @@
         "title": "Create Encounter Reference",
         "category": "MPX",
         "icon": "$(target)"
+      },
+      {
+        "command": "mpx.buildModule",
+        "title": "Build Module",
+        "category": "MPX",
+        "icon": "$(package)"
       }
     ],
     "viewsContainers": {
@@ -118,9 +124,14 @@
           "group": "navigation@4"
         },
         {
-          "command": "mpx.refreshExplorer",
+          "command": "mpx.buildModule",
           "when": "view == mpx.moduleExplorer",
           "group": "navigation@5"
+        },
+        {
+          "command": "mpx.refreshExplorer",
+          "when": "view == mpx.moduleExplorer",
+          "group": "navigation@6"
         }
       ]
     }

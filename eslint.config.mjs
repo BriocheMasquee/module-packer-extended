@@ -18,9 +18,18 @@ export default tseslint.config(
         module: 'readonly',
         __dirname: 'readonly',
         process: 'readonly',
+        Buffer: 'readonly',
       },
     },
     rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
+    files: ['core/src/markdownRenderer.ts'],
+    rules: {
+      // These markdown-it plugins have no usable published types, so they're
+      // loaded via require() (typed `any`) rather than `import`.
       '@typescript-eslint/no-require-imports': 'off',
     },
   },
