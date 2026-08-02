@@ -34,7 +34,7 @@
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "description": "Automatically bump module.json's patch version (e.g. 1.0.0 -> 1.0.1) after each successful build."
+          "markdownDescription": "Whether to automatically bump `module.json`'s patch version (e.g. `1.0.0` -> `1.0.1`) after each successful build.\n\nPossible values: `true` (default) or `false`."
         }
       }
     },
