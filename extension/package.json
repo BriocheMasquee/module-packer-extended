@@ -80,6 +80,12 @@
         "title": "Build Module",
         "category": "MPX",
         "icon": "$(package)"
+      },
+      {
+        "command": "mpx.createMonster",
+        "title": "Create Monster",
+        "category": "MPX",
+        "icon": "$(new-file)"
       }
     ],
     "viewsContainers": {
@@ -101,6 +107,11 @@
         {
           "id": "mpx.moduleExplorer",
           "name": "Module",
+          "icon": "resources/mpx-icon-mono.svg"
+        },
+        {
+          "id": "mpx.compendiumExplorer",
+          "name": "Compendium",
           "icon": "resources/mpx-icon-mono.svg"
         }
       ]
@@ -172,6 +183,11 @@
         {
           "command": "mpx.buildModule",
           "when": "view == mpx.projectExplorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mpx.createMonster",
+          "when": "view == mpx.compendiumExplorer",
           "group": "navigation@1"
         }
       ]

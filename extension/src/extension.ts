@@ -3,6 +3,7 @@ import * as vscode from 'vscode'
 import { createMarkdownRenderer, createModuleProject, detectWorkspaceKind } from 'mpx-core'
 import { registerModuleExplorer } from './moduleExplorer.js'
 import { registerProjectExplorer } from './projectExplorer.js'
+import { registerCompendiumExplorer } from './compendiumExplorer.js'
 import { registerContentCommands } from './contentCommands.js'
 import { registerBuildModuleCommand } from './buildModuleCommand.js'
 import { registerPreviewConfiguration } from './previewConfiguration.js'
@@ -139,6 +140,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
   )
   registerProjectExplorer(context)
   registerModuleExplorer(context)
+  registerCompendiumExplorer(context)
   registerContentCommands(context)
   registerBuildModuleCommand(context)
   registerPreviewConfiguration(context)
