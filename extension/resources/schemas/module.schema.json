@@ -13,7 +13,7 @@
   "properties": {
     "id": {
       "type": "string",
-      "description": "Required. Persistent UUID of the module. Keep this value unchanged between releases of the same module.",
+      "markdownDescription": "*Required.* Persistent UUID of the module. Keep this value unchanged between releases of the same module.",
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
       "patternErrorMessage": "The module id must be a valid UUID.",
       "examples": [
@@ -22,7 +22,7 @@
     },
     "name": {
       "type": "string",
-      "description": "Required. Display name of the module.",
+      "markdownDescription": "*Required.* Display name of the module.",
       "minLength": 1,
       "examples": [
         "My EncounterPlus Module"
@@ -30,7 +30,7 @@
     },
     "slug": {
       "type": "string",
-      "description": "Required. Stable text identifier without accents or spaces. Separate words with hyphens.",
+      "markdownDescription": "*Required.* Stable text identifier without accents or spaces. Separate words with hyphens.",
       "minLength": 1,
       "examples": [
         "my-encounterplus-module"
@@ -38,14 +38,14 @@
     },
     "acronym": {
       "type": "string",
-      "description": "Optional. Short name or acronym used to identify the module.",
+      "markdownDescription": "*Optional.* Short name or acronym used to identify the module.",
       "examples": [
         "MEM"
       ]
     },
     "version": {
       "type": "string",
-      "description": "Required. Version of the module.",
+      "markdownDescription": "*Required.* Version of the module.",
       "minLength": 1,
       "default": "1.0.0",
       "examples": [
@@ -54,7 +54,7 @@
     },
     "system": {
       "type": "string",
-      "description": "Required. EncounterPlus system ID, for example dnd5e.",
+      "markdownDescription": "*Required.* EncounterPlus system ID, for example `dnd5e`.",
       "minLength": 1,
       "default": "dnd5e",
       "examples": [
@@ -63,7 +63,7 @@
     },
     "category": {
       "type": "string",
-      "description": "Optional. Category used by EncounterPlus to classify the module: adventure, pack, rules, compendium, or other. Leave empty until a category is chosen.",
+      "markdownDescription": "*Optional.* Category used by EncounterPlus to classify the module. Leave empty until a category is chosen.\n\nPossible values: `\"\"` (default), `\"adventure\"`, `\"pack\"`, `\"rules\"`, `\"compendium\"`, `\"other\"`.",
       "enum": [
         "",
         "adventure",
@@ -75,28 +75,28 @@
     },
     "author": {
       "type": "string",
-      "description": "Optional. Name of the module author or publisher.",
+      "markdownDescription": "*Optional.* Name of the module author or publisher.",
       "examples": [
         "Author Name"
       ]
     },
     "shortDescr": {
       "type": "string",
-      "description": "Optional. Short description of the module.",
+      "markdownDescription": "*Optional.* Short description of the module.",
       "examples": [
         "A short summary of the module."
       ]
     },
     "descr": {
       "type": "string",
-      "description": "Optional. Full description of the module.",
+      "markdownDescription": "*Optional.* Full description of the module.",
       "examples": [
         "A detailed description of the module and its contents."
       ]
     },
     "tags": {
       "type": "array",
-      "description": "Optional. Array of keywords used to describe and find the module.",
+      "markdownDescription": "*Optional.* Array of keywords used to describe and find the module.\n\nExample: `[\"adventure\", \"dnd5e\"]`\n\nEmpty: `[]`",
       "items": {
         "type": "string"
       },
@@ -110,35 +110,35 @@
     },
     "image": {
       "type": "string",
-      "description": "Optional. File name of the module cover image, relative to the project root.",
+      "markdownDescription": "*Optional.* File name of the module cover image, relative to the project root.",
       "examples": [
         "cover.jpg"
       ]
     },
     "banner": {
       "type": "string",
-      "description": "Optional. File name of the module banner image, relative to the project root.",
+      "markdownDescription": "*Optional.* File name of the module banner image, relative to the project root.",
       "examples": [
         "banner.jpg"
       ]
     },
     "website": {
       "type": "string",
-      "description": "Optional. Website URL for the module or its author.",
+      "markdownDescription": "*Optional.* Website URL for the module or its author.",
       "examples": [
         "https://example.com"
       ]
     },
     "repository": {
       "type": "string",
-      "description": "Optional. Source repository URL for the module.",
+      "markdownDescription": "*Optional.* Source repository URL for the module.",
       "examples": [
         "https://github.com/example/module"
       ]
     },
     "package": {
       "type": "string",
-      "description": "Optional. Package or download URL for the module.",
+      "markdownDescription": "*Optional.* Package or download URL for the module.",
       "examples": [
         "https://example.com/module.module"
       ]
