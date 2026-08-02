@@ -7,7 +7,7 @@ import {
 } from 'mpx-core'
 import type { CreatedContentEntry } from 'mpx-core'
 
-async function resolveModuleFolder(): Promise<string | undefined> {
+export async function resolveModuleFolder(): Promise<string | undefined> {
   const workspaceFolders = vscode.workspace.workspaceFolders ?? []
   if (workspaceFolders.length === 0) {
     await vscode.window.showErrorMessage('Open an MPX module project first.')
@@ -28,7 +28,7 @@ async function resolveModuleFolder(): Promise<string | undefined> {
   return selection?.moduleFolder
 }
 
-async function promptName(prompt: string, defaultValue: string): Promise<string | undefined> {
+export async function promptName(prompt: string, defaultValue: string): Promise<string | undefined> {
   return vscode.window.showInputBox({
     prompt,
     value: defaultValue,
@@ -36,13 +36,13 @@ async function promptName(prompt: string, defaultValue: string): Promise<string 
   })
 }
 
-async function openCreatedEntry(entry: CreatedContentEntry): Promise<void> {
+export async function openCreatedEntry(entry: CreatedContentEntry): Promise<void> {
   const document = await vscode.workspace.openTextDocument(vscode.Uri.file(entry.filePath))
   await vscode.window.showTextDocument(document)
   await vscode.commands.executeCommand('mpx.refreshExplorer')
 }
 
-function registerContentCreationCommand(
+export function registerContentCreationCommand(
   context: vscode.ExtensionContext,
   command: string,
   prompt: string,
