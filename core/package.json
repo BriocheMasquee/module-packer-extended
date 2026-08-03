@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
-    "markdown-it": "^14.1.0",
+    "markdown-it": "^15.0.0",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-attrs": "^5.0.0",
     "markdown-it-mark": "^4.0.0",
@@ -24,7 +24,6 @@
     "yazl": "^3.3.1"
   },
   "devDependencies": {
-    "@types/markdown-it": "^14.1.2",
     "@types/node": "^26.1.2",
     "@types/unzipper": "^0.10.11",
     "@types/yazl": "^3.3.1"
