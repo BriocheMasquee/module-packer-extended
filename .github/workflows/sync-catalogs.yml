@@ -1,0 +1,78 @@
+name: Sync translation catalogs
+
+on:
+  # Every other Monday at 06:00 UTC. GitHub Actions has no native
+  # "every N weeks" schedule, so this runs weekly and the job itself skips
+  # odd weeks (see the "Check biweekly cadence" step) to land on a
+  # roughly-every-2-weeks cadence without a second workflow file.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-catalogs:
+    name: Fetch EncounterPlus catalogs and open a PR if they changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check biweekly cadence
+        if: github.event_name == 'schedule'
+        run: |
+          week_number=$(date +%V)
+          if [ $(( 10#$week_number % 2 )) -ne 0 ]; then
+            echo "Odd ISO week ($week_number) — skipping until the next one."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check out the repository
+        if: env.SKIP != 'true'
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        if: env.SKIP != 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        if: env.SKIP != 'true'
+        run: npm install
+
+      - name: Sync catalogEn.ts / catalogFr.ts from upstream
+        if: env.SKIP != 'true'
+        run: node scripts/sync-catalogs.mjs
+
+      - name: Compile core (schema generator reads core/dist)
+        if: env.SKIP != 'true'
+        run: npm run compile --workspace=core
+
+      - name: Regenerate the translation-overrides.json JSON Schema
+        if: env.SKIP != 'true'
+        run: node scripts/generate-overrides-schema.mjs
+
+      - name: Run tests against the refreshed catalogs
+        if: env.SKIP != 'true'
+        run: npm test --workspace=core
+
+      # Opens a PR only — never merges. A human always reviews and merges
+      # this by hand (explicit project requirement).
+      - name: Open a pull request with any changes
+        if: env.SKIP != 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'chore: sync translation catalogs from EncounterPlus'
+          title: 'chore: sync translation catalogs from EncounterPlus'
+          body: |
+            Automated bi-weekly sync from [encounterplus/dnd5e](https://github.com/encounterplus/dnd5e/tree/main/lang) (MIT licensed).
+
+            Regenerates `core/src/catalogEn.ts`, `core/src/catalogFr.ts`, and `extension/resources/schemas/translation-overrides.schema.json`.
+
+            This PR does not auto-merge — please review the diff (especially any new/removed catalog keys) before merging.
+          branch: sync/translation-catalogs
+          delete-branch: true
+          labels: localization, automated

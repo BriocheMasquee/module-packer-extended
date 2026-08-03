@@ -1,7 +1,8 @@
 // English label catalog, sourced from EncounterPlus's own localization file
-// (itself derived from the WotC SRD). Embedded as a static copy for now —
-// see the "sync from EncounterPlus's repo" backlog issue for making this
-// dynamic once licensing is confirmed with the EncounterPlus developer.
+// (lang/en.json in encounterplus/dnd5e), released under the MIT license.
+// Regenerated periodically from upstream by .github/workflows/sync-catalogs.yml
+// (opens a PR, never auto-merges) — see catalog.ts for translate()/pluralize()
+// and the language/override resolution logic that consumes this data.
 export const CATALOG_EN: Record<string, string | { one: string; many: string }> = {
   'Ability.CHA': 'CHA',
   'Ability.CON': 'CON',
@@ -555,22 +556,4 @@ export const CATALOG_EN: Record<string, string | { one: string; many: string }> 
   'Weapon.Firearm': 'Firearm',
   'Weapon.MartialWeapon': 'Martial Weapon',
   'Weapon.SimpleWeapon': 'Simple Weapon',
-}
-
-export function translate(key: string, language: 'en' = 'en'): string {
-  void language // only "en" is populated so far; see localization docs
-  const entry = CATALOG_EN[key]
-  if (entry === undefined) {
-    return key
-  }
-  return typeof entry === 'string' ? entry : entry.one
-}
-
-export function pluralize(key: string, count: number, language: 'en' = 'en'): string {
-  void language
-  const entry = CATALOG_EN[key]
-  if (entry === undefined || typeof entry === 'string') {
-    return entry ?? key
-  }
-  return count === 1 ? entry.one : entry.many
 }

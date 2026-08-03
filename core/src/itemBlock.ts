@@ -2,9 +2,9 @@ import { parse as parseYaml } from 'yaml'
 import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateItemData } from './itemCompendium.js'
-import { translate } from './catalogEn.js'
+import { translate, type RenderLocale, type CatalogOverrides } from './catalog.js'
 import { escapeHtml, resourceImagePath, formatSources, formatTags } from './compendiumBlock.js'
-import type { MeasurementSystem } from './localization.js'
+import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
 const ITEM_META_FIELDS = [
   'id',
@@ -98,22 +98,22 @@ export function parseItemBlock(yamlSource: string): ParsedItemBlock {
 /** Catalog keys follow `{Namespace}.{PascalCase(enumKey)}` — same pattern
  * confirmed for spell enums (see spellBlock.ts's translateEnum). "custom" is
  * the one item type with no ItemType.Custom entry — Common.Custom covers it. */
-function translateEnum(namespace: string, enumKey: string): string {
+function translateEnum(namespace: string, enumKey: string, locale: RenderLocale): string {
   const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
-  return translate(`${namespace}.${pascalKey}`)
+  return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
 }
 
-function translateItemType(type: string): string {
-  return type === 'custom' ? translate('Common.Custom') : translateEnum('ItemType', type)
+function translateItemType(type: string, locale: RenderLocale): string {
+  return type === 'custom' ? translate('Common.Custom', locale.language, locale.overrides) : translateEnum('ItemType', type, locale)
 }
 
 /** Combines type (+ its free-text detail) and rarity into one subtitle line,
  * e.g. "Melee Weapon, Legendary" — mirrors the official book layout's
  * italic subtitle under the item name. */
-function formatSubtitle(data: Record<string, unknown>): string | undefined {
-  const type = isNonEmptyString(data.type) ? translateItemType(data.type) : undefined
+function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
+  const type = isNonEmptyString(data.type) ? translateItemType(data.type, locale) : undefined
   const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
-  const rarity = isNonEmptyString(data.rarity) ? translateEnum('ItemRarity', data.rarity) : undefined
+  const rarity = isNonEmptyString(data.rarity) ? translateEnum('ItemRarity', data.rarity, locale) : undefined
 
   const typePart = type ? (typeDetail ? `${type} (${typeDetail})` : type) : typeDetail
   const parts = [typePart, rarity].filter((part): part is string => Boolean(part))
@@ -136,30 +136,30 @@ function formatValue(data: Record<string, unknown>): string | undefined {
   return typeof data.value === 'number' && data.value > 0 ? `${data.value} gp` : undefined
 }
 
-function formatDamage(data: Record<string, unknown>): string | undefined {
+function formatDamage(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const dmg1 = isNonEmptyString(data.dmg1) ? data.dmg1 : undefined
   if (!dmg1) {
     return undefined
   }
   const dmg2 = isNonEmptyString(data.dmg2) ? data.dmg2 : undefined
-  const dmgType = isNonEmptyString(data.dmgType) ? translateEnum('Damage', data.dmgType) : undefined
+  const dmgType = isNonEmptyString(data.dmgType) ? translateEnum('Damage', data.dmgType, locale) : undefined
   const dice = dmg2 ? `${dmg1}/${dmg2}` : dmg1
   return dmgType ? `${dice} ${dmgType}` : dice
 }
 
-function formatMastery(data: Record<string, unknown>): string | undefined {
-  return isNonEmptyString(data.mastery) ? translateEnum('ItemProperty', data.mastery) : undefined
+function formatMastery(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
+  return isNonEmptyString(data.mastery) ? translateEnum('ItemProperty', data.mastery, locale) : undefined
 }
 
 function formatItemRange(data: Record<string, unknown>): string | undefined {
   return isNonEmptyString(data.range) ? data.range : undefined
 }
 
-function formatProperties(data: Record<string, unknown>): string | undefined {
+function formatProperties(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const properties = Array.isArray(data.properties)
     ? data.properties.filter((entry): entry is string => typeof entry === 'string')
     : []
-  return properties.length > 0 ? properties.map((property) => translateEnum('ItemProperty', property)).join(', ') : undefined
+  return properties.length > 0 ? properties.map((property) => translateEnum('ItemProperty', property, locale)).join(', ') : undefined
 }
 
 /** Attunement/stealth are boolean flags, not label:value pairs — rendered
@@ -170,17 +170,17 @@ function flagLineHtml(text: string | undefined): string {
   return text ? `<p class="compendium-block-detail">${escapeHtml(text)}</p>` : ''
 }
 
-function formatAttunementFlag(data: Record<string, unknown>): string | undefined {
+function formatAttunementFlag(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   if (data.attunement !== true) {
     return undefined
   }
   const detail = isNonEmptyString(data.attunementDetail) ? data.attunementDetail : undefined
-  const base = translate('Item.RequiresAttunement')
+  const base = translate('Item.RequiresAttunement', locale.language, locale.overrides)
   return detail ? `${base} (${detail})` : base
 }
 
-function formatStealthFlag(data: Record<string, unknown>): string | undefined {
-  return data.stealth === true ? translate('Item.StealthCheckDisadvantage') : undefined
+function formatStealthFlag(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
+  return data.stealth === true ? translate('Item.StealthCheckDisadvantage', locale.language, locale.overrides) : undefined
 }
 
 function formatArmorClass(data: Record<string, unknown>): string | undefined {
@@ -209,6 +209,13 @@ export interface ItemDisplayDefaults {
 
 export interface ItemBlockRenderOptions {
   measurement: MeasurementSystem
+  /** Resolved from `mpx.contentLanguage`, same live-refresh getter contract
+   * as `measurement` at the `MarkdownRendererOptions` level. Defaults to
+   * "en" when not provided (e.g. in tests). */
+  language?: ContentLanguage
+  /** The project's `translation-overrides.json`, if any — merged on top of
+   * the resolved language's catalog before every lookup. */
+  overrides?: CatalogOverrides
   preview?: boolean
   displayDefaults?: ItemDisplayDefaults
 }
@@ -221,6 +228,7 @@ export interface ItemBlockRenderOptions {
  * (after Source/Tags) rather than at the top — an explicit request, since
  * an item's image is a "nice to have" extra rather than its focal point. */
 export function renderItemBlockHtml(data: Record<string, unknown>, markdown: MarkdownIt, options: ItemBlockRenderOptions): string {
+  const locale: RenderLocale = { measurement: options.measurement, language: options.language ?? 'en', overrides: options.overrides }
   const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Item'
   const itemData = isPlainObject(data.data) ? data.data : {}
 
@@ -231,7 +239,7 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
     return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}: </span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
   }
 
-  const subtitle = formatSubtitle(itemData)
+  const subtitle = formatSubtitle(itemData, locale)
   const descriptionHtml = isNonEmptyString(data.descr)
     ? `<div class="compendium-block-description">${markdown.render(data.descr)}</div>`
     : ''
@@ -252,7 +260,10 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
   const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
   const sourcesText = showSources ? formatSources(data.sources) : undefined
   const tagsText = showTags ? formatTags(data.tags) : undefined
-  const footerLines = [detailLine(translate('Common.Source'), sourcesText), detailLine(translate('Common.Tags'), tagsText)]
+  const footerLines = [
+    detailLine(translate('Common.Source', locale.language, locale.overrides), sourcesText),
+    detailLine(translate('Common.Tags', locale.language, locale.overrides), tagsText),
+  ]
     .filter(Boolean)
     .join('')
   const footerHtml = footerLines ? `<div class="compendium-block-details compendium-block-details-footer">${footerLines}</div>` : ''
@@ -264,17 +275,17 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
     subtitle ? `<div class="compendium-block-heading">${escapeHtml(subtitle)}</div>` : '',
     '<div class="compendium-block-body">',
     '<div class="compendium-block-details">',
-    detailLine(translate('Common.Weight'), formatWeight(itemData.weight, options.measurement)),
-    detailLine(translate('Common.Value'), formatValue(itemData)),
-    detailLine(translate('Common.Damage'), formatDamage(itemData)),
-    detailLine(translate('Item.Mastery'), formatMastery(itemData)),
-    detailLine(translate('Common.Range'), formatItemRange(itemData)),
-    detailLine(translate('Item.Properties'), formatProperties(itemData)),
-    detailLine(translate('Common.AC'), formatArmorClass(itemData)),
-    detailLine(translate('Item.STRRequirement'), formatStrRequirement(itemData)),
-    flagLineHtml(formatStealthFlag(itemData)),
-    flagLineHtml(formatAttunementFlag(itemData)),
-    detailLine(translate('Item.ContainerCapacity'), formatContainerCapacity(itemData, options.measurement)),
+    detailLine(translate('Common.Weight', locale.language, locale.overrides), formatWeight(itemData.weight, options.measurement)),
+    detailLine(translate('Common.Value', locale.language, locale.overrides), formatValue(itemData)),
+    detailLine(translate('Common.Damage', locale.language, locale.overrides), formatDamage(itemData, locale)),
+    detailLine(translate('Item.Mastery', locale.language, locale.overrides), formatMastery(itemData, locale)),
+    detailLine(translate('Common.Range', locale.language, locale.overrides), formatItemRange(itemData)),
+    detailLine(translate('Item.Properties', locale.language, locale.overrides), formatProperties(itemData, locale)),
+    detailLine(translate('Common.AC', locale.language, locale.overrides), formatArmorClass(itemData)),
+    detailLine(translate('Item.STRRequirement', locale.language, locale.overrides), formatStrRequirement(itemData)),
+    flagLineHtml(formatStealthFlag(itemData, locale)),
+    flagLineHtml(formatAttunementFlag(itemData, locale)),
+    detailLine(translate('Item.ContainerCapacity', locale.language, locale.overrides), formatContainerCapacity(itemData, options.measurement)),
     '</div>',
     descriptionHtml,
     footerHtml,

@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml'
 import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateSpellData } from './spellCompendium.js'
-import { translate, pluralize } from './catalogEn.js'
+import { translate, pluralize, type RenderLocale, type CatalogOverrides } from './catalog.js'
 import {
   escapeHtml,
   themeAssetPath,
@@ -12,7 +12,7 @@ import {
   formatSources,
   formatTags,
 } from './compendiumBlock.js'
-import type { MeasurementSystem } from './localization.js'
+import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
 const SPELL_META_FIELDS = [
   'id',
@@ -110,28 +110,28 @@ export function parseSpellBlock(yamlSource: string): ParsedSpellBlock {
  * `meleeWeapon` -> `ItemType.MeleeWeapon`, `dispelOrTrigger` ->
  * `SpellDuration.DispelOrTrigger`) — capitalizing just the first letter of
  * the camelCase key always lands on the right catalog entry. */
-function translateEnum(namespace: string, enumKey: string): string {
+function translateEnum(namespace: string, enumKey: string, locale: RenderLocale): string {
   const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
-  return translate(`${namespace}.${pascalKey}`)
+  return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
 }
 
-function formatHeading(data: Record<string, unknown>): string | undefined {
+function formatHeading(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const level = typeof data.level === 'number' ? data.level : undefined
   const school = isNonEmptyString(data.school) ? data.school : undefined
-  const schoolLabel = school ? translateEnum('SpellSchool', school) : undefined
+  const schoolLabel = school ? translateEnum('SpellSchool', school, locale) : undefined
   const classes = Array.isArray(data.classes)
     ? data.classes.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.split('|')[0])
     : []
 
   const parts: string[] = []
   if (level === 0 && schoolLabel) {
-    parts.push(`${schoolLabel} ${translate('SpellLevel.Cantrip')}`)
+    parts.push(`${schoolLabel} ${translate('SpellLevel.Cantrip', locale.language, locale.overrides)}`)
   } else if (level !== undefined && schoolLabel) {
-    parts.push(`${translate('Common.Level')} ${level} ${schoolLabel}`)
+    parts.push(`${translate('Common.Level', locale.language, locale.overrides)} ${level} ${schoolLabel}`)
   } else if (schoolLabel) {
     parts.push(schoolLabel)
   } else if (level !== undefined) {
-    parts.push(`${translate('Common.Level')} ${level}`)
+    parts.push(`${translate('Common.Level', locale.language, locale.overrides)} ${level}`)
   }
   if (classes.length > 0) {
     parts.push(`(${classes.join(', ')})`)
@@ -139,34 +139,34 @@ function formatHeading(data: Record<string, unknown>): string | undefined {
   return parts.length > 0 ? parts.join(' ') : undefined
 }
 
-function formatCastingTime(data: Record<string, unknown>): string | undefined {
+function formatCastingTime(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const activation = isPlainObject(data.activation) ? data.activation : undefined
   const unit = isNonEmptyString(activation?.unit) ? activation.unit : undefined
   const time = typeof activation?.time === 'number' ? activation.time : undefined
 
   let text: string | undefined
   if (unit === 'action' || unit === 'bonusAction' || unit === 'reaction') {
-    text = translateEnum('ActivationUnit', unit)
+    text = translateEnum('ActivationUnit', unit, locale)
   } else if (unit === 'hour' || unit === 'minute') {
     const count = time ?? 1
-    text = `${count} ${pluralize(`Unit.${unit === 'hour' ? 'Hour' : 'Minute'}`, count)}`
+    text = `${count} ${pluralize(`Unit.${unit === 'hour' ? 'Hour' : 'Minute'}`, count, locale.language, locale.overrides)}`
   }
   if (text && data.ritual === true) {
-    text += ` or ${translate('Spell.Ritual')}`
+    text += ` or ${translate('Spell.Ritual', locale.language, locale.overrides)}`
   }
   return text
 }
 
-function formatRange(data: Record<string, unknown>, measurement: MeasurementSystem): string | undefined {
+function formatRange(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const rangeType = isNonEmptyString(data.rangeType) ? data.rangeType : undefined
   if (rangeType) {
-    return translateEnum('SpellRange', rangeType)
+    return translateEnum('SpellRange', rangeType, locale)
   }
   // 0 is never a real spell range in D&D's rules — treated as "not set"
   // (matching the snippet's own placeholder default), not a literal 0 feet.
   if (typeof data.range === 'number' && data.range > 0) {
-    const value = formatDistanceNumber(feetToDisplayValue(data.range, measurement))
-    return `${value} ${measurement === 'metric' ? 'meters' : 'feet'}`
+    const value = formatDistanceNumber(feetToDisplayValue(data.range, locale.measurement))
+    return `${value} ${locale.measurement === 'metric' ? 'meters' : 'feet'}`
   }
   return undefined
 }
@@ -197,16 +197,16 @@ const SHAPE_ICON_FILES: Record<string, string> = {
 /** The shape icon, or (when disabled, or no icon file exists for that
  * shape) the shape's translated text label instead — the parenthetical
  * always shows something, never leaves a dangling empty spot. */
-function formatAreaEffectShapeHtml(shape: string | undefined, showIcon: boolean, preview: boolean | undefined): string {
+function formatAreaEffectShapeHtml(shape: string | undefined, showIcon: boolean, preview: boolean | undefined, locale: RenderLocale): string {
   if (!shape) {
     return ''
   }
   const file = showIcon ? SHAPE_ICON_FILES[shape] : undefined
   if (file) {
-    const alt = escapeHtml(translateEnum('AreaEffectShape', shape))
+    const alt = escapeHtml(translateEnum('AreaEffectShape', shape, locale))
     return `<img class="spell-block-shape-icon" src="${escapeHtml(themeAssetPath(file, preview))}" alt="${alt}">`
   }
-  return escapeHtml(translateEnum('AreaEffectShape', shape))
+  return escapeHtml(translateEnum('AreaEffectShape', shape, locale))
 }
 
 /** Range and area effect render as a single detail line — EncounterPlus
@@ -214,11 +214,11 @@ function formatAreaEffectShapeHtml(shape: string | undefined, showIcon: boolean,
  * than giving it its own line (confirmed against a real rendered spell). */
 function buildRangeDetailHtml(
   spellData: Record<string, unknown>,
-  measurement: MeasurementSystem,
   showAreaEffectIcon: boolean,
   preview: boolean | undefined,
+  locale: RenderLocale,
 ): string {
-  const rangeText = formatRange(spellData, measurement)
+  const rangeText = formatRange(spellData, locale)
   const areaShape = isNonEmptyString(spellData.areaEffectShape) ? spellData.areaEffectShape : undefined
   // 0 is never a real area effect size — treated as "not set" (matching the
   // snippet's own placeholder default), not a literal 0 ft/m.
@@ -233,11 +233,11 @@ function buildRangeDetailHtml(
   if (hasArea) {
     const sizeText =
       areaSize !== undefined
-        ? `${formatDistanceNumber(feetToDisplayValue(areaSize, measurement))} ${measurement === 'metric' ? 'm' : 'ft'} `
+        ? `${formatDistanceNumber(feetToDisplayValue(areaSize, locale.measurement))} ${locale.measurement === 'metric' ? 'm' : 'ft'} `
         : ''
-    value += ` (${escapeHtml(sizeText)}${formatAreaEffectShapeHtml(areaShape, showAreaEffectIcon, preview)})`
+    value += ` (${escapeHtml(sizeText)}${formatAreaEffectShapeHtml(areaShape, showAreaEffectIcon, preview, locale)})`
   }
-  return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(translate('Common.Range'))}: </span><span class="compendium-block-detail-value">${value}</span></p>`
+  return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(translate('Common.Range', locale.language, locale.overrides))}: </span><span class="compendium-block-detail-value">${value}</span></p>`
 }
 
 function formatComponents(data: Record<string, unknown>): string | undefined {
@@ -251,23 +251,24 @@ function formatComponents(data: Record<string, unknown>): string | undefined {
   return `${components.join(', ')}${detail}`
 }
 
-function formatDuration(data: Record<string, unknown>): string | undefined {
+function formatDuration(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const durationType = isNonEmptyString(data.durationType) ? data.durationType : undefined
   const duration = typeof data.duration === 'number' ? data.duration : undefined
   const durationUnit = isNonEmptyString(data.durationUnit) ? data.durationUnit : undefined
-  const durationUnitText = (unit: string, count: number): string => `${count} ${pluralize(`Unit.${unit.charAt(0).toUpperCase() + unit.slice(1)}`, count)}`
+  const durationUnitText = (unit: string, count: number): string =>
+    `${count} ${pluralize(`Unit.${unit.charAt(0).toUpperCase() + unit.slice(1)}`, count, locale.language, locale.overrides)}`
 
   if (!durationType) {
     return duration !== undefined && durationUnit ? durationUnitText(durationUnit, duration) : undefined
   }
   if (durationType === 'concentration') {
-    const base = translate('SpellDuration.Concentration')
+    const base = translate('SpellDuration.Concentration', locale.language, locale.overrides)
     if (duration !== undefined && durationUnit) {
-      return `${base}, ${translate('Spell.UpTo')} ${durationUnitText(durationUnit, duration)}`
+      return `${base}, ${translate('Spell.UpTo', locale.language, locale.overrides)} ${durationUnitText(durationUnit, duration)}`
     }
     return base
   }
-  return translateEnum('SpellDuration', durationType)
+  return translateEnum('SpellDuration', durationType, locale)
 }
 
 /** Project-level fallback for each `show*` toggle, used only when a spell's
@@ -284,6 +285,13 @@ export interface SpellDisplayDefaults {
 
 export interface SpellBlockRenderOptions {
   measurement: MeasurementSystem
+  /** Resolved from `mpx.contentLanguage`, same live-refresh getter contract
+   * as `measurement` at the `MarkdownRendererOptions` level. Defaults to
+   * "en" when not provided (e.g. in tests). */
+  language?: ContentLanguage
+  /** The project's `translation-overrides.json`, if any — merged on top of
+   * the resolved language's catalog before every lookup. */
+  overrides?: CatalogOverrides
   preview?: boolean
   displayDefaults?: SpellDisplayDefaults
 }
@@ -295,6 +303,7 @@ export function renderSpellBlockHtml(
   markdown: MarkdownIt,
   options: SpellBlockRenderOptions,
 ): string {
+  const locale: RenderLocale = { measurement: options.measurement, language: options.language ?? 'en', overrides: options.overrides }
   const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Spell'
   const spellData = isPlainObject(data.data) ? data.data : {}
 
@@ -305,7 +314,7 @@ export function renderSpellBlockHtml(
     return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}: </span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
   }
 
-  const heading = formatHeading(spellData)
+  const heading = formatHeading(spellData, locale)
   const descriptionHtml = isNonEmptyString(data.descr)
     ? `<div class="compendium-block-description">${markdown.render(data.descr)}</div>`
     : ''
@@ -325,7 +334,7 @@ export function renderSpellBlockHtml(
   const school = isNonEmptyString(spellData.school) ? spellData.school : undefined
   const schoolIconFile = showSchoolIcon && school ? SCHOOL_ICON_FILES[school] : undefined
   const schoolIconHtml = schoolIconFile
-    ? `<img class="spell-block-school-icon" src="${escapeHtml(themeAssetPath(schoolIconFile, options.preview))}" alt="${escapeHtml(translateEnum('SpellSchool', school as string))}">`
+    ? `<img class="spell-block-school-icon" src="${escapeHtml(themeAssetPath(schoolIconFile, options.preview))}" alt="${escapeHtml(translateEnum('SpellSchool', school as string, locale))}">`
     : ''
 
   const showAreaEffectIconDefault = options.displayDefaults?.showAreaEffectIcon ?? true
@@ -338,7 +347,10 @@ export function renderSpellBlockHtml(
   const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
   const sourcesText = showSources ? formatSources(data.sources) : undefined
   const tagsText = showTags ? formatTags(data.tags) : undefined
-  const footerLines = [detailLine(translate('Common.Source'), sourcesText), detailLine(translate('Common.Tags'), tagsText)]
+  const footerLines = [
+    detailLine(translate('Common.Source', locale.language, locale.overrides), sourcesText),
+    detailLine(translate('Common.Tags', locale.language, locale.overrides), tagsText),
+  ]
     .filter(Boolean)
     .join('')
   const footerHtml = footerLines ? `<div class="compendium-block-details compendium-block-details-footer">${footerLines}</div>` : ''
@@ -352,10 +364,10 @@ export function renderSpellBlockHtml(
     heading ? `<div class="compendium-block-heading">${escapeHtml(heading)}</div>` : '',
     '<div class="compendium-block-body">',
     '<div class="compendium-block-details">',
-    detailLine(translate('Spell.CastingTime'), formatCastingTime(spellData)),
-    buildRangeDetailHtml(spellData, options.measurement, showAreaEffectIcon, options.preview),
-    detailLine(translate('Spell.Components'), formatComponents(spellData)),
-    detailLine(translate('Spell.Duration'), formatDuration(spellData)),
+    detailLine(translate('Spell.CastingTime', locale.language, locale.overrides), formatCastingTime(spellData, locale)),
+    buildRangeDetailHtml(spellData, showAreaEffectIcon, options.preview, locale),
+    detailLine(translate('Spell.Components', locale.language, locale.overrides), formatComponents(spellData)),
+    detailLine(translate('Spell.Duration', locale.language, locale.overrides), formatDuration(spellData, locale)),
     '</div>',
     descriptionHtml,
     footerHtml,

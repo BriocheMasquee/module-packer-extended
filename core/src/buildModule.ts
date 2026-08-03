@@ -14,7 +14,8 @@ import { incrementPatchVersion } from './version.js'
 import { resolveProjectFile } from './projectPath.js'
 import { createUuidV5, isUuid } from './uuid.js'
 import { COMPENDIUM_RULESET } from './compendiumEntries.js'
-import type { MeasurementSystem } from './localization.js'
+import type { MeasurementSystem, ContentLanguage } from './localization.js'
+import type { CatalogOverrides } from './catalog.js'
 import { isNonEmptyString, isPlainObject, stripEmptyValues } from './compendiumShared.js'
 import { SPELL_IMAGE_PATTERN, validateSpellData, stripEmptySpellFields } from './spellCompendium.js'
 import { ITEM_IMAGE_PATTERN, validateItemData, stripEmptyItemFields } from './itemCompendium.js'
@@ -227,6 +228,8 @@ async function readPages(
   moduleRoot: string,
   issues: BuildIssue[],
   measurement: MeasurementSystem,
+  contentLanguage: ContentLanguage,
+  catalogOverrides: CatalogOverrides | undefined,
   spellDisplayDefaults: SpellDisplayDefaults | undefined,
   itemDisplayDefaults: ItemDisplayDefaults | undefined,
   monsterDisplayDefaults: MonsterDisplayDefaults | undefined,
@@ -236,7 +239,14 @@ async function readPages(
   inlineItems: PageInlineEntrySource[]
   inlineMonsters: PageInlineEntrySource[]
 }> {
-  const markdown = createMarkdownRenderer({ measurement, spellDisplayDefaults, itemDisplayDefaults, monsterDisplayDefaults })
+  const markdown = createMarkdownRenderer({
+    measurement,
+    language: contentLanguage,
+    overrides: catalogOverrides,
+    spellDisplayDefaults,
+    itemDisplayDefaults,
+    monsterDisplayDefaults,
+  })
   const entries: ResolvedEntry[] = []
   const inlineSpells: PageInlineEntrySource[] = []
   const inlineItems: PageInlineEntrySource[] = []
@@ -1063,6 +1073,14 @@ export interface BuildOptions {
    * `mpx.defaultMeasurement` settings. Defaults to "imperial" (matching
    * old MPX's own ultimate fallback) if not provided. */
   defaultMeasurement?: MeasurementSystem
+  /** Resolved from the project's `mpx.contentLanguage` setting — selects
+   * which catalog (English/French) generated labels are translated from.
+   * Defaults to "en" if not provided. */
+  contentLanguage?: ContentLanguage
+  /** The project's own `translation-overrides.json`, already loaded and
+   * validated by the caller (see loadCatalogOverrides in catalogOverrides.ts)
+   * — merged on top of the resolved language's catalog before every lookup. */
+  catalogOverrides?: CatalogOverrides
   /** Project-level fallback for an inline spell's `show*` toggles, used only
    * when a spell's own YAML leaves one absent — resolved from the project's
    * mpx.defaultShowSpell* settings. Baked into the page's rendered HTML at
@@ -1100,6 +1118,8 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       moduleRoot,
       issues,
       defaultMeasurement,
+      options.contentLanguage ?? 'en',
+      options.catalogOverrides,
       options.spellDisplayDefaults,
       options.itemDisplayDefaults,
       options.monsterDisplayDefaults,

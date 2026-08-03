@@ -7,7 +7,8 @@ import type { ItemDisplayDefaults } from './itemBlock.js'
 import { parseMonsterBlock, renderMonsterBlockHtml } from './monsterBlock.js'
 import type { MonsterDisplayDefaults } from './monsterBlock.js'
 import { escapeHtml } from './compendiumBlock.js'
-import type { MeasurementSystem } from './localization.js'
+import type { MeasurementSystem, ContentLanguage } from './localization.js'
+import type { CatalogOverrides } from './catalog.js'
 import type { ValidationIssue } from './compendiumShared.js'
 
 // These plugins have no usable published types, so they're loaded via require()
@@ -36,6 +37,16 @@ export interface MarkdownRendererOptions {
    * value here would freeze the resolved system for the rest of the session
    * even after the user changes mpx.defaultMeasurement/mpx.contentLanguage. */
   measurement?: MeasurementSystem | (() => MeasurementSystem)
+  /** Resolved target content language for generated labels (school names,
+   * skill names, etc.) — free-text fields (descr, name, ...) are never
+   * translated. Defaults to "en". Same getter-vs-value flexibility as
+   * `measurement`, for the same live-preview-refresh reason. */
+  language?: ContentLanguage | (() => ContentLanguage)
+  /** The project's `translation-overrides.json`, if any — merged on top of
+   * the resolved language's catalog before every lookup, renaming a catalog
+   * key's displayed word project-wide. Same getter-vs-value flexibility as
+   * `measurement`. */
+  overrides?: CatalogOverrides | (() => CatalogOverrides)
   /** Project-level fallback for a spell's `show*` toggles when its own YAML
    * leaves one absent. Same getter-vs-value flexibility as `measurement`,
    * for the same live-preview-refresh reason. */
@@ -95,6 +106,18 @@ function wrapClassForBlockquote(blockquoteClass: string | undefined): string | u
     return undefined
   }
   return 'blockquote-wrap'
+}
+
+/** Resolves a `value | (() => value)` render option — same getter-vs-value
+ * flexibility used for `measurement`/`language`/`overrides`/`*DisplayDefaults`,
+ * so preview rendering re-reads the live workspace setting on every render
+ * call instead of freezing it for the VSCode session's single markdown-it
+ * instance. */
+function resolveOption<T>(value: T | (() => T) | undefined, fallback: T): T {
+  if (typeof value === 'function') {
+    return (value as () => T)()
+  }
+  return value ?? fallback
 }
 
 function firstClass(token: Token): string | undefined {
@@ -343,10 +366,11 @@ function installSpellBlockRendering(markdown: MarkdownItInstance, options: Markd
     env.inlineSpells ??= []
     env.inlineSpells.push({ data, issues, line: token.map?.[0] ?? 0 })
 
-    const measurement = typeof options.measurement === 'function' ? options.measurement() : (options.measurement ?? 'imperial')
-    const displayDefaults =
-      typeof options.spellDisplayDefaults === 'function' ? options.spellDisplayDefaults() : options.spellDisplayDefaults
-    return renderSpellBlockHtml(data, markdown, { measurement, preview: options.preview, displayDefaults })
+    const measurement = resolveOption(options.measurement, 'imperial' as MeasurementSystem)
+    const language = resolveOption(options.language, 'en' as ContentLanguage)
+    const overrides = resolveOption(options.overrides, undefined as CatalogOverrides | undefined)
+    const displayDefaults = resolveOption(options.spellDisplayDefaults, undefined as SpellDisplayDefaults | undefined)
+    return renderSpellBlockHtml(data, markdown, { measurement, language, overrides, preview: options.preview, displayDefaults })
   }
 }
 
@@ -375,10 +399,11 @@ function installItemBlockRendering(markdown: MarkdownItInstance, options: Markdo
     env.inlineItems ??= []
     env.inlineItems.push({ data, issues, line: token.map?.[0] ?? 0 })
 
-    const measurement = typeof options.measurement === 'function' ? options.measurement() : (options.measurement ?? 'imperial')
-    const displayDefaults =
-      typeof options.itemDisplayDefaults === 'function' ? options.itemDisplayDefaults() : options.itemDisplayDefaults
-    return renderItemBlockHtml(data, markdown, { measurement, preview: options.preview, displayDefaults })
+    const measurement = resolveOption(options.measurement, 'imperial' as MeasurementSystem)
+    const language = resolveOption(options.language, 'en' as ContentLanguage)
+    const overrides = resolveOption(options.overrides, undefined as CatalogOverrides | undefined)
+    const displayDefaults = resolveOption(options.itemDisplayDefaults, undefined as ItemDisplayDefaults | undefined)
+    return renderItemBlockHtml(data, markdown, { measurement, language, overrides, preview: options.preview, displayDefaults })
   }
 }
 
@@ -406,16 +431,17 @@ function installMonsterBlockRendering(markdown: MarkdownItInstance, options: Mar
     env.inlineMonsters ??= []
     env.inlineMonsters.push({ data, issues, line: token.map?.[0] ?? 0 })
 
-    const measurement = typeof options.measurement === 'function' ? options.measurement() : (options.measurement ?? 'imperial')
-    const displayDefaults =
-      typeof options.monsterDisplayDefaults === 'function' ? options.monsterDisplayDefaults() : options.monsterDisplayDefaults
+    const measurement = resolveOption(options.measurement, 'imperial' as MeasurementSystem)
+    const language = resolveOption(options.language, 'en' as ContentLanguage)
+    const overrides = resolveOption(options.overrides, undefined as CatalogOverrides | undefined)
+    const displayDefaults = resolveOption(options.monsterDisplayDefaults, undefined as MonsterDisplayDefaults | undefined)
     // markdown-it-attrs already parsed a trailing ` ```monster {.blue} `
     // class annotation off the info string and onto the token by this
     // point — same syntax an image caption ({.caption}) or blockquote
     // variant ({.paper}) already uses elsewhere in this renderer.
     const blockClassValue = token.attrGet('class')
     const blockClass = typeof blockClassValue === 'string' ? blockClassValue : undefined
-    return renderMonsterBlockHtml(data, markdown, { measurement, preview: options.preview, displayDefaults, blockClass })
+    return renderMonsterBlockHtml(data, markdown, { measurement, language, overrides, preview: options.preview, displayDefaults, blockClass })
   }
 }
 

@@ -1,6 +1,14 @@
 import { join } from 'node:path'
 import * as vscode from 'vscode'
-import { createMarkdownRenderer, createModuleProject, detectWorkspaceKind, resolveMeasurementSystem } from 'mpx-core'
+import {
+  createMarkdownRenderer,
+  createModuleProject,
+  detectWorkspaceKind,
+  resolveMeasurementSystem,
+  normalizeContentLanguage,
+  loadCatalogOverrides,
+  type CatalogOverrides,
+} from 'mpx-core'
 import { registerModuleExplorer } from './moduleExplorer.js'
 import { registerProjectExplorer } from './projectExplorer.js'
 import { registerCompendiumExplorer } from './compendiumExplorer.js'
@@ -114,6 +122,28 @@ async function openPendingModuleConfiguration(context: vscode.ExtensionContext):
   await openModuleConfiguration(modulePath)
 }
 
+// Loaded once at activation and refreshed whenever translation-overrides.json
+// changes on disk — unlike measurement/language, this is a project *file*,
+// not a VSCode setting, so there's no onDidChangeConfiguration to hook into.
+// A synchronous getter (see extendMarkdownIt below) always reads this cache
+// rather than the file directly, since createMarkdownRenderer's options must
+// resolve synchronously on every render.
+let cachedCatalogOverrides: CatalogOverrides = {}
+
+async function refreshCatalogOverrides(): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+  if (!workspaceFolder) {
+    cachedCatalogOverrides = {}
+    return
+  }
+  const { overrides, issues } = await loadCatalogOverrides(workspaceFolder.uri.fsPath)
+  cachedCatalogOverrides = overrides
+  if (issues.length > 0) {
+    const messages = issues.map((issue) => issue.message).join(' ')
+    await vscode.window.showWarningMessage(`translation-overrides.json: ${messages}`)
+  }
+}
+
 async function updateWorkspaceKindContext(): Promise<void> {
   const workspaceFolders = vscode.workspace.workspaceFolders ?? []
   if (workspaceFolders.length === 0) {
@@ -139,7 +169,15 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
     ),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       void updateWorkspaceKindContext()
+      void refreshCatalogOverrides()
     }),
+  )
+  const overridesWatcher = vscode.workspace.createFileSystemWatcher('**/translation-overrides.json')
+  context.subscriptions.push(
+    overridesWatcher,
+    overridesWatcher.onDidCreate(() => void refreshCatalogOverrides()),
+    overridesWatcher.onDidChange(() => void refreshCatalogOverrides()),
+    overridesWatcher.onDidDelete(() => void refreshCatalogOverrides()),
   )
   registerProjectExplorer(context)
   registerModuleExplorer(context)
@@ -153,6 +191,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
 
   void updateWorkspaceKindContext()
   void openPendingModuleConfiguration(context)
+  void refreshCatalogOverrides()
 
   return {
     // VSCode ignores the markdown-it instance it passes in and just uses
@@ -175,6 +214,12 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
           config.get<string>('contentLanguage', 'en'),
         )
       }
+      const resolveContentLanguage = () => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
+        return normalizeContentLanguage(config.get<string>('contentLanguage', 'en'))
+      }
+      const resolveOverrides = (): CatalogOverrides => cachedCatalogOverrides
       const resolveSpellDisplayDefaults = () => {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
         const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
@@ -208,6 +253,8 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
       return createMarkdownRenderer({
         preview: true,
         measurement: resolveMeasurement,
+        language: resolveContentLanguage,
+        overrides: resolveOverrides,
         spellDisplayDefaults: resolveSpellDisplayDefaults,
         itemDisplayDefaults: resolveItemDisplayDefaults,
         monsterDisplayDefaults: resolveMonsterDisplayDefaults,
