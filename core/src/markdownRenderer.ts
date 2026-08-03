@@ -1,7 +1,10 @@
 import MarkdownIt from 'markdown-it'
 import type { MarkdownIt as MarkdownItInstance, Token, StateBlock, StateInline } from 'markdown-it'
-import { escapeHtml, parseSpellBlock, renderSpellBlockHtml } from './spellBlock.js'
+import { parseSpellBlock, renderSpellBlockHtml } from './spellBlock.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
+import { parseItemBlock, renderItemBlockHtml } from './itemBlock.js'
+import type { ItemDisplayDefaults } from './itemBlock.js'
+import { escapeHtml } from './compendiumBlock.js'
 import type { MeasurementSystem } from './localization.js'
 import type { ValidationIssue } from './compendiumShared.js'
 
@@ -35,6 +38,8 @@ export interface MarkdownRendererOptions {
    * leaves one absent. Same getter-vs-value flexibility as `measurement`,
    * for the same live-preview-refresh reason. */
   spellDisplayDefaults?: SpellDisplayDefaults | (() => SpellDisplayDefaults)
+  /** Same as `spellDisplayDefaults`, for an item's `show*` toggles. */
+  itemDisplayDefaults?: ItemDisplayDefaults | (() => ItemDisplayDefaults)
 }
 
 /** Collected while rendering a page, so the build can merge inline
@@ -43,9 +48,17 @@ export interface MarkdownRendererOptions {
 export interface MpxMarkdownEnvironment {
   [key: string | symbol]: unknown
   inlineSpells?: InlineSpellBlock[]
+  inlineItems?: InlineItemBlock[]
 }
 
 export interface InlineSpellBlock {
+  data: Record<string, unknown>
+  issues: ValidationIssue[]
+  /** 0-based source line the fence starts at, for "reveal in page" navigation. */
+  line: number
+}
+
+export interface InlineItemBlock {
   data: Record<string, unknown>
   issues: ValidationIssue[]
   /** 0-based source line the fence starts at, for "reveal in page" navigation. */
@@ -325,6 +338,38 @@ function installSpellBlockRendering(markdown: MarkdownItInstance, options: Markd
   }
 }
 
+/** Renders a fenced ` ```item ` block — same mechanism as
+ * installSpellBlockRendering (see its comment), for items instead of
+ * spells. Chained after installSpellBlockRendering, so its own
+ * `defaultFence` falls back to the spell handler for anything that isn't
+ * an item fence, which in turn falls back further for a plain code block. */
+function installItemBlockRendering(markdown: MarkdownItInstance, options: MarkdownRendererOptions): void {
+  const defaultFence =
+    markdown.renderer.rules.fence ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts))
+
+  markdown.renderer.rules.fence = (tokens, idx, opts, envArg: MpxMarkdownEnvironment | undefined, self) => {
+    const env: MpxMarkdownEnvironment = envArg ?? {}
+    const token = tokens[idx]
+    if (token.info.trim().toLowerCase() !== 'item') {
+      return defaultFence(tokens, idx, opts, env, self)
+    }
+
+    const { data, issues } = parseItemBlock(token.content)
+    if (issues.length > 0) {
+      const messages = issues.map((issue) => escapeHtml(issue.message)).join(' ')
+      return `<div class="item-block-error">${messages}</div>`
+    }
+
+    env.inlineItems ??= []
+    env.inlineItems.push({ data, issues, line: token.map?.[0] ?? 0 })
+
+    const measurement = typeof options.measurement === 'function' ? options.measurement() : (options.measurement ?? 'imperial')
+    const displayDefaults =
+      typeof options.itemDisplayDefaults === 'function' ? options.itemDisplayDefaults() : options.itemDisplayDefaults
+    return renderItemBlockHtml(data, markdown, { measurement, preview: options.preview, displayDefaults })
+  }
+}
+
 export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): MarkdownItInstance {
   const markdown = new MarkdownIt({ html: true, linkify: true })
   // markdown-it 15 dropped `utils.assign` (a pre-ES2015 Object.assign shim,
@@ -345,6 +390,7 @@ export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): M
   installImageSizeSyntax(markdown)
   installImageRendering(markdown, options)
   installSpellBlockRendering(markdown, options)
+  installItemBlockRendering(markdown, options)
 
   if (options.preview) {
     installFrontMatterHiding(markdown)

@@ -1354,6 +1354,207 @@ test('buildModule lets an inline spell\'s explicit show* field override the proj
   assert.match(pages[0].content, /Tags: /)
 })
 
+test('buildModule merges an inline ```item page block into items.json alongside standalone files', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'shield.json'),
+    JSON.stringify({
+      id: 'C696B1C4-CA42-48FF-8120-2395C3DBD013',
+      name: 'Shield',
+      slug: 'shield',
+      data: { type: 'shield', value: 10 },
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```item',
+      'name: Longsword',
+      'type: meleeWeapon',
+      'dmg1: 1d8',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.itemCount, 2)
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json')).sort((a, b) => a.name.localeCompare(b.name))
+  assert.equal(items[0].name, 'Longsword')
+  assert.equal(items[0].slug, 'longsword')
+  assert.match(items[0].id, /^[0-9a-f-]{36}$/)
+  assert.equal(items[0].data.type, 'meleeWeapon')
+  assert.equal(items[0].data.dmg1, '1d8')
+  assert.deepEqual(items[0].attributes, { measurement: 'imperial', ruleset: '5.5e' })
+  assert.equal(items[1].name, 'Shield')
+
+  const secondBuild = await buildModule(root)
+  const itemsAgain = JSON.parse(readZipEntry(secondBuild.outputPath, 'items.json')).sort((a, b) => a.name.localeCompare(b.name))
+  assert.equal(itemsAgain[0].id, items[0].id)
+})
+
+test('buildModule rejects an inline item slug that collides with a standalone item file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'longsword.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Longsword',
+      slug: 'longsword',
+      data: { type: 'meleeWeapon' },
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '```item', 'name: Longsword', '```', ''].join(
+      '\n',
+    ),
+  )
+
+  await assert.rejects(buildModule(root), (error) => {
+    assert.ok(error instanceof ModuleBuildError)
+    assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate item slug "longsword"')))
+    return true
+  })
+})
+
+test('buildModule copies an inline item\'s illustration image the same way a standalone item does', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'items'), { recursive: true })
+  await writeFile(join(root, 'items', 'ring.png'), 'fake-image-data')
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```item',
+      'name: Ring',
+      'image: items/ring.png',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.ok(listZipEntries(summary.outputPath).includes('items/ring.png'))
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json'))
+  assert.equal(items[0].image, 'items/ring.png')
+})
+
+test('buildModule rejects an inline item whose image references a missing file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```item',
+      'name: Ring',
+      'image: items/missing.png',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  await assert.rejects(buildModule(root), (error) => {
+    assert.ok(error instanceof ModuleBuildError)
+    assert.ok(error.issues.some((issue) => issue.message.includes('references a missing file')))
+    return true
+  })
+})
+
+test('buildModule renders an inline item\'s weight in the module\'s resolved measurement unit, with no conversion', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '```item', 'name: Test Item', 'weight: 12', '```', ''].join(
+      '\n',
+    ),
+  )
+
+  const summary = await buildModule(root, { defaultMeasurement: 'metric' })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.match(pages[0].content, /12 kg/)
+})
+
+test('buildModule applies a project itemDisplayDefaults to an inline item missing the show* field', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '```item', 'name: Test Item', 'tags: [treasure]', '```', ''].join(
+      '\n',
+    ),
+  )
+
+  const summary = await buildModule(root, { itemDisplayDefaults: { showTags: false } })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.doesNotMatch(pages[0].content, /Tags: /)
+})
+
+test('buildModule lets an inline item\'s explicit show* field override the project itemDisplayDefaults', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```item',
+      'name: Test Item',
+      'tags: [treasure]',
+      'showTags: true',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root, { itemDisplayDefaults: { showTags: false } })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.match(pages[0].content, /Tags: /)
+})
+
 test('buildModule omits tables.json when there are no roll tables', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)

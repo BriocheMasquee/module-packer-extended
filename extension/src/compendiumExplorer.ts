@@ -1,25 +1,36 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { findInlineSpells } from 'mpx-core'
+import { findInlineSpells, findInlineItems } from 'mpx-core'
 
 const VIEW_ID = 'mpx.compendiumExplorer'
-const REVEAL_INLINE_SPELL_COMMAND = 'mpx.revealInlineSpell'
+const REVEAL_INLINE_ENTRY_COMMAND = 'mpx.revealInlineEntry'
 const REFRESH_COMMAND = 'mpx.refreshCompendiumExplorer'
 
+interface InlineEntrySummary {
+  name: string
+  pageFilePath: string
+  line: number
+}
+
 const CATEGORIES = [
-  { label: 'Monsters', folder: 'monsters', icon: 'snake', hasInline: false },
-  { label: 'Spells', folder: 'spells', icon: 'wand', hasInline: true },
-  { label: 'Items', folder: 'items', icon: 'archive', hasInline: false },
-  { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', hasInline: false },
-] as const
+  { label: 'Monsters', folder: 'monsters', icon: 'snake', findInline: undefined },
+  { label: 'Spells', folder: 'spells', icon: 'wand', findInline: findInlineSpells },
+  { label: 'Items', folder: 'items', icon: 'archive', findInline: findInlineItems },
+  { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', findInline: undefined },
+] satisfies readonly {
+  label: string
+  folder: string
+  icon: string
+  findInline: ((moduleRoot: string) => Promise<InlineEntrySummary[]>) | undefined
+}[]
 
 class CompendiumCategoryItem extends vscode.TreeItem {
   constructor(
     label: string,
     readonly folderPath: string,
     readonly icon: string,
-    readonly hasInline: boolean,
+    readonly findInline: ((moduleRoot: string) => Promise<InlineEntrySummary[]>) | undefined,
     readonly projectRoot: string,
   ) {
     super(label, vscode.TreeItemCollapsibleState.Collapsed)
@@ -44,12 +55,12 @@ class CompendiumEntryItem extends vscode.TreeItem {
   }
 }
 
-/** A Compendium entry authored inline (```spell block) inside a page's
- * Markdown rather than as its own standalone JSON file — no file to open or
- * delete, so its click behavior reveals the block's location in the page
- * instead (see REVEAL_INLINE_SPELL_COMMAND). Shares its category's icon
- * (the "inline" description already distinguishes it from a standalone
- * entry — no need for a second visual signal). */
+/** A Compendium entry authored inline (```spell or ```item block) inside a
+ * page's Markdown rather than as its own standalone JSON file — no file to
+ * open or delete, so its click behavior reveals the block's location in
+ * the page instead (see REVEAL_INLINE_ENTRY_COMMAND). Shares its category's
+ * icon (the "inline" description already distinguishes it from a
+ * standalone entry — no need for a second visual signal). */
 class InlineCompendiumEntryItem extends vscode.TreeItem {
   constructor(
     label: string,
@@ -60,9 +71,9 @@ class InlineCompendiumEntryItem extends vscode.TreeItem {
     super(label, vscode.TreeItemCollapsibleState.None)
     this.iconPath = new vscode.ThemeIcon(icon)
     this.description = 'inline'
-    this.tooltip = `Inline spell in ${basename(pageFilePath)} — click to reveal`
+    this.tooltip = `Inline entry in ${basename(pageFilePath)} — click to reveal`
     this.command = {
-      command: REVEAL_INLINE_SPELL_COMMAND,
+      command: REVEAL_INLINE_ENTRY_COMMAND,
       title: 'Reveal in Page',
       arguments: [pageFilePath, line],
     }
@@ -90,10 +101,14 @@ async function listEntries(folderPath: string, icon: string): Promise<Compendium
   return items.sort((a, b) => String(a.label).localeCompare(String(b.label)))
 }
 
-async function listInlineSpellEntries(projectRoot: string, icon: string): Promise<InlineCompendiumEntryItem[]> {
-  const inlineSpells = await findInlineSpells(projectRoot).catch(() => [])
-  return inlineSpells
-    .map((spell) => new InlineCompendiumEntryItem(spell.name, spell.pageFilePath, spell.line, icon))
+async function listInlineEntries(
+  findInline: (moduleRoot: string) => Promise<InlineEntrySummary[]>,
+  projectRoot: string,
+  icon: string,
+): Promise<InlineCompendiumEntryItem[]> {
+  const inlineEntries = await findInline(projectRoot).catch(() => [])
+  return inlineEntries
+    .map((entry) => new InlineCompendiumEntryItem(entry.name, entry.pageFilePath, entry.line, icon))
     .sort((a, b) => String(a.label).localeCompare(String(b.label)))
 }
 
@@ -113,7 +128,7 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
     if (element instanceof CompendiumCategoryItem) {
       const [standalone, inline] = await Promise.all([
         listEntries(element.folderPath, element.icon),
-        element.hasInline ? listInlineSpellEntries(element.projectRoot, element.icon) : Promise.resolve([]),
+        element.findInline ? listInlineEntries(element.findInline, element.projectRoot, element.icon) : Promise.resolve([]),
       ])
       return [...standalone, ...inline].sort((a, b) => String(a.label).localeCompare(String(b.label)))
     }
@@ -129,11 +144,11 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
       const folderPath = join(projectRoot, category.folder)
       const entries = await readdir(folderPath).catch(() => [] as string[])
       const standaloneCount = entries.filter((name) => name.endsWith('.json')).length
-      const inlineCount = category.hasInline ? (await findInlineSpells(projectRoot).catch(() => [])).length : 0
+      const inlineCount = category.findInline ? (await category.findInline(projectRoot).catch(() => [])).length : 0
       const count = standaloneCount + inlineCount
       if (count > 0) {
         categories.push(
-          new CompendiumCategoryItem(`${category.label} (${count})`, folderPath, category.icon, category.hasInline, projectRoot),
+          new CompendiumCategoryItem(`${category.label} (${count})`, folderPath, category.icon, category.findInline, projectRoot),
         )
       }
     }
@@ -177,7 +192,7 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
   context.subscriptions.push(
     vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider, showCollapseAll: true }),
     vscode.commands.registerCommand(REFRESH_COMMAND, refresh),
-    vscode.commands.registerCommand(REVEAL_INLINE_SPELL_COMMAND, async (pageFilePath: string, line: number) => {
+    vscode.commands.registerCommand(REVEAL_INLINE_ENTRY_COMMAND, async (pageFilePath: string, line: number) => {
       const document = await vscode.workspace.openTextDocument(pageFilePath)
       const editor = await vscode.window.showTextDocument(document)
       const position = new vscode.Position(line, 0)

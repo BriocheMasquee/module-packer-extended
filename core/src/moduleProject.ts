@@ -83,6 +83,9 @@ export async function createModuleProject(
     'mpx.defaultShowSpellAreaEffectIcon': true,
     'mpx.defaultShowSpellSources': true,
     'mpx.defaultShowSpellTags': true,
+    'mpx.defaultShowItemImage': true,
+    'mpx.defaultShowItemSources': true,
+    'mpx.defaultShowItemTags': true,
   }
   await mkdir(join(targetFolder, '.vscode'), { recursive: true })
   await writeFile(

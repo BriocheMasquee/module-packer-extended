@@ -186,10 +186,20 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
           showTags: config.get<boolean>('defaultShowSpellTags', true),
         }
       }
+      const resolveItemDisplayDefaults = () => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
+        return {
+          showImage: config.get<boolean>('defaultShowItemImage', true),
+          showSources: config.get<boolean>('defaultShowItemSources', true),
+          showTags: config.get<boolean>('defaultShowItemTags', true),
+        }
+      }
       return createMarkdownRenderer({
         preview: true,
         measurement: resolveMeasurement,
         spellDisplayDefaults: resolveSpellDisplayDefaults,
+        itemDisplayDefaults: resolveItemDisplayDefaults,
       })
     },
   }

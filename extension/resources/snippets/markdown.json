@@ -40,5 +40,46 @@
       "$0"
     ],
     "description": "Insert a complete MPX inline spell block (all fields, with sensible empty defaults)"
+  },
+  "MPX Item Block": {
+    "prefix": "mpx-item",
+    "body": [
+      "```item",
+      "name: \"${1:New Item}\"",
+      "slug: ${2:new-item}",
+      "attributes:",
+      "  measurement: \"\"",
+      "  ruleset: \"5.5e\"",
+      "image: \"items/\"",
+      "showImage: true",
+      "type: \"${3:}\"",
+      "typeDetail: \"\"",
+      "rarity: \"${4:}\"",
+      "attunement: ${5:false}",
+      "attunementDetail: \"\"",
+      "value: ${6:0}",
+      "weight: ${7:0}",
+      "ac: 0",
+      "str: 0",
+      "stealth: false",
+      "properties: []",
+      "mastery: \"${8:}\"",
+      "dmg1: \"\"",
+      "dmg2: \"\"",
+      "dmgType: \"${9:}\"",
+      "range: \"\"",
+      "container: false",
+      "capacity: 0",
+      "descr: \"${10:}\"",
+      "sources:",
+      "  - name: \"\"",
+      "    page: 0",
+      "showSources: true",
+      "tags: []",
+      "showTags: true",
+      "```",
+      "$0"
+    ],
+    "description": "Insert a complete MPX inline item block (all fields, with sensible empty defaults)"
   }
 }
