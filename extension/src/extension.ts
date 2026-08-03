@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import * as vscode from 'vscode'
-import { createMarkdownRenderer, createModuleProject, detectWorkspaceKind } from 'mpx-core'
+import { createMarkdownRenderer, createModuleProject, detectWorkspaceKind, resolveMeasurementSystem } from 'mpx-core'
 import { registerModuleExplorer } from './moduleExplorer.js'
 import { registerProjectExplorer } from './projectExplorer.js'
 import { registerCompendiumExplorer } from './compendiumExplorer.js'
@@ -159,7 +159,39 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
     // whatever this returns — our renderer needs preview-specific behavior
     // (hidden front matter, adjusted image paths, #page wrapper) that the
     // build's renderer doesn't, so we build our own rather than extend theirs.
-    extendMarkdownIt: () => createMarkdownRenderer({ preview: true }),
+    //
+    // VSCode calls this once (not per-file), so the markdown-it instance
+    // itself is fixed for the session — but passing a getter instead of a
+    // resolved value means every render still reads the live setting, so a
+    // changed mpx.defaultMeasurement/mpx.contentLanguage takes effect on the
+    // next preview refresh (see the onDidChangeConfiguration listener below)
+    // without needing to reload the Extension Development Host.
+    extendMarkdownIt: () => {
+      const resolveMeasurement = (): ReturnType<typeof resolveMeasurementSystem> => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
+        return resolveMeasurementSystem(
+          config.get<string>('defaultMeasurement', 'auto'),
+          config.get<string>('contentLanguage', 'en'),
+        )
+      }
+      const resolveSpellDisplayDefaults = () => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
+        return {
+          showImage: config.get<boolean>('defaultShowSpellImage', true),
+          showSchoolIcon: config.get<boolean>('defaultShowSpellSchoolIcon', true),
+          showAreaEffectIcon: config.get<boolean>('defaultShowSpellAreaEffectIcon', true),
+          showSources: config.get<boolean>('defaultShowSpellSources', true),
+          showTags: config.get<boolean>('defaultShowSpellTags', true),
+        }
+      }
+      return createMarkdownRenderer({
+        preview: true,
+        measurement: resolveMeasurement,
+        spellDisplayDefaults: resolveSpellDisplayDefaults,
+      })
+    },
   }
 }
 

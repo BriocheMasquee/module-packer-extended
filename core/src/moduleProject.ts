@@ -78,6 +78,11 @@ export async function createModuleProject(
     'mpx.autoIncrementVersion': true,
     'mpx.contentLanguage': 'en',
     'mpx.defaultMeasurement': 'auto',
+    'mpx.defaultShowSpellImage': true,
+    'mpx.defaultShowSpellSchoolIcon': true,
+    'mpx.defaultShowSpellAreaEffectIcon': true,
+    'mpx.defaultShowSpellSources': true,
+    'mpx.defaultShowSpellTags': true,
   }
   await mkdir(join(targetFolder, '.vscode'), { recursive: true })
   await writeFile(

@@ -1126,6 +1126,234 @@ test('buildModule strips empty optional spell fields but keeps meaningful defaul
   })
 })
 
+test('buildModule merges an inline ```spell page block into spells.json alongside standalone files', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'guidance.json'),
+    JSON.stringify({
+      id: 'C696B1C4-CA42-48FF-8120-2395C3DBD013',
+      name: 'Guidance',
+      slug: 'guidance',
+      data: { level: 0, school: 'divination', rangeType: 'touch' },
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```spell',
+      'name: Fireball',
+      'level: 3',
+      'school: evocation',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.spellCount, 2)
+  const spells = JSON.parse(readZipEntry(summary.outputPath, 'spells.json')).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  assert.equal(spells[0].name, 'Fireball')
+  assert.equal(spells[0].slug, 'fireball')
+  assert.match(spells[0].id, /^[0-9a-f-]{36}$/)
+  assert.equal(spells[0].data.level, 3)
+  assert.equal(spells[0].data.school, 'evocation')
+  assert.deepEqual(spells[0].attributes, { measurement: 'imperial', ruleset: '5.5e' })
+  assert.equal(spells[1].name, 'Guidance')
+
+  // The same slug always resolves to the same id, run to run.
+  const secondBuild = await buildModule(root)
+  const spellsAgain = JSON.parse(readZipEntry(secondBuild.outputPath, 'spells.json')).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  assert.equal(spellsAgain[0].id, spells[0].id)
+})
+
+test('buildModule rejects an inline spell slug that collides with a standalone spell file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'fireball.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Fireball',
+      slug: 'fireball',
+      data: { level: 3, school: 'evocation' },
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '```spell', 'name: Fireball', '```', ''].join(
+      '\n',
+    ),
+  )
+
+  await assert.rejects(buildModule(root), (error) => {
+    assert.ok(error instanceof ModuleBuildError)
+    assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate spell slug "fireball"')))
+    return true
+  })
+})
+
+test('buildModule copies an inline spell\'s illustration image the same way a standalone spell does', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(join(root, 'spells', 'fireball.png'), 'fake-image-data')
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```spell',
+      'name: Fireball',
+      'image: spells/fireball.png',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.ok(listZipEntries(summary.outputPath).includes('spells/fireball.png'))
+  const spells = JSON.parse(readZipEntry(summary.outputPath, 'spells.json'))
+  assert.equal(spells[0].image, 'spells/fireball.png')
+})
+
+test('buildModule rejects an inline spell whose image references a missing file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```spell',
+      'name: Fireball',
+      'image: spells/missing.png',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  await assert.rejects(buildModule(root), (error) => {
+    assert.ok(error instanceof ModuleBuildError)
+    assert.ok(error.issues.some((issue) => issue.message.includes('references a missing file')))
+    return true
+  })
+})
+
+test('buildModule renders inline spell range/duration labels in the module\'s resolved measurement system', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```spell',
+      'name: Test Spell',
+      'range: 30',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root, { defaultMeasurement: 'metric' })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.match(pages[0].content, /9 meters/)
+})
+
+test('buildModule applies a project spellDisplayDefaults to an inline spell missing the show* field', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```spell',
+      'name: Test Spell',
+      'tags: [fire]',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root, { spellDisplayDefaults: { showTags: false } })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.doesNotMatch(pages[0].content, /Tags: /)
+})
+
+test('buildModule lets an inline spell\'s explicit show* field override the project spellDisplayDefaults', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```spell',
+      'name: Test Spell',
+      'tags: [fire]',
+      'showTags: true',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root, { spellDisplayDefaults: { showTags: false } })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.match(pages[0].content, /Tags: /)
+})
+
 test('buildModule omits tables.json when there are no roll tables', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)

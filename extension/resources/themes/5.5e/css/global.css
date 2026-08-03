@@ -1209,7 +1209,25 @@ a.roll {
    ------------------------------------------------------------------------ */
 
 .spell-block {
+  position: relative;
   margin: 1.5rem 0;
+}
+
+.spell-block-school-icon {
+  position: absolute;
+  top: 0.9rem;
+  right: 0;
+  width: 3.5rem;
+  height: 3.5rem;
+  object-fit: contain;
+}
+
+.spell-block-shape-icon {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: middle;
+  object-fit: contain;
 }
 
 .spell-block-title {
@@ -1268,6 +1286,10 @@ a.roll {
 .spell-block-detail-value {
   display: inline;
   font-style: normal;
+}
+
+.spell-block-details-footer .spell-block-detail-value {
+  font-style: italic;
 }
 
 .spell-block-heading-border {
