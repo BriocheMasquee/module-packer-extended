@@ -2,7 +2,7 @@
   "name": "mpx",
   "displayName": "Module Packer Extended",
   "description": "Build EncounterPlus V5 modules from Markdown projects.",
-  "version": "0.20.2",
+  "version": "0.21.0",
   "publisher": "local",
   "license": "CC0-1.0",
   "repository": {
