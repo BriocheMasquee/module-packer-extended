@@ -1,4 +1,8 @@
 import MarkdownIt from 'markdown-it'
+import { escapeHtml, parseSpellBlock, renderSpellBlockHtml } from './spellBlock.js'
+import type { SpellDisplayDefaults } from './spellBlock.js'
+import type { MeasurementSystem } from './localization.js'
+import type { ValidationIssue } from './compendiumShared.js'
 
 // These plugins have no usable published types, so they're loaded via require()
 // (typed `any` by @types/node) rather than `import`, matching how the rest of
@@ -17,6 +21,33 @@ export interface MarkdownRendererOptions {
    * matching what the built .module's HTML looks like once EncounterPlus
    * loads it from the module root instead of a page file. */
   preview?: boolean
+  /** Resolved target unit system for generated labels (e.g. a spell's
+   * range/duration). Defaults to "imperial" when not provided.
+   *
+   * Accepts a getter instead of a fixed value so preview rendering can read
+   * the workspace setting fresh on every render call — VSCode builds the
+   * markdown-it instance once per session (see extension.ts), so a fixed
+   * value here would freeze the resolved system for the rest of the session
+   * even after the user changes mpx.defaultMeasurement/mpx.contentLanguage. */
+  measurement?: MeasurementSystem | (() => MeasurementSystem)
+  /** Project-level fallback for a spell's `show*` toggles when its own YAML
+   * leaves one absent. Same getter-vs-value flexibility as `measurement`,
+   * for the same live-preview-refresh reason. */
+  spellDisplayDefaults?: SpellDisplayDefaults | (() => SpellDisplayDefaults)
+}
+
+/** Collected while rendering a page, so the build can merge inline
+ * Compendium blocks into the same output as standalone files. Not read
+ * during preview rendering. */
+export interface MpxMarkdownEnvironment {
+  inlineSpells?: InlineSpellBlock[]
+}
+
+export interface InlineSpellBlock {
+  data: Record<string, unknown>
+  issues: ValidationIssue[]
+  /** 0-based source line the fence starts at, for "reveal in page" navigation. */
+  line: number
 }
 
 /** Wraps a blockquote in the container div its CSS class expects (matching
@@ -239,9 +270,52 @@ function installImageRendering(markdown: MarkdownIt, options: MarkdownRendererOp
  * so inline-only fragments (e.g. a Compendium hover preview) aren't wrapped. */
 function installPageWrapper(markdown: MarkdownIt): void {
   const defaultRender = markdown.renderer.render.bind(markdown.renderer)
+  // A rule (e.g. a spell block's description) can call markdown.render()
+  // again while already inside a render pass — this guard only wraps the
+  // outermost call, so a nested fragment doesn't get its own stray #page.
+  let rendering = false
   markdown.renderer.render = (tokens, options, env) => {
-    const html = defaultRender(tokens, options, env)
-    return tokens.some((token) => token.block) ? `<div id="page">${html}</div>` : html
+    if (rendering) {
+      return defaultRender(tokens, options, env)
+    }
+    rendering = true
+    try {
+      const html = defaultRender(tokens, options, env)
+      return tokens.some((token) => token.block) ? `<div id="page">${html}</div>` : html
+    } finally {
+      rendering = false
+    }
+  }
+}
+
+/** Renders a fenced ` ```spell ` block into the `.spell-block` markup the
+ * theme's CSS already styles, and records the parsed data on `env` (keyed
+ * per page during a build) so it can be merged into spells.json alongside
+ * standalone spell files — matching how the original Module Packer and old
+ * MPX both supported spells authored directly inside a page. */
+function installSpellBlockRendering(markdown: MarkdownIt, options: MarkdownRendererOptions): void {
+  const defaultFence =
+    markdown.renderer.rules.fence ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts))
+
+  markdown.renderer.rules.fence = (tokens, idx, opts, env: MpxMarkdownEnvironment, self) => {
+    const token = tokens[idx]
+    if (token.info.trim().toLowerCase() !== 'spell') {
+      return defaultFence(tokens, idx, opts, env, self)
+    }
+
+    const { data, issues } = parseSpellBlock(token.content)
+    if (issues.length > 0) {
+      const messages = issues.map((issue) => escapeHtml(issue.message)).join(' ')
+      return `<div class="spell-block-error">${messages}</div>`
+    }
+
+    env.inlineSpells ??= []
+    env.inlineSpells.push({ data, issues, line: token.map?.[0] ?? 0 })
+
+    const measurement = typeof options.measurement === 'function' ? options.measurement() : (options.measurement ?? 'imperial')
+    const displayDefaults =
+      typeof options.spellDisplayDefaults === 'function' ? options.spellDisplayDefaults() : options.spellDisplayDefaults
+    return renderSpellBlockHtml(data, markdown, { measurement, preview: options.preview, displayDefaults })
   }
 }
 
@@ -258,6 +332,7 @@ export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): M
   installBlockquoteWrapping(markdown)
   installImageSizeSyntax(markdown)
   installImageRendering(markdown, options)
+  installSpellBlockRendering(markdown, options)
 
   if (options.preview) {
     installFrontMatterHiding(markdown)

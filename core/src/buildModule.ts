@@ -7,13 +7,23 @@ import { ZipFile } from 'yazl'
 import { listFilesRecursively } from './fileScan.js'
 import { readExportArchive } from './mapEncounterExport.js'
 import { createMarkdownRenderer } from './markdownRenderer.js'
+import type { MpxMarkdownEnvironment } from './markdownRenderer.js'
 import { MODULE_CATEGORIES } from './moduleProject.js'
-import { isValidSlug } from './slug.js'
+import { isValidSlug, slugify } from './slug.js'
 import { incrementPatchVersion } from './version.js'
 import { resolveProjectFile } from './projectPath.js'
 import { createUuidV5, isUuid } from './uuid.js'
 import { COMPENDIUM_RULESET } from './compendiumEntries.js'
 import type { MeasurementSystem } from './localization.js'
+import {
+  COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS,
+  isNonEmptyString,
+  isPlainObject,
+  stripEmptyNestedField,
+  stripEmptyValues,
+} from './compendiumShared.js'
+import { SPELL_IMAGE_PATTERN, validateSpellData, stripEmptySpellFields } from './spellCompendium.js'
+import type { SpellDisplayDefaults } from './spellBlock.js'
 
 export interface BuildIssue {
   file: string
@@ -72,10 +82,6 @@ const RESERVED_RESOURCE_NAMES = new Set([
 ])
 const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', 'monsters/']
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0
-}
-
 const MODULE_JSON_OPTIONAL_FIELDS = [
   'acronym',
   'category',
@@ -90,39 +96,11 @@ const MODULE_JSON_OPTIONAL_FIELDS = [
   'package',
 ]
 
-function isEmptyOptionalValue(value: unknown): boolean {
-  return (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0)
-}
-
-function stripEmptyValues(record: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
-  const cleaned = { ...record }
-  for (const field of fields) {
-    if (isEmptyOptionalValue(cleaned[field])) {
-      delete cleaned[field]
-    }
-  }
-  return cleaned
-}
-
 /** EncounterPlus expects an unset optional field to be absent from
  * module.json, not an empty string/array — the project's own module.json
  * still keeps every field, for editing; only the built copy is trimmed. */
 function stripEmptyOptionalFields(moduleJson: Record<string, unknown>): Record<string, unknown> {
   return stripEmptyValues(moduleJson, MODULE_JSON_OPTIONAL_FIELDS)
-}
-
-/** Strips a nested object's own empty optional fields in place, then drops
- * the whole field if nothing meaningful is left in it. */
-function stripEmptyNestedField(record: Record<string, unknown>, field: string, optionalFields: readonly string[]): void {
-  if (!isPlainObject(record[field])) {
-    return
-  }
-  const cleaned = stripEmptyValues(record[field], optionalFields)
-  if (Object.keys(cleaned).length === 0) {
-    delete record[field]
-  } else {
-    record[field] = cleaned
-  }
 }
 
 function numericOrUndefined(value: unknown): number | undefined {
@@ -239,9 +217,22 @@ function validateParentShape(relativePath: string, data: Record<string, unknown>
   }
 }
 
-async function readPages(moduleRoot: string, issues: BuildIssue[]): Promise<ResolvedEntry[]> {
-  const markdown = createMarkdownRenderer()
+/** An inline `​```spell` block found while rendering a page, carrying the
+ * page it was found in so a build-time issue can point back to it. */
+interface PageInlineSpellSource {
+  pageRelativePath: string
+  data: Record<string, unknown>
+}
+
+async function readPages(
+  moduleRoot: string,
+  issues: BuildIssue[],
+  measurement: MeasurementSystem,
+  spellDisplayDefaults: SpellDisplayDefaults | undefined,
+): Promise<{ entries: ResolvedEntry[]; inlineSpells: PageInlineSpellSource[] }> {
+  const markdown = createMarkdownRenderer({ measurement, spellDisplayDefaults })
   const entries: ResolvedEntry[] = []
+  const inlineSpells: PageInlineSpellSource[] = []
 
   for (const filePath of await listFilesRecursively(join(moduleRoot, 'pages'), '.md')) {
     const relativePath = toPortablePath(moduleRoot, filePath)
@@ -271,6 +262,13 @@ async function readPages(moduleRoot: string, issues: BuildIssue[]): Promise<Reso
     if (!isNonEmptyString(data.slug) || rank === undefined) {
       continue
     }
+
+    const env: MpxMarkdownEnvironment = {}
+    const content = markdown.render(parsed.content, env).trimEnd()
+    for (const block of env.inlineSpells ?? []) {
+      inlineSpells.push({ pageRelativePath: relativePath, data: block.data })
+    }
+
     entries.push({
       kind: 'page',
       relativePath,
@@ -280,12 +278,12 @@ async function readPages(moduleRoot: string, issues: BuildIssue[]): Promise<Reso
       explicitId: isUuid(data.id) ? data.id : undefined,
       record: {
         name: data.name,
-        content: markdown.render(parsed.content).trimEnd(),
+        content,
       },
     })
   }
 
-  return entries
+  return { entries, inlineSpells }
 }
 
 async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<ResolvedEntry[]> {
@@ -408,8 +406,6 @@ const ITEM_DAMAGE_TYPES = [
 ]
 const ITEM_IMAGE_PATTERN = /^items\/[^/\\]+$/
 
-const COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS = ['measurement', 'ruleset']
-
 const ITEM_TOP_LEVEL_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
 const ITEM_DATA_OPTIONAL_FIELDS = [
   'type',
@@ -434,10 +430,6 @@ function stripEmptyItemFields(item: Record<string, unknown>): Record<string, unk
   stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
   stripEmptyNestedField(cleaned, 'data', ITEM_DATA_OPTIONAL_FIELDS)
   return cleaned
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function validateItemData(relativePath: string, data: unknown, issues: BuildIssue[]): void {
@@ -481,139 +473,6 @@ function validateItemData(relativePath: string, data: unknown, issues: BuildIssu
       issues.push({ file: relativePath, message: `data.${field} must be a string when provided.` })
     }
   }
-}
-
-const SPELL_SCHOOLS = [
-  '',
-  'abjuration',
-  'conjuration',
-  'divination',
-  'enchantment',
-  'evocation',
-  'illusion',
-  'necromancy',
-  'transmutation',
-]
-const SPELL_ACTIVATION_UNITS = ['', 'action', 'bonusAction', 'reaction', 'hour', 'minute']
-const SPELL_RANGE_TYPES = ['', 'self', 'touch', 'sight', 'unlimited']
-const SPELL_AREA_EFFECT_SHAPES = ['', 'cone', 'cube', 'cylinder', 'line', 'square', 'sphere', 'emanation']
-const SPELL_COMPONENTS = ['V', 'S', 'M']
-const SPELL_DURATION_TYPES = ['', 'concentration', 'instantaneous', 'special', 'dispel', 'dispelOrTrigger']
-const SPELL_DURATION_UNITS = ['', 'round', 'minute', 'hour', 'day']
-const SPELL_IMAGE_PATTERN = /^spells\/[^/\\]+$/
-
-const SPELL_TOP_LEVEL_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
-const SPELL_DATA_OPTIONAL_FIELDS = [
-  'school',
-  'rangeType',
-  'areaEffectShape',
-  'componentsDetail',
-  'durationType',
-  'durationUnit',
-  'components',
-  'classes',
-]
-const SPELL_ACTIVATION_OPTIONAL_FIELDS = ['unit', 'condition']
-
-function validateSpellData(relativePath: string, data: unknown, issues: BuildIssue[]): void {
-  if (data === undefined) {
-    return
-  }
-  if (!isPlainObject(data)) {
-    issues.push({ file: relativePath, message: 'data must be an object when provided.' })
-    return
-  }
-  if (
-    data.level !== undefined &&
-    (typeof data.level !== 'number' || !Number.isInteger(data.level) || data.level < 0 || data.level > 9)
-  ) {
-    issues.push({ file: relativePath, message: 'data.level must be an integer between 0 and 9 when provided.' })
-  }
-  if (data.school !== undefined && !SPELL_SCHOOLS.includes(data.school as string)) {
-    issues.push({ file: relativePath, message: `data.school "${String(data.school)}" is not a recognized spell school.` })
-  }
-  if (data.ritual !== undefined && typeof data.ritual !== 'boolean') {
-    issues.push({ file: relativePath, message: 'data.ritual must be a boolean when provided.' })
-  }
-  if (data.activation !== undefined) {
-    if (!isPlainObject(data.activation)) {
-      issues.push({ file: relativePath, message: 'data.activation must be an object when provided.' })
-    } else {
-      const activation = data.activation
-      if (activation.time !== undefined && typeof activation.time !== 'number') {
-        issues.push({ file: relativePath, message: 'data.activation.time must be a number when provided.' })
-      }
-      if (activation.unit !== undefined && !SPELL_ACTIVATION_UNITS.includes(activation.unit as string)) {
-        issues.push({
-          file: relativePath,
-          message: `data.activation.unit "${String(activation.unit)}" is not a recognized activation unit.`,
-        })
-      }
-      if (activation.condition !== undefined && typeof activation.condition !== 'string') {
-        issues.push({ file: relativePath, message: 'data.activation.condition must be a string when provided.' })
-      }
-    }
-  }
-  if (data.rangeType !== undefined && !SPELL_RANGE_TYPES.includes(data.rangeType as string)) {
-    issues.push({ file: relativePath, message: `data.rangeType "${String(data.rangeType)}" is not a recognized range type.` })
-  }
-  if (data.range !== undefined && typeof data.range !== 'number') {
-    issues.push({ file: relativePath, message: 'data.range must be a number when provided.' })
-  }
-  if (data.areaEffectShape !== undefined && !SPELL_AREA_EFFECT_SHAPES.includes(data.areaEffectShape as string)) {
-    issues.push({
-      file: relativePath,
-      message: `data.areaEffectShape "${String(data.areaEffectShape)}" is not a recognized area effect shape.`,
-    })
-  }
-  if (data.areaEffectSize !== undefined && typeof data.areaEffectSize !== 'number') {
-    issues.push({ file: relativePath, message: 'data.areaEffectSize must be a number when provided.' })
-  }
-  if (
-    data.components !== undefined &&
-    (!Array.isArray(data.components) || !data.components.every((component) => SPELL_COMPONENTS.includes(component)))
-  ) {
-    issues.push({ file: relativePath, message: 'data.components must be an array of recognized spell components.' })
-  }
-  if (data.componentsDetail !== undefined && typeof data.componentsDetail !== 'string') {
-    issues.push({ file: relativePath, message: 'data.componentsDetail must be a string when provided.' })
-  }
-  if (data.durationType !== undefined && !SPELL_DURATION_TYPES.includes(data.durationType as string)) {
-    issues.push({
-      file: relativePath,
-      message: `data.durationType "${String(data.durationType)}" is not a recognized duration type.`,
-    })
-  }
-  if (data.duration !== undefined && typeof data.duration !== 'number') {
-    issues.push({ file: relativePath, message: 'data.duration must be a number when provided.' })
-  }
-  if (data.durationUnit !== undefined && !SPELL_DURATION_UNITS.includes(data.durationUnit as string)) {
-    issues.push({
-      file: relativePath,
-      message: `data.durationUnit "${String(data.durationUnit)}" is not a recognized duration unit.`,
-    })
-  }
-  if (
-    data.classes !== undefined &&
-    (!Array.isArray(data.classes) || !data.classes.every((entry) => typeof entry === 'string'))
-  ) {
-    issues.push({ file: relativePath, message: 'data.classes must be an array of strings when provided.' })
-  }
-}
-
-function stripEmptySpellFields(spell: Record<string, unknown>): Record<string, unknown> {
-  const cleaned = stripEmptyValues(spell, SPELL_TOP_LEVEL_OPTIONAL_FIELDS)
-  stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
-  if (isPlainObject(cleaned.data)) {
-    const data = stripEmptyValues(cleaned.data, SPELL_DATA_OPTIONAL_FIELDS)
-    stripEmptyNestedField(data, 'activation', SPELL_ACTIVATION_OPTIONAL_FIELDS)
-    if (Object.keys(data).length === 0) {
-      delete cleaned.data
-    } else {
-      cleaned.data = data
-    }
-  }
-  return cleaned
 }
 
 interface CompendiumEntryOptions {
@@ -776,6 +635,80 @@ function readSpells(
     issues,
     imageResourcesOut,
   )
+}
+
+const SPELL_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'sources', 'tags', 'data'] as const
+
+/** Normalizes one inline `​```spell` block (already lightly validated at
+ * preview-render time) into the same record shape a standalone spells/*.json
+ * file produces, applying the full build-time validation/defaults/id
+ * resolution — so both sources merge into spells.json indistinguishably.
+ * `pathById`/`pathBySlug` are seeded with the standalone spells first, so a
+ * collision against either source is caught the same way a collision between
+ * two standalone files already is. */
+async function buildInlineSpellRecord(
+  moduleRoot: string,
+  source: PageInlineSpellSource,
+  moduleId: string,
+  defaultMeasurement: MeasurementSystem,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+  pathById: Map<string, string>,
+  pathBySlug: Map<string, string>,
+): Promise<Record<string, unknown> | undefined> {
+  const { pageRelativePath, data: raw } = source
+  const name = raw.name as string
+  const label = `${pageRelativePath} (inline spell "${name}")`
+
+  const slug = isNonEmptyString(raw.slug) ? raw.slug.trim() : slugify(name)
+  validateSlugFormat(label, slug, issues)
+  validateSpellData(label, raw.data, issues)
+  if (raw.sources !== undefined && !Array.isArray(raw.sources)) {
+    issues.push({ file: label, message: 'sources must be an array when provided.' })
+  }
+  if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
+    issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
+  }
+  const image = raw.image
+  if (isNonEmptyString(image) && image !== 'spells/') {
+    if (!SPELL_IMAGE_PATTERN.test(image)) {
+      issues.push({ file: label, message: 'image must be a path to a file directly inside the spells folder.' })
+    } else {
+      const resolved = await checkResourceReference(moduleRoot, label, '"image"', image, issues)
+      if (resolved) {
+        imageResourcesOut.set(image, resolved)
+      }
+    }
+  }
+
+  if (!isValidSlug(slug)) {
+    return undefined
+  }
+
+  const explicitId = isUuid(raw.id) ? (raw.id as string) : undefined
+  const id = explicitId ?? createUuidV5(slug, moduleId)
+
+  const existingSlugPath = pathBySlug.get(slug)
+  if (existingSlugPath) {
+    issues.push({ file: label, message: `Duplicate spell slug "${slug}" in ${existingSlugPath} and ${label}.` })
+  } else {
+    pathBySlug.set(slug, label)
+  }
+  const existingIdPath = pathById.get(id)
+  if (existingIdPath) {
+    issues.push({ file: label, message: `Duplicate spell id "${id}" in ${existingIdPath} and ${label}.` })
+  } else {
+    pathById.set(id, label)
+  }
+
+  const record: Record<string, unknown> = { id, slug }
+  for (const field of SPELL_ENVELOPE_FIELDS) {
+    if (raw[field] !== undefined) {
+      record[field] = raw[field]
+    }
+  }
+  applyCompendiumAttributeDefaults(record, defaultMeasurement)
+  return stripEmptySpellFields(record)
 }
 
 const MONSTER_SIZES = ['', 'T', 'S', 'M', 'L', 'H', 'G', 'C']
@@ -1389,6 +1322,11 @@ export interface BuildOptions {
    * `mpx.defaultMeasurement` settings. Defaults to "imperial" (matching
    * old MPX's own ultimate fallback) if not provided. */
   defaultMeasurement?: MeasurementSystem
+  /** Project-level fallback for an inline spell's `show*` toggles, used only
+   * when a spell's own YAML leaves one absent — resolved from the project's
+   * mpx.defaultShowSpell* settings. Baked into the page's rendered HTML at
+   * build time, same as defaultMeasurement. */
+  spellDisplayDefaults?: SpellDisplayDefaults
 }
 
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
@@ -1405,12 +1343,13 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   await validateModuleJson(moduleRoot, moduleJson, issues)
 
   const defaultMeasurement = options.defaultMeasurement ?? 'imperial'
+  const moduleId = moduleJson.id as string
   const exportedResources = new Map<string, { data: Buffer; sourceName: string }>()
   const itemImageResources = new Map<string, string>()
   const spellImageResources = new Map<string, string>()
   const monsterImageResources = new Map<string, string>()
-  const [pages, groups, maps, encounters, items, spells, tables, monsters] = await Promise.all([
-    readPages(moduleRoot, issues),
+  const [pageResult, groups, maps, encounters, items, spells, tables, monsters] = await Promise.all([
+    readPages(moduleRoot, issues, defaultMeasurement, options.spellDisplayDefaults),
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
     readMapOrEncounterEntries(moduleRoot, 'encounter', issues, exportedResources),
@@ -1419,13 +1358,35 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     readRollTables(moduleRoot, issues),
     readMonsters(moduleRoot, issues, monsterImageResources, defaultMeasurement),
   ])
+  const { entries: pages, inlineSpells: inlineSpellSources } = pageResult
   const entries = [...pages, ...groups, ...maps, ...encounters]
+
+  // Inline `​```spell` blocks merge into the same spells.json output as
+  // standalone files — seed the dedup maps with the standalone spells first,
+  // so a collision against either source is caught the same way.
+  const spellPathById = new Map(spells.map((spell) => [spell.id as string, 'a standalone spell file']))
+  const spellPathBySlug = new Map(spells.map((spell) => [spell.slug as string, 'a standalone spell file']))
+  for (const source of inlineSpellSources) {
+    const record = await buildInlineSpellRecord(
+      moduleRoot,
+      source,
+      moduleId,
+      defaultMeasurement,
+      issues,
+      spellImageResources,
+      spellPathById,
+      spellPathBySlug,
+    )
+    if (record) {
+      spells.push(record)
+    }
+  }
+  spells.sort((a, b) => String(a.name).localeCompare(String(b.name)))
 
   if (issues.length > 0) {
     throw new ModuleBuildError(issues)
   }
 
-  const moduleId = moduleJson.id as string
   const parentOf = resolveStrictParents(entries, issues)
   if (issues.length > 0) {
     throw new ModuleBuildError(issues)

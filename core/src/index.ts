@@ -22,4 +22,7 @@ export {
 } from './localization.js'
 export type { ContentLanguage, DefaultMeasurement, MeasurementSystem } from './localization.js'
 export { createMarkdownRenderer } from './markdownRenderer.js'
-export type { MarkdownRendererOptions } from './markdownRenderer.js'
+export type { MarkdownRendererOptions, MpxMarkdownEnvironment, InlineSpellBlock } from './markdownRenderer.js'
+export type { SpellDisplayDefaults } from './spellBlock.js'
+export { findInlineSpells } from './inlineSpellScan.js'
+export type { InlineSpellSummary } from './inlineSpellScan.js'

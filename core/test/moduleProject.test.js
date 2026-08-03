@@ -61,6 +61,11 @@ test('createModuleProject writes .vscode/settings.json with auto-increment and l
     'mpx.autoIncrementVersion': true,
     'mpx.contentLanguage': 'en',
     'mpx.defaultMeasurement': 'auto',
+    'mpx.defaultShowSpellImage': true,
+    'mpx.defaultShowSpellSchoolIcon': true,
+    'mpx.defaultShowSpellAreaEffectIcon': true,
+    'mpx.defaultShowSpellSources': true,
+    'mpx.defaultShowSpellTags': true,
   })
 })
 

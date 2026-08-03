@@ -27,6 +27,7 @@ Two more rules apply in both modes — the real app needs them just as much as t
 - **Image captions**: `![Alt text](images/x.png){.caption}` renders as `<figure><img ...><figcaption>Alt text</figcaption></figure>` instead of a bare `<img>`. `.caption` is a marker, not a real CSS class — it's removed from the rendered `<img>`'s class list. Other classes (e.g. `{.caption .center}`) are kept.
 - **A leading `/images/...` path is normalized** to `images/...` in the built module — EncounterPlus fails to load the former, confirmed by a real import test.
 - **Image size syntax**: `![alt](images/x.png =300x200)` sets `width`/`height` on the `<img>`. Either dimension can be omitted (`=150x` for width-only, `=x200` for height-only) — at least one is required, and each must be a positive integer, or the syntax is ignored and the image renders as plain Markdown text. Combines with `{.caption}` and other classes normally.
+- **Inline spell blocks**: a fenced ` ```spell ` YAML block renders as a `.spell-block` matching EncounterPlus's real spell card — see [Compendium](Compendium) for the full field reference. Every setting that affects it (`mpx.defaultMeasurement`, `mpx.contentLanguage`, the five `mpx.defaultShowSpell*` toggles) is re-resolved on every render and the open preview refreshes itself automatically when any of them changes — no reload needed, unlike the theme-switching limitation below.
 
 ## Known limitations
 

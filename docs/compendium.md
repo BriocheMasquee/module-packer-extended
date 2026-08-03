@@ -59,8 +59,103 @@ A monster's `data.languages` and `data.environments` aren't strictly validated a
 
 `data.cr` (challenge rating), on the other hand, **is** a closed list — confirmed against EncounterPlus's own challenge-rating-to-XP table: `0`, the three sub-1 fractions (`1/8`, `1/4`, `1/2`), then every integer from `1` to `30`.
 
+## Inline spell authoring
+
+A spell can also be written directly inside a page's Markdown, as a fenced ` ```spell ` YAML block, instead of (or alongside) a standalone `spells/<slug>.json` file. This is the only Compendium content type that currently supports inline authoring — see "Not included (yet)" below for items/monsters/roll tables.
+
+### YAML shape
+
+The block is "flat" (no `data:` wrapper, unlike the standalone JSON files) for ease of authoring — it's reshaped internally into the same envelope before validation and before merging into `spells.json`. Type `mpx-spell` in a page and accept the suggestion (press `Ctrl+Space`/`⌃Space` first if it doesn't pop up on its own) to insert the full template:
+
+```
+```spell
+name: "New Spell"
+slug: new-spell
+attributes:
+  measurement: ""
+  ruleset: "5.5e"
+image: "spells/"
+showImage: true
+level: 0
+school: ""
+showSchoolIcon: true
+ritual: false
+activation:
+  time: 0
+  unit: ""
+  condition: ""
+rangeType: ""
+range: 0
+areaEffectShape: ""
+areaEffectSize: 0
+showAreaEffectIcon: true
+components: []
+componentsDetail: ""
+durationType: ""
+duration: 0
+durationUnit: ""
+classes: []
+descr: ""
+sources:
+  - name: ""
+    page: 0
+showSources: true
+tags: []
+showTags: true
+```
+```
+
+Free-text/enum fields (`name`, `school`, `activation.unit`, `rangeType`, `durationType`, `durationUnit`, `descr`) are quoted by default so an untouched field parses as an empty string, not YAML `null` — a `null` there would fail the same enum validation a typo would. `range`/`areaEffectSize` default to `0`, which is treated as "not set" everywhere (0 is never a real spell range or area size in D&D's rules) rather than rendering a literal "0 feet". `image: "spells/"` (no file name) is likewise treated as "no image", the same convention a standalone spell file uses.
+
+`slug` is optional — if left out, it's generated from `name` at build time. `id` isn't part of the template at all; a deterministic UUID (from the slug + module id) is generated automatically, exactly like a page's id, so nothing needs to be typed by hand.
+
+### `show*` toggles
+
+Every visual element — the illustration image, the school icon, the area-effect shape icon, the Source line, the Tags line — has its own `show*` boolean, placed directly under the field it controls. Each also has a project-wide default setting:
+
+- `mpx.defaultShowSpellImage`
+- `mpx.defaultShowSpellSchoolIcon`
+- `mpx.defaultShowSpellAreaEffectIcon`
+- `mpx.defaultShowSpellSources`
+- `mpx.defaultShowSpellTags`
+
+All default to `true`. A spell's own `show*` field, once explicitly set to `true` or `false`, always wins over the project setting — the project setting only fills in when the field is left out of the YAML entirely. `createModuleProject` prefills all five in `.vscode/settings.json`, same as `mpx.contentLanguage`/`mpx.defaultMeasurement`.
+
+### Icons
+
+The school icon (`showSchoolIcon`) and the area-effect shape icon (`showAreaEffectIcon`) come from the theme's own bundled images (`assets/img/school-*.webp`, `assets/img/shape-*.webp`), matching EncounterPlus's real rendering. A shape with no matching icon (there isn't one for every `areaEffectShape` value) falls back to its translated text label instead of leaving a blank spot — same behavior as turning the icon off with the `show*` field.
+
+### Sources
+
+`sources` is an array of `{ name, page }` objects, same shape as a standalone spell file's — `page` is a number, not a string:
+
+```yaml
+sources:
+  - name: "Player's Handbook"
+    page: 241
+```
+
+### Measurement
+
+`range` and `areaEffectSize` are always authored in feet — when the resolved measurement system is metric, the displayed number is converted using the same simplified factor WotC's own licensed French translations use (feet × 0.3, rounded to the nearest half-unit), not the precise 0.3048 conversion. The unit word itself ("feet"/"meters", "ft"/"m") is currently always in English regardless of `mpx.contentLanguage` — full label localization is tracked in [issue #15](https://github.com/BriocheMasquee/mpx-bis/issues/15), not implemented yet.
+
+The live preview re-resolves `mpx.defaultMeasurement`/`mpx.contentLanguage`/the five `defaultShowSpell*` settings on every render and refreshes itself automatically when any of them changes — no need to reload the Extension Development Host or reopen the preview.
+
+### Build merge
+
+At build time, every inline spell across every page is merged into `spells.json` alongside standalone files — validated exactly like a standalone file (slug format, enum values, `sources`/`tags` shape, image existence), with the same duplicate-slug/duplicate-id detection applying across *both* sources. The `show*` fields never appear in the built `spells.json` — they're an inline-authoring/rendering concern only, not part of EncounterPlus's own schema, so they're stripped before merging.
+
+### Compendium panel entry
+
+An inline spell shows up in the Compendium panel's "Spells" category alongside standalone files, sorted together by name, labeled "inline" — same icon as a standalone spell, since the label already distinguishes it. Clicking it doesn't open a file (there isn't a separate one) — it opens the page and reveals the block's location instead.
+
+### A missing closing fence
+
+Forgetting the closing ` ``` ` on a spell block causes its content to swallow everything after it, including the next block's own opening ` ```spell ` line, as literal (invalid) YAML text. The resulting error hints at this specifically ("A previous ```spell block above this one is likely missing its closing ``` line") rather than just surfacing the raw YAML parser error.
+
 ## Not included (yet)
 
-- **No inline authoring** — items/spells/monsters as fenced blocks directly inside a Markdown page, or roll tables auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now; standalone JSON files only.
-- **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
+- **No inline authoring for items/monsters**, or roll tables auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now; standalone JSON files only. Spells are the first (and so far only) Compendium content type with inline authoring — see above.
+- **No "virtual entry" edit/delete from the Compendium panel** — an inline spell's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
+- **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists for tables too (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.

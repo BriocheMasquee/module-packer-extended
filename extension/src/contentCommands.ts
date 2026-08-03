@@ -39,7 +39,13 @@ export async function promptName(prompt: string, defaultValue: string): Promise<
 export async function openCreatedEntry(entry: CreatedContentEntry): Promise<void> {
   const document = await vscode.workspace.openTextDocument(vscode.Uri.file(entry.filePath))
   await vscode.window.showTextDocument(document)
+  // Shared by both the Module Explorer's content (pages/groups/maps/
+  // encounters) and the Compendium's (items/spells/monsters/tables) — each
+  // command is a no-op if its own panel isn't showing the created kind, so
+  // refreshing both unconditionally is simpler than threading which kind
+  // owns which panel through this shared helper.
   await vscode.commands.executeCommand('mpx.refreshExplorer')
+  await vscode.commands.executeCommand('mpx.refreshCompendiumExplorer')
 }
 
 export function registerContentCreationCommand(
