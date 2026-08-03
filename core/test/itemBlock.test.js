@@ -197,3 +197,15 @@ test('an inline spell block still renders correctly alongside item block support
   const html = markdown.render('```spell\nname: Fireball\nlevel: 3\n```\n')
   assert.match(html, /<div class="compendium-block-title">Fireball<\/div>/)
 })
+
+test('gender-agrees French "peu courant" to "peu courante" for a feminine item type (e.g. weapon)', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```item\nname: Test\ntype: meleeWeapon\nrarity: uncommon\n```\n')
+  assert.match(html, /<div class="compendium-block-heading">Arme de corps à corps, Peu courante<\/div>/)
+})
+
+test('leaves French rarity masculine for a masculine item type (e.g. ring)', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```item\nname: Test\ntype: ring\nrarity: common\n```\n')
+  assert.match(html, /<div class="compendium-block-heading">Anneau, Courant<\/div>/)
+})

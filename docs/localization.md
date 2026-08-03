@@ -62,3 +62,26 @@ A few labels aren't in EncounterPlus's own catalog at all, so they're handled di
 - **A spell's `range` unit word** — `core/src/compendiumBlock.ts`'s `distanceUnitWord()` shows "mètre" when both the measurement is metric and the language is French, "meters"/"feet" otherwise. Only the metric+French word is translated (French projects default to metric — see [Compendium](Compendium#measurement)); the imperial word stays "feet" even when `mpx.contentLanguage` is `"fr"`, since that combination requires overriding `mpx.defaultMeasurement` explicitly and no French word has been set for it. A monster's speed/senses use the shorter "ft"/"m" abbreviations instead (unaffected — "m" already reads the same in both languages).
 - **The ability table's floating "SAVE" column header** (5.5e theme CSS) — a static `content:` property, so it can't read `mpx.contentLanguage` directly. `renderMonsterBlockHtml` adds a `lang-fr` class to `.statblock` when the language is French, and `.statblock.lang-fr ... ::before { content: 'JdS'; }` in `global.css` overrides it — casing matched exactly ("JdS", not "JDS"/"jds").
 - **Weight units ("lb"/"kg")** need no such handling — they're already tied purely to the measurement system, not the language, so "kg" already shows whenever the project is metric, in either language.
+
+## French word order and grammatical gender
+
+Translating each word individually isn't enough — French phrases the spell heading, monster subtitle, and item rarity differently from English, confirmed against real 5.5e French SRD text (spell/item entries, monster stat blocks). This only applies when `mpx.contentLanguage` is `"fr"`; English keeps its original phrasing.
+
+**Spell heading** — school comes *before* the level, not after, and a cantrip reads "{École} mineur(e)":
+- English: `Level 2 Abjuration` / `Evocation Cantrip`
+- French: `Abjuration du 2e niveau` / `Évocation mineure`
+
+"mineur"/"mineure" and the ordinal ("1er niveau", "2e niveau", ...) are MPX-authored (`spellBlock.ts`'s `SPELL_SCHOOL_FEMININE`/`ordinalFr`), not catalog data.
+
+**Monster subtitle** — type comes before size, and size is a letter code, not a spelled-out word:
+- English: `Large Fey, Neutral Evil`
+- French: `Fée de taille G, Chaotique Mauvaise`
+
+Size letters (`monsterBlock.ts`'s `FR_SIZE_LETTERS`, MPX-authored): T→TP, S→P, M→M, L→G, H→TG, G→Gig. "C" (Colossal) has no French code — it isn't a real 5.5e size, so it's left unmapped rather than guessed.
+
+**Grammatical gender agreement** — several French adjectives change spelling to agree with the grammatical gender of the noun they describe:
+- A monster's alignment word (`monsterBlock.ts`'s `MONSTER_TYPE_FEMININE` + `feminizeFrenchAlignment()`): "Chaotique Mauvais" (masculine, e.g. Fiélon) vs "Chaotique Mauvaise" (feminine, e.g. Monstruosité); "Non aligné" vs "non alignée". "Chaotique"/"Neutre" don't change.
+- An item's "Courant"/"Peu courant" rarity (`itemBlock.ts`'s `ITEM_TYPE_FEMININE`): "Peu courant" (masculine, e.g. Anneau) vs "Peu courante" (feminine, e.g. Arme). Every other rarity word ("Rare", "Très rare", "Légendaire", "Artefact") is already gender-invariant in French.
+- A cantrip's "mineur"/"mineure" (`spellBlock.ts`'s `SPELL_SCHOOL_FEMININE`): agrees with the school's own name ("Nécromancie mineure" vs "Enchantement mineur").
+
+These three gender tables are MPX-authored (standard French grammatical gender, cross-checked against real screenshots) — not sourced from the EncounterPlus catalog, which has no gender data and only ever provides the fixed masculine form.

@@ -204,6 +204,29 @@ test('shows the French unit word "mètre" for a metric range when language is "f
   assert.match(html, /9 mètre/)
 })
 
+test('reverses the French spell heading order (school before level, not after)', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render(
+    '```spell\nname: Test\nlevel: 2\nschool: transmutation\nclasses: [Barde, Druide]\n```\n',
+  )
+  assert.match(html, /<div class="compendium-block-heading">Transmutation du 2e niveau \(Barde, Druide\)<\/div>/)
+})
+
+test('uses "1er niveau" (not "1e niveau") as the French ordinal for level 1', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```spell\nname: Test\nlevel: 1\nschool: divination\n```\n')
+  assert.match(html, /Divination du 1er niveau/)
+})
+
+test('renders a French cantrip as "{École} mineur(e)", gender-agreed with the school', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const feminineHtml = markdown.render('```spell\nname: Test\nlevel: 0\nschool: necromancy\n```\n')
+  assert.match(feminineHtml, /Nécromancie mineure/)
+
+  const masculineHtml = markdown.render('```spell\nname: Test2\nlevel: 0\nschool: enchantment\n```\n')
+  assert.match(masculineHtml, /Enchantement mineur\b/)
+})
+
 test('accepts a measurement getter re-read on every render, not resolved once', () => {
   let current = 'imperial'
   const markdown = createMarkdownRenderer({ measurement: () => current })
