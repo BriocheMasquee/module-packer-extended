@@ -47,6 +47,10 @@ Three ways to create/discover the file, all equivalent:
 
 A malformed entry (wrong type, unrecognized language) is skipped with a warning notification rather than discarding the whole file — one typo doesn't cost you every other override you've already set up.
 
+### Resetting
+
+Right-click the **Translation Overrides** line in the Project panel and choose **Delete** (moves the file to the OS trash) — the same generic delete action every other Project-panel entry has. No separate "reset" command or extra tree row: deleting the file is the reset, and the panel falls back to its "Create…" state on its own once the file watcher notices it's gone.
+
 ## Measurement stays a separate setting
 
 `mpx.defaultMeasurement`/`mpx.contentLanguage` already interact for unit *conversion* (feet → meters) — see [Compendium](Compendium#measurement). That link is unrelated to label translation: switching `mpx.contentLanguage` changes both the catalog labels *and* (via the existing `"auto"` fallback) the default measurement system, but you can still pick French labels with imperial units, or English labels with metric, by setting `mpx.defaultMeasurement` explicitly.

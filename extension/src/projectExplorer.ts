@@ -43,7 +43,7 @@ class CompendiumSummaryItem extends vscode.TreeItem {
 }
 
 class TranslationOverridesItem extends vscode.TreeItem {
-  constructor(filePath: string, overrideCount: number) {
+  constructor(readonly filePath: string, overrideCount: number) {
     super('Translation Overrides', vscode.TreeItemCollapsibleState.None)
     this.description = `${overrideCount} override${overrideCount === 1 ? '' : 's'}`
     this.iconPath = new vscode.ThemeIcon('globe')
@@ -52,6 +52,12 @@ class TranslationOverridesItem extends vscode.TreeItem {
       title: 'Open',
       arguments: [vscode.Uri.file(filePath)],
     }
+    // Reuses the same generic "Delete" context-menu action every other
+    // deletable tree item has (see deleteEntryCommand.ts) — deleting the
+    // file is the reset: no separate command/tree row needed, and the
+    // panel falls back to CreateTranslationOverridesItem on its own once
+    // the file watcher notices it's gone.
+    this.contextValue = 'mpxDeletableEntry'
   }
 }
 
