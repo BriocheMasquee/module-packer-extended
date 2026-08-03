@@ -25,6 +25,7 @@ import {
   MONSTER_ALIGNMENTS,
   MONSTER_DAMAGE_TYPES,
   MONSTER_CHALLENGE_RATINGS,
+  COMPENDIUM_RULESET,
 } from 'mpx-core'
 
 type BlockKind = 'spell' | 'item' | 'monster'
@@ -85,9 +86,56 @@ const ENUM_VALUES: Record<BlockKind, Record<string, readonly string[]>> = {
   },
 }
 
+/** Object-valued fields with a known, fixed set of children — completion
+ * inside one of these only offers its own children, not the block's
+ * top-level fields. `attributes` is the only one covered so far (a
+ * monster's `speed`/`senses`/`skills`/`savingThrows`/`abilities` are still
+ * a follow-up, same gap noted on ENUM_VALUES above). `attributes.measurement`
+ * only ever holds a resolved "imperial"/"metric" once written (never
+ * "auto" — that's a project *setting*'s own option, not a legal value for
+ * an individual entry, see resolveMeasurementSystem in core). */
+const ATTRIBUTES_CHILDREN: Record<string, readonly string[]> = {
+  measurement: ['imperial', 'metric'],
+  ruleset: [COMPENDIUM_RULESET],
+}
+const CONTAINER_FIELDS: Record<BlockKind, Record<string, Record<string, readonly string[]>>> = {
+  spell: { attributes: ATTRIBUTES_CHILDREN },
+  item: { attributes: ATTRIBUTES_CHILDREN },
+  monster: { attributes: ATTRIBUTES_CHILDREN },
+}
+
 const FENCE_OPEN = /^```\s*(spell|item|monster)\b/i
 const FENCE_CLOSE = /^```\s*$/
 const FIELD_LINE = /^\s*([A-Za-z][A-Za-z0-9]*)\s*:\s*(.*)$/
+
+function indentOf(text: string): number {
+  return text.length - text.trimStart().length
+}
+
+/** Which known container field (if any) `line` is nested directly under —
+ * scans upward within the block for the nearest less-indented bare `key:`
+ * line. Only resolves one level of nesting (enough for `attributes:`);
+ * returns undefined for a top-level line, or a line nested under anything
+ * else (deeper/unlisted nesting isn't covered yet, see CONTAINER_FIELDS). */
+function findParentField(document: vscode.TextDocument, region: BlockRegion, line: number): string | undefined {
+  const currentIndent = indentOf(document.lineAt(line).text)
+  if (currentIndent === 0) {
+    return undefined
+  }
+  for (let cursor = line - 1; cursor >= region.contentStartLine; cursor -= 1) {
+    const text = document.lineAt(cursor).text
+    if (text.trim() === '') {
+      continue
+    }
+    const indent = indentOf(text)
+    if (indent >= currentIndent) {
+      continue
+    }
+    const match = FIELD_LINE.exec(text)
+    return match && match[2].trim() === '' ? match[1] : undefined
+  }
+  return undefined
+}
 
 /** Every *closed* ```spell/item/monster block in the document — used for
  * diagnostics, so a block still being typed (no closing ``` yet) doesn't
@@ -152,15 +200,24 @@ class CompendiumBlockCompletionProvider implements vscode.CompletionItemProvider
     }
 
     const beforeCursor = document.lineAt(position.line).text.slice(0, position.character)
+    const parentField = findParentField(document, region, position.line)
+    const container = parentField ? CONTAINER_FIELDS[region.kind][parentField] : undefined
+    // A nested line under an unlisted container (e.g. a monster's `skills:`)
+    // isn't covered yet — abstain entirely rather than fall back to the
+    // block's own top-level fields/enums, which would be wrong here.
+    if (parentField && !container) {
+      return undefined
+    }
 
     const fieldMatch = FIELD_LINE.exec(beforeCursor)
     if (fieldMatch) {
-      const values = ENUM_VALUES[region.kind][fieldMatch[1]]
+      const values = container ? container[fieldMatch[1]] : ENUM_VALUES[region.kind][fieldMatch[1]]
       return values?.map((value) => new vscode.CompletionItem(value, vscode.CompletionItemKind.EnumMember))
     }
 
     if (/^\s*$/.test(beforeCursor)) {
-      return FIELD_NAMES[region.kind].map((field) => {
+      const fields = container ? Object.keys(container) : FIELD_NAMES[region.kind]
+      return fields.map((field) => {
         const item = new vscode.CompletionItem(field, vscode.CompletionItemKind.Field)
         item.insertText = `${field}: `
         return item
