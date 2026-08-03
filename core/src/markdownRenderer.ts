@@ -4,6 +4,8 @@ import { parseSpellBlock, renderSpellBlockHtml } from './spellBlock.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
 import { parseItemBlock, renderItemBlockHtml } from './itemBlock.js'
 import type { ItemDisplayDefaults } from './itemBlock.js'
+import { parseMonsterBlock, renderMonsterBlockHtml } from './monsterBlock.js'
+import type { MonsterDisplayDefaults } from './monsterBlock.js'
 import { escapeHtml } from './compendiumBlock.js'
 import type { MeasurementSystem } from './localization.js'
 import type { ValidationIssue } from './compendiumShared.js'
@@ -40,6 +42,8 @@ export interface MarkdownRendererOptions {
   spellDisplayDefaults?: SpellDisplayDefaults | (() => SpellDisplayDefaults)
   /** Same as `spellDisplayDefaults`, for an item's `show*` toggles. */
   itemDisplayDefaults?: ItemDisplayDefaults | (() => ItemDisplayDefaults)
+  /** Same as `spellDisplayDefaults`, for a monster's `show*` toggles. */
+  monsterDisplayDefaults?: MonsterDisplayDefaults | (() => MonsterDisplayDefaults)
 }
 
 /** Collected while rendering a page, so the build can merge inline
@@ -49,6 +53,7 @@ export interface MpxMarkdownEnvironment {
   [key: string | symbol]: unknown
   inlineSpells?: InlineSpellBlock[]
   inlineItems?: InlineItemBlock[]
+  inlineMonsters?: InlineMonsterBlock[]
 }
 
 export interface InlineSpellBlock {
@@ -59,6 +64,13 @@ export interface InlineSpellBlock {
 }
 
 export interface InlineItemBlock {
+  data: Record<string, unknown>
+  issues: ValidationIssue[]
+  /** 0-based source line the fence starts at, for "reveal in page" navigation. */
+  line: number
+}
+
+export interface InlineMonsterBlock {
   data: Record<string, unknown>
   issues: ValidationIssue[]
   /** 0-based source line the fence starts at, for "reveal in page" navigation. */
@@ -370,6 +382,36 @@ function installItemBlockRendering(markdown: MarkdownItInstance, options: Markdo
   }
 }
 
+/** Renders a fenced ` ```monster ` block — same mechanism as
+ * installSpellBlockRendering/installItemBlockRendering, chained after item
+ * so its own `defaultFence` falls back through item then spell then a
+ * plain code block. */
+function installMonsterBlockRendering(markdown: MarkdownItInstance, options: MarkdownRendererOptions): void {
+  const defaultFence =
+    markdown.renderer.rules.fence ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts))
+
+  markdown.renderer.rules.fence = (tokens, idx, opts, envArg: MpxMarkdownEnvironment | undefined, self) => {
+    const env: MpxMarkdownEnvironment = envArg ?? {}
+    const token = tokens[idx]
+    if (token.info.trim().toLowerCase() !== 'monster') {
+      return defaultFence(tokens, idx, opts, env, self)
+    }
+
+    const { data, issues } = parseMonsterBlock(token.content)
+    if (issues.length > 0) {
+      const messages = issues.map((issue) => escapeHtml(issue.message)).join(' ')
+      return `<div class="monster-block-error">${messages}</div>`
+    }
+
+    env.inlineMonsters ??= []
+    env.inlineMonsters.push({ data, issues, line: token.map?.[0] ?? 0 })
+
+    const displayDefaults =
+      typeof options.monsterDisplayDefaults === 'function' ? options.monsterDisplayDefaults() : options.monsterDisplayDefaults
+    return renderMonsterBlockHtml(data, markdown, { preview: options.preview, displayDefaults })
+  }
+}
+
 export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): MarkdownItInstance {
   const markdown = new MarkdownIt({ html: true, linkify: true })
   // markdown-it 15 dropped `utils.assign` (a pre-ES2015 Object.assign shim,
@@ -391,6 +433,7 @@ export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): M
   installImageRendering(markdown, options)
   installSpellBlockRendering(markdown, options)
   installItemBlockRendering(markdown, options)
+  installMonsterBlockRendering(markdown, options)
 
   if (options.preview) {
     installFrontMatterHiding(markdown)

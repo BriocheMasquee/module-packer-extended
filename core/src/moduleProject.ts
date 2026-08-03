@@ -86,6 +86,10 @@ export async function createModuleProject(
     'mpx.defaultShowItemImage': true,
     'mpx.defaultShowItemSources': true,
     'mpx.defaultShowItemTags': true,
+    'mpx.defaultShowMonsterImage': true,
+    'mpx.defaultShowMonsterToken': true,
+    'mpx.defaultShowMonsterSources': true,
+    'mpx.defaultShowMonsterTags': true,
   }
   await mkdir(join(targetFolder, '.vscode'), { recursive: true })
   await writeFile(

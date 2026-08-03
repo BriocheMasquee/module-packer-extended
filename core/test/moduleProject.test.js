@@ -69,6 +69,10 @@ test('createModuleProject writes .vscode/settings.json with auto-increment and l
     'mpx.defaultShowItemImage': true,
     'mpx.defaultShowItemSources': true,
     'mpx.defaultShowItemTags': true,
+    'mpx.defaultShowMonsterImage': true,
+    'mpx.defaultShowMonsterToken': true,
+    'mpx.defaultShowMonsterSources': true,
+    'mpx.defaultShowMonsterTags': true,
   })
 })
 

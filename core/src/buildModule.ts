@@ -15,22 +15,13 @@ import { resolveProjectFile } from './projectPath.js'
 import { createUuidV5, isUuid } from './uuid.js'
 import { COMPENDIUM_RULESET } from './compendiumEntries.js'
 import type { MeasurementSystem } from './localization.js'
-import {
-  COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS,
-  isNonEmptyString,
-  isPlainObject,
-  stripEmptyNestedField,
-  stripEmptyValues,
-} from './compendiumShared.js'
+import { isNonEmptyString, isPlainObject, stripEmptyValues } from './compendiumShared.js'
 import { SPELL_IMAGE_PATTERN, validateSpellData, stripEmptySpellFields } from './spellCompendium.js'
-import {
-  ITEM_IMAGE_PATTERN,
-  ITEM_DAMAGE_TYPES,
-  validateItemData,
-  stripEmptyItemFields,
-} from './itemCompendium.js'
+import { ITEM_IMAGE_PATTERN, validateItemData, stripEmptyItemFields } from './itemCompendium.js'
+import { MONSTER_IMAGE_PATTERN, validateMonsterData, stripEmptyMonsterFields } from './monsterCompendium.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
 import type { ItemDisplayDefaults } from './itemBlock.js'
+import type { MonsterDisplayDefaults } from './monsterBlock.js'
 
 export interface BuildIssue {
   file: string
@@ -238,11 +229,18 @@ async function readPages(
   measurement: MeasurementSystem,
   spellDisplayDefaults: SpellDisplayDefaults | undefined,
   itemDisplayDefaults: ItemDisplayDefaults | undefined,
-): Promise<{ entries: ResolvedEntry[]; inlineSpells: PageInlineEntrySource[]; inlineItems: PageInlineEntrySource[] }> {
-  const markdown = createMarkdownRenderer({ measurement, spellDisplayDefaults, itemDisplayDefaults })
+  monsterDisplayDefaults: MonsterDisplayDefaults | undefined,
+): Promise<{
+  entries: ResolvedEntry[]
+  inlineSpells: PageInlineEntrySource[]
+  inlineItems: PageInlineEntrySource[]
+  inlineMonsters: PageInlineEntrySource[]
+}> {
+  const markdown = createMarkdownRenderer({ measurement, spellDisplayDefaults, itemDisplayDefaults, monsterDisplayDefaults })
   const entries: ResolvedEntry[] = []
   const inlineSpells: PageInlineEntrySource[] = []
   const inlineItems: PageInlineEntrySource[] = []
+  const inlineMonsters: PageInlineEntrySource[] = []
 
   for (const filePath of await listFilesRecursively(join(moduleRoot, 'pages'), '.md')) {
     const relativePath = toPortablePath(moduleRoot, filePath)
@@ -281,6 +279,9 @@ async function readPages(
     for (const block of env.inlineItems ?? []) {
       inlineItems.push({ pageRelativePath: relativePath, data: block.data })
     }
+    for (const block of env.inlineMonsters ?? []) {
+      inlineMonsters.push({ pageRelativePath: relativePath, data: block.data })
+    }
 
     entries.push({
       kind: 'page',
@@ -296,7 +297,7 @@ async function readPages(
     })
   }
 
-  return { entries, inlineSpells, inlineItems }
+  return { entries, inlineSpells, inlineItems, inlineMonsters }
 }
 
 async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<ResolvedEntry[]> {
@@ -648,276 +649,79 @@ async function buildInlineItemRecord(
   return stripEmptyItemFields(record)
 }
 
-const MONSTER_SIZES = ['', 'T', 'S', 'M', 'L', 'H', 'G', 'C']
-const MONSTER_TYPES = [
-  '',
-  'aberration',
-  'beast',
-  'celestial',
-  'construct',
-  'dragon',
-  'elemental',
-  'fey',
-  'fiend',
-  'giant',
-  'humanoid',
-  'monstrosity',
-  'ooze',
-  'plant',
-  'undead',
-]
-const MONSTER_ALIGNMENTS = ['', 'LG', 'NG', 'CG', 'LN', 'NN', 'CN', 'LE', 'NE', 'CE', 'UU']
-const MONSTER_ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha']
-const MONSTER_SKILLS = [
-  'acrobatics',
-  'animalHandling',
-  'arcana',
-  'athletics',
-  'deception',
-  'history',
-  'insight',
-  'intimidation',
-  'investigation',
-  'medicine',
-  'nature',
-  'perception',
-  'performance',
-  'persuasion',
-  'religion',
-  'sleightOfHand',
-  'stealth',
-  'survival',
-]
-const MONSTER_DAMAGE_TYPES = ITEM_DAMAGE_TYPES.filter((value) => value !== '')
-/** Challenge rating is a closed list, confirmed against EncounterPlus's own
- * `ChallengeRatingToXP` table: 0, the three sub-1 fractions, then 1-30. */
-const MONSTER_CHALLENGE_RATINGS = [
-  '',
-  '0',
-  '1/8',
-  '1/4',
-  '1/2',
-  ...Array.from({ length: 30 }, (_, index) => String(index + 1)),
-]
-const MONSTER_FEATURE_LIST_FIELDS = ['traits', 'actions', 'bonusActions', 'reactions', 'legendaryActions']
-const MONSTER_IMAGE_PATTERN = /^monsters\/[^/\\]+$/
+const MONSTER_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'token', 'sources', 'tags', 'data'] as const
 
-const MONSTER_TOP_LEVEL_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
-const MONSTER_DATA_OPTIONAL_FIELDS = [
-  'size',
-  'type',
-  'typeDetail',
-  'alignment',
-  'ac',
-  'hp',
-  'conditionImmunities',
-  'damageImmunities',
-  'damageResistances',
-  'damageVulnerabilities',
-  'languages',
-  'cr',
-  'environments',
-  ...MONSTER_FEATURE_LIST_FIELDS,
-]
-const MONSTER_SPEED_OPTIONAL_FIELDS = ['other']
-const MONSTER_SENSES_OPTIONAL_FIELDS = ['other']
-
-/** `traits`/`actions`/`bonusActions`/`reactions`/`legendaryActions` entries
- * are `{ name, text, usage? }` — confirmed against a real compiled
- * monsters.json export (not `{ name, description }` as an earlier,
- * unverified reading of the old MPX code assumed). No `mythicActions`: a
- * 5.5e-era leftover no longer used, omitted entirely. */
-function validateMonsterFeatureList(
-  relativePath: string,
-  fieldName: string,
-  value: unknown,
+/** Same mechanism as buildInlineSpellRecord (see its comment) — for
+ * monsters merging into monsters.json instead of spells.json. `token` is
+ * validated the same way as `image` (both live in the monsters/ folder) —
+ * `color`/`twoColumn` are inline-authoring-only presentation fields, not
+ * part of MONSTER_ENVELOPE_FIELDS, so they're dropped here same as a
+ * spell/item's `show*` fields never reaching the built JSON. */
+async function buildInlineMonsterRecord(
+  moduleRoot: string,
+  source: PageInlineEntrySource,
+  moduleId: string,
+  defaultMeasurement: MeasurementSystem,
   issues: BuildIssue[],
-): void {
-  if (value === undefined) {
-    return
-  }
-  if (!Array.isArray(value)) {
-    issues.push({ file: relativePath, message: `data.${fieldName} must be an array when provided.` })
-    return
-  }
-  for (const entry of value) {
-    if (!isPlainObject(entry)) {
-      issues.push({ file: relativePath, message: `data.${fieldName} entries must be objects.` })
-      continue
-    }
-    if (entry.name !== undefined && typeof entry.name !== 'string') {
-      issues.push({ file: relativePath, message: `data.${fieldName} entries' name must be a string when provided.` })
-    }
-    if (entry.text !== undefined && typeof entry.text !== 'string') {
-      issues.push({ file: relativePath, message: `data.${fieldName} entries' text must be a string when provided.` })
-    }
-    if (entry.usage !== undefined && typeof entry.usage !== 'string') {
-      issues.push({ file: relativePath, message: `data.${fieldName} entries' usage must be a string when provided.` })
-    }
-  }
-}
+  imageResourcesOut: Map<string, string>,
+  pathById: Map<string, string>,
+  pathBySlug: Map<string, string>,
+): Promise<Record<string, unknown> | undefined> {
+  const { pageRelativePath, data: raw } = source
+  const name = raw.name as string
+  const label = `${pageRelativePath} (inline monster "${name}")`
 
-/** `conditionImmunities` references EncounterPlus's "Rule" entities (filtered
- * to conditions), which aren't a content type MPX supports yet — treated as
- * free-form strings, same as a spell's `classes`. */
-function validateMonsterData(relativePath: string, data: unknown, issues: BuildIssue[]): void {
-  if (data === undefined) {
-    return
+  const slug = isNonEmptyString(raw.slug) ? raw.slug.trim() : slugify(name)
+  validateSlugFormat(label, slug, issues)
+  validateMonsterData(label, raw.data, issues)
+  if (raw.sources !== undefined && !Array.isArray(raw.sources)) {
+    issues.push({ file: label, message: 'sources must be an array when provided.' })
   }
-  if (!isPlainObject(data)) {
-    issues.push({ file: relativePath, message: 'data must be an object when provided.' })
-    return
+  if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
+    issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
   }
-  if (data.size !== undefined && !MONSTER_SIZES.includes(data.size as string)) {
-    issues.push({ file: relativePath, message: `data.size "${String(data.size)}" is not a recognized size.` })
-  }
-  if (data.type !== undefined && !MONSTER_TYPES.includes(data.type as string)) {
-    issues.push({ file: relativePath, message: `data.type "${String(data.type)}" is not a recognized monster type.` })
-  }
-  if (data.typeDetail !== undefined && typeof data.typeDetail !== 'string') {
-    issues.push({ file: relativePath, message: 'data.typeDetail must be a string when provided.' })
-  }
-  if (data.alignment !== undefined && !MONSTER_ALIGNMENTS.includes(data.alignment as string)) {
-    issues.push({ file: relativePath, message: `data.alignment "${String(data.alignment)}" is not a recognized alignment.` })
-  }
-  if (data.ac !== undefined && typeof data.ac !== 'string') {
-    issues.push({ file: relativePath, message: 'data.ac must be a string when provided.' })
-  }
-  if (data.hp !== undefined && typeof data.hp !== 'string') {
-    issues.push({ file: relativePath, message: 'data.hp must be a string when provided.' })
-  }
-  if (data.speed !== undefined) {
-    if (!isPlainObject(data.speed)) {
-      issues.push({ file: relativePath, message: 'data.speed must be an object when provided.' })
-    } else {
-      const speed = data.speed
-      for (const field of ['walk', 'burrow', 'climb', 'fly', 'swim']) {
-        if (speed[field] !== undefined && typeof speed[field] !== 'number') {
-          issues.push({ file: relativePath, message: `data.speed.${field} must be a number when provided.` })
-        }
-      }
-      if (speed.hover !== undefined && typeof speed.hover !== 'boolean') {
-        issues.push({ file: relativePath, message: 'data.speed.hover must be a boolean when provided.' })
-      }
-      if (speed.other !== undefined && typeof speed.other !== 'string') {
-        issues.push({ file: relativePath, message: 'data.speed.other must be a string when provided.' })
-      }
-    }
-  }
-  if (data.abilities !== undefined) {
-    if (!isPlainObject(data.abilities)) {
-      issues.push({ file: relativePath, message: 'data.abilities must be an object when provided.' })
-    } else {
-      for (const field of MONSTER_ABILITY_KEYS) {
-        if (data.abilities[field] !== undefined && typeof data.abilities[field] !== 'number') {
-          issues.push({ file: relativePath, message: `data.abilities.${field} must be a number when provided.` })
+  for (const imageField of ['image', 'token']) {
+    const imageValue = raw[imageField]
+    if (isNonEmptyString(imageValue) && imageValue !== 'monsters/') {
+      if (!MONSTER_IMAGE_PATTERN.test(imageValue)) {
+        issues.push({ file: label, message: `${imageField} must be a path to a file directly inside the monsters folder.` })
+      } else {
+        const resolved = await checkResourceReference(moduleRoot, label, `"${imageField}"`, imageValue, issues)
+        if (resolved) {
+          imageResourcesOut.set(imageValue, resolved)
         }
       }
     }
   }
-  if (data.savingThrows !== undefined) {
-    if (!isPlainObject(data.savingThrows)) {
-      issues.push({ file: relativePath, message: 'data.savingThrows must be an object when provided.' })
-    } else {
-      for (const [key, value] of Object.entries(data.savingThrows)) {
-        if (!MONSTER_ABILITY_KEYS.includes(key)) {
-          issues.push({ file: relativePath, message: `data.savingThrows key "${key}" is not a recognized ability.` })
-        } else if (typeof value !== 'number') {
-          issues.push({ file: relativePath, message: `data.savingThrows.${key} must be a number.` })
-        }
-      }
-    }
-  }
-  if (data.skills !== undefined) {
-    if (!isPlainObject(data.skills)) {
-      issues.push({ file: relativePath, message: 'data.skills must be an object when provided.' })
-    } else {
-      for (const [key, value] of Object.entries(data.skills)) {
-        if (!MONSTER_SKILLS.includes(key)) {
-          issues.push({ file: relativePath, message: `data.skills key "${key}" is not a recognized skill.` })
-        } else if (typeof value !== 'number') {
-          issues.push({ file: relativePath, message: `data.skills.${key} must be a number.` })
-        }
-      }
-    }
-  }
-  if (
-    data.conditionImmunities !== undefined &&
-    (!Array.isArray(data.conditionImmunities) || !data.conditionImmunities.every((value) => typeof value === 'string'))
-  ) {
-    issues.push({ file: relativePath, message: 'data.conditionImmunities must be an array of strings when provided.' })
-  }
-  for (const field of ['damageImmunities', 'damageResistances', 'damageVulnerabilities']) {
-    const value = data[field]
-    if (value !== undefined && (!Array.isArray(value) || !value.every((entry) => MONSTER_DAMAGE_TYPES.includes(entry)))) {
-      issues.push({ file: relativePath, message: `data.${field} must be an array of recognized damage types.` })
-    }
-  }
-  if (data.senses !== undefined) {
-    if (!isPlainObject(data.senses)) {
-      issues.push({ file: relativePath, message: 'data.senses must be an object when provided.' })
-    } else {
-      const senses = data.senses
-      for (const field of ['blindsight', 'darkvision', 'tremorsense', 'truesight']) {
-        if (senses[field] !== undefined && typeof senses[field] !== 'number') {
-          issues.push({ file: relativePath, message: `data.senses.${field} must be a number when provided.` })
-        }
-      }
-      if (senses.other !== undefined && typeof senses.other !== 'string') {
-        issues.push({ file: relativePath, message: 'data.senses.other must be a string when provided.' })
-      }
-    }
-  }
-  if (data.passivePerception !== undefined && typeof data.passivePerception !== 'number') {
-    issues.push({ file: relativePath, message: 'data.passivePerception must be a number when provided.' })
-  }
-  if (
-    data.languages !== undefined &&
-    (!Array.isArray(data.languages) || !data.languages.every((value) => typeof value === 'string'))
-  ) {
-    // The real form allows a custom, freely-typed entry alongside the
-    // standard language list, so any string is accepted here.
-    issues.push({ file: relativePath, message: 'data.languages must be an array of strings when provided.' })
-  }
-  if (data.cr !== undefined && !MONSTER_CHALLENGE_RATINGS.includes(data.cr as string)) {
-    issues.push({ file: relativePath, message: `data.cr "${String(data.cr)}" is not a recognized challenge rating.` })
-  }
-  for (const field of ['initiativeBonus', 'proficiencyBonus']) {
-    if (data[field] !== undefined && typeof data[field] !== 'number') {
-      issues.push({ file: relativePath, message: `data.${field} must be a number when provided.` })
-    }
-  }
-  if (
-    data.environments !== undefined &&
-    (!Array.isArray(data.environments) || !data.environments.every((value) => typeof value === 'string'))
-  ) {
-    // Same as languages: a custom entry is allowed alongside the standard list.
-    issues.push({ file: relativePath, message: 'data.environments must be an array of strings when provided.' })
-  }
-  for (const field of MONSTER_FEATURE_LIST_FIELDS) {
-    validateMonsterFeatureList(relativePath, field, data[field], issues)
-  }
-}
 
-function stripEmptyMonsterFields(monster: Record<string, unknown>): Record<string, unknown> {
-  const cleaned = stripEmptyValues(monster, MONSTER_TOP_LEVEL_OPTIONAL_FIELDS)
-  stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
-  if (isPlainObject(cleaned.data)) {
-    const data = stripEmptyValues(cleaned.data, MONSTER_DATA_OPTIONAL_FIELDS)
-    stripEmptyNestedField(data, 'speed', MONSTER_SPEED_OPTIONAL_FIELDS)
-    stripEmptyNestedField(data, 'senses', MONSTER_SENSES_OPTIONAL_FIELDS)
-    for (const field of ['savingThrows', 'skills']) {
-      if (isPlainObject(data[field]) && Object.keys(data[field]).length === 0) {
-        delete data[field]
-      }
-    }
-    if (Object.keys(data).length === 0) {
-      delete cleaned.data
-    } else {
-      cleaned.data = data
+  if (!isValidSlug(slug)) {
+    return undefined
+  }
+
+  const explicitId = isUuid(raw.id) ? (raw.id as string) : undefined
+  const id = explicitId ?? createUuidV5(slug, moduleId)
+
+  const existingSlugPath = pathBySlug.get(slug)
+  if (existingSlugPath) {
+    issues.push({ file: label, message: `Duplicate monster slug "${slug}" in ${existingSlugPath} and ${label}.` })
+  } else {
+    pathBySlug.set(slug, label)
+  }
+  const existingIdPath = pathById.get(id)
+  if (existingIdPath) {
+    issues.push({ file: label, message: `Duplicate monster id "${id}" in ${existingIdPath} and ${label}.` })
+  } else {
+    pathById.set(id, label)
+  }
+
+  const record: Record<string, unknown> = { id, slug }
+  for (const field of MONSTER_ENVELOPE_FIELDS) {
+    if (raw[field] !== undefined) {
+      record[field] = raw[field]
     }
   }
-  return cleaned
+  applyCompendiumAttributeDefaults(record, defaultMeasurement)
+  return stripEmptyMonsterFields(record)
 }
 
 function readMonsters(
@@ -1267,6 +1071,9 @@ export interface BuildOptions {
   /** Same as `spellDisplayDefaults`, for an inline item's `show*` toggles
    * (mpx.defaultShowItem* settings). */
   itemDisplayDefaults?: ItemDisplayDefaults
+  /** Same as `spellDisplayDefaults`, for an inline monster's `show*` toggles
+   * (mpx.defaultShowMonster* settings). */
+  monsterDisplayDefaults?: MonsterDisplayDefaults
 }
 
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
@@ -1289,7 +1096,14 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const spellImageResources = new Map<string, string>()
   const monsterImageResources = new Map<string, string>()
   const [pageResult, groups, maps, encounters, items, spells, tables, monsters] = await Promise.all([
-    readPages(moduleRoot, issues, defaultMeasurement, options.spellDisplayDefaults, options.itemDisplayDefaults),
+    readPages(
+      moduleRoot,
+      issues,
+      defaultMeasurement,
+      options.spellDisplayDefaults,
+      options.itemDisplayDefaults,
+      options.monsterDisplayDefaults,
+    ),
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
     readMapOrEncounterEntries(moduleRoot, 'encounter', issues, exportedResources),
@@ -1298,7 +1112,12 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     readRollTables(moduleRoot, issues),
     readMonsters(moduleRoot, issues, monsterImageResources, defaultMeasurement),
   ])
-  const { entries: pages, inlineSpells: inlineSpellSources, inlineItems: inlineItemSources } = pageResult
+  const {
+    entries: pages,
+    inlineSpells: inlineSpellSources,
+    inlineItems: inlineItemSources,
+    inlineMonsters: inlineMonsterSources,
+  } = pageResult
   const entries = [...pages, ...groups, ...maps, ...encounters]
 
   // Inline ````spell`/````item` blocks merge into the same spells.json/
@@ -1342,6 +1161,25 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     }
   }
   items.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+
+  const monsterPathById = new Map(monsters.map((monster) => [monster.id as string, 'a standalone monster file']))
+  const monsterPathBySlug = new Map(monsters.map((monster) => [monster.slug as string, 'a standalone monster file']))
+  for (const source of inlineMonsterSources) {
+    const record = await buildInlineMonsterRecord(
+      moduleRoot,
+      source,
+      moduleId,
+      defaultMeasurement,
+      issues,
+      monsterImageResources,
+      monsterPathById,
+      monsterPathBySlug,
+    )
+    if (record) {
+      monsters.push(record)
+    }
+  }
+  monsters.sort((a, b) => String(a.name).localeCompare(String(b.name)))
 
   if (issues.length > 0) {
     throw new ModuleBuildError(issues)

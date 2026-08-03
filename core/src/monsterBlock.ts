@@ -1,0 +1,521 @@
+import { parse as parseYaml } from 'yaml'
+import type { MarkdownIt } from 'markdown-it'
+import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
+import { validateMonsterData, MONSTER_ABILITY_KEYS, MONSTER_FEATURE_LIST_FIELDS } from './monsterCompendium.js'
+import { translate } from './catalogEn.js'
+import { escapeHtml, formatSources, formatTags } from './compendiumBlock.js'
+
+const MONSTER_META_FIELDS = [
+  'id',
+  'name',
+  'slug',
+  'attributes',
+  'descr',
+  'image',
+  'showImage',
+  'token',
+  'showToken',
+  'sources',
+  'showSources',
+  'tags',
+  'showTags',
+  // Inline-authoring-only presentation toggles — never part of a standalone
+  // monster file or monsters.json; EncounterPlus itself has no such fields.
+  'color',
+  'twoColumn',
+] as const
+const MONSTER_DATA_FIELDS = [
+  'size',
+  'type',
+  'typeDetail',
+  'alignment',
+  'ac',
+  'hp',
+  'speed',
+  'abilities',
+  'savingThrows',
+  'skills',
+  'conditionImmunities',
+  'damageImmunities',
+  'damageResistances',
+  'damageVulnerabilities',
+  'senses',
+  'passivePerception',
+  'languages',
+  'cr',
+  'initiativeBonus',
+  'proficiencyBonus',
+  'environments',
+  ...MONSTER_FEATURE_LIST_FIELDS,
+] as const
+
+/** Inline ```monster` YAML is written flat (no `data:` wrapper) for ease of
+ * authoring — this reshapes it into the same { name, slug, data, ... } shape
+ * standalone monster files use, so the same validateMonsterData applies to
+ * both. `color`/`twoColumn` stay at the top level (meta), not in `data` —
+ * they're presentation-only, not part of EncounterPlus's own schema. */
+export function normalizeInlineMonster(raw: Record<string, unknown>): Record<string, unknown> {
+  const normalized: Record<string, unknown> = {}
+  for (const field of MONSTER_META_FIELDS) {
+    if (raw[field] !== undefined) {
+      normalized[field] = raw[field]
+    }
+  }
+  const data: Record<string, unknown> = {}
+  for (const field of MONSTER_DATA_FIELDS) {
+    if (raw[field] !== undefined) {
+      data[field] = raw[field]
+    }
+  }
+  if (Object.keys(data).length > 0) {
+    normalized.data = data
+  }
+  return normalized
+}
+
+export interface ParsedMonsterBlock {
+  data: Record<string, unknown>
+  issues: ValidationIssue[]
+}
+
+const INLINE_MONSTER_FILE_LABEL = 'inline monster block'
+
+/** See the identical hint in spellBlock.ts — same cause (a previous
+ * ```monster block missing its closing ``` line), just for monster blocks. */
+const UNCLOSED_FENCE_HINT =
+  ' A previous ```monster block above this one is likely missing its closing ``` line — check that it ends with its own ``` before this block starts.'
+
+export function parseMonsterBlock(yamlSource: string): ParsedMonsterBlock {
+  const issues: ValidationIssue[] = []
+  let raw: unknown
+  try {
+    raw = parseYaml(yamlSource)
+  } catch (error) {
+    const hint = /^\s*```/m.test(yamlSource) ? UNCLOSED_FENCE_HINT : ''
+    return { data: {}, issues: [{ file: INLINE_MONSTER_FILE_LABEL, message: `Invalid YAML: ${(error as Error).message}${hint}` }] }
+  }
+  if (!isPlainObject(raw)) {
+    return { data: {}, issues: [{ file: INLINE_MONSTER_FILE_LABEL, message: 'Must be a YAML mapping (key: value pairs).' }] }
+  }
+
+  const data = normalizeInlineMonster(raw)
+  if (!isNonEmptyString(data.name)) {
+    issues.push({ file: INLINE_MONSTER_FILE_LABEL, message: 'Must contain a non-empty name.' })
+  }
+  validateMonsterData(INLINE_MONSTER_FILE_LABEL, data.data, issues)
+  return { data, issues }
+}
+
+/** Catalog keys follow `{Namespace}.{PascalCase(enumKey)}` — same pattern
+ * used for spell/item enums. Two exceptions in the real catalog:
+ * `Skill.SleightofHand` (lowercase "of", not "SleightOfHand" like every
+ * other camelCase key would naively PascalCase to), and `Ability.*` keys
+ * which are the short all-caps abbreviations (`STR`, `DEX`, ...), not
+ * PascalCase words. */
+function translateEnum(namespace: string, enumKey: string): string {
+  if (namespace === 'Skill' && enumKey === 'sleightOfHand') {
+    return translate('Skill.SleightofHand')
+  }
+  if (namespace === 'Ability') {
+    return translate(`Ability.${enumKey.toUpperCase()}`)
+  }
+  const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
+  return translate(`${namespace}.${pascalKey}`)
+}
+
+const SIZE_WORDS: Record<string, string> = {
+  T: 'Tiny',
+  S: 'Small',
+  M: 'Medium',
+  L: 'Large',
+  H: 'Huge',
+  G: 'Gargantuan',
+  C: 'Colossal',
+}
+
+const ALIGNMENT_WORDS: Record<string, string> = {
+  LG: 'LawfulGood',
+  NG: 'NeutralGood',
+  CG: 'ChaoticGood',
+  LN: 'LawfulNeutral',
+  NN: 'Neutral',
+  CN: 'ChaoticNeutral',
+  LE: 'LawfulEvil',
+  NE: 'NeutralEvil',
+  CE: 'ChaoticEvil',
+  UU: 'Unaligned',
+}
+
+/** "Large Fey, Neutral Evil" — size (+ type, + free-text typeDetail in
+ * parens), then alignment. */
+function formatSubtitle(data: Record<string, unknown>): string | undefined {
+  const size = isNonEmptyString(data.size) ? SIZE_WORDS[data.size] : undefined
+  const sizeLabel = size ? translateEnum('Size', size) : undefined
+  const type = isNonEmptyString(data.type) ? translateEnum('MonsterType', data.type) : undefined
+  const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
+  const typePart = type ? (typeDetail ? `${type} (${typeDetail})` : type) : typeDetail
+  const sizeTypePart = [sizeLabel, typePart].filter((part): part is string => Boolean(part)).join(' ')
+  const alignmentWord = isNonEmptyString(data.alignment) ? ALIGNMENT_WORDS[data.alignment] : undefined
+  const alignmentLabel = alignmentWord ? translateEnum('Alignment', alignmentWord) : undefined
+
+  const parts = [sizeTypePart, alignmentLabel].filter((part): part is string => Boolean(part))
+  return parts.length > 0 ? parts.join(', ') : undefined
+}
+
+const SPEED_FIELDS = ['walk', 'burrow', 'climb', 'fly', 'swim'] as const
+
+/** "40 ft." or "10 ft., Swim 40 ft." — walk has no label of its own (it's
+ * the implicit default speed); every other mode is labeled and only shown
+ * when set. */
+function formatSpeed(speed: unknown): string | undefined {
+  if (!isPlainObject(speed)) {
+    return undefined
+  }
+  const parts: string[] = []
+  for (const field of SPEED_FIELDS) {
+    const value = speed[field]
+    if (typeof value !== 'number' || value <= 0) {
+      continue
+    }
+    if (field === 'walk') {
+      parts.push(`${value} ft.`)
+    } else {
+      const label = translateEnum('Movement', field)
+      const hover = field === 'fly' && speed.hover === true ? ` (${translate('Movement.Hover')})` : ''
+      parts.push(`${label} ${value} ft.${hover}`)
+    }
+  }
+  if (isNonEmptyString(speed.other)) {
+    parts.push(speed.other)
+  }
+  return parts.length > 0 ? parts.join(', ') : undefined
+}
+
+function abilityModifier(score: number): number {
+  return Math.floor((score - 10) / 2)
+}
+
+function formatSigned(value: number): string {
+  return value >= 0 ? `+${value}` : `${value}`
+}
+
+/** One `.statblock-ability-row` per ability — score/mod always shown
+ * (defaulting an absent score to 10, the SRD baseline) once the abilities
+ * table itself is present at all; save defaults to the modifier (matching
+ * the non-proficient case) unless overridden in the sparse `savingThrows`
+ * map. */
+function abilityRowHtml(key: string, abilities: Record<string, unknown>, savingThrows: Record<string, unknown>): string {
+  const score = typeof abilities[key] === 'number' ? abilities[key] : 10
+  const mod = abilityModifier(score)
+  const save = typeof savingThrows[key] === 'number' ? savingThrows[key] : mod
+  const label = translateEnum('Ability', key)
+  return `<div class="statblock-ability-row"><strong>${escapeHtml(label)}</strong><span>${score}</span><span>${escapeHtml(formatSigned(mod))}</span><span>${escapeHtml(formatSigned(save))}</span></div>`
+}
+
+function abilitiesHtml(data: Record<string, unknown>): string {
+  const abilities = isPlainObject(data.abilities) ? data.abilities : undefined
+  if (!abilities) {
+    return ''
+  }
+  const savingThrows = isPlainObject(data.savingThrows) ? data.savingThrows : {}
+  const physical = MONSTER_ABILITY_KEYS.slice(0, 3)
+  const mental = MONSTER_ABILITY_KEYS.slice(3, 6)
+  const column = (keys: string[], columnClass: string): string =>
+    `<div class="statblock-ability-column ${columnClass}">${keys.map((key) => abilityRowHtml(key, abilities, savingThrows)).join('')}</div>`
+  return `<div class="statblock-abilities">${column(physical, 'physical')}${column(mental, 'mental')}</div>`
+}
+
+function formatSkills(skills: unknown): string | undefined {
+  if (!isPlainObject(skills)) {
+    return undefined
+  }
+  const entries = Object.entries(skills).filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+  if (entries.length === 0) {
+    return undefined
+  }
+  return entries
+    .map(([key, value]) => `${translateEnum('Skill', key)} ${formatSigned(value)}`)
+    .sort((a, b) => a.localeCompare(b))
+    .join(', ')
+}
+
+function formatSavingThrows(data: Record<string, unknown>): string | undefined {
+  const abilities = isPlainObject(data.abilities) ? data.abilities : undefined
+  const savingThrows = isPlainObject(data.savingThrows) ? data.savingThrows : undefined
+  if (!savingThrows) {
+    return undefined
+  }
+  const entries = Object.entries(savingThrows).filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+  if (entries.length === 0) {
+    return undefined
+  }
+  // Saving throws are only worth listing separately when they diverge from
+  // the plain ability modifier — otherwise it's exactly what the ability
+  // table already shows.
+  const divergent = entries.filter(([key, value]) => {
+    const score = abilities && typeof abilities[key] === 'number' ? abilities[key] : 10
+    return value !== abilityModifier(score)
+  })
+  if (divergent.length === 0) {
+    return undefined
+  }
+  return divergent
+    .map(([key, value]) => `${translateEnum('Ability', key)} ${formatSigned(value)}`)
+    .join(', ')
+}
+
+function formatDamageList(values: unknown): string | undefined {
+  if (!Array.isArray(values)) {
+    return undefined
+  }
+  const entries = values.filter((entry): entry is string => typeof entry === 'string')
+  return entries.length > 0 ? entries.map((entry) => translateEnum('Damage', entry)).join(', ') : undefined
+}
+
+function formatStringList(values: unknown): string | undefined {
+  if (!Array.isArray(values)) {
+    return undefined
+  }
+  const entries = values.filter((entry): entry is string => typeof entry === 'string')
+  return entries.length > 0 ? entries.join(', ') : undefined
+}
+
+const SENSE_FIELDS = ['blindsight', 'darkvision', 'tremorsense', 'truesight'] as const
+
+function formatSenses(data: Record<string, unknown>): string | undefined {
+  const senses = isPlainObject(data.senses) ? data.senses : undefined
+  const parts: string[] = []
+  if (senses) {
+    for (const field of SENSE_FIELDS) {
+      const value = senses[field]
+      if (typeof value === 'number' && value > 0) {
+        parts.push(`${translateEnum('Sense', field)} ${value} ft.`)
+      }
+    }
+    if (isNonEmptyString(senses.other)) {
+      parts.push(senses.other)
+    }
+  }
+  if (typeof data.passivePerception === 'number') {
+    parts.push(`${translate('Sense.PassivePerception')} ${data.passivePerception}`)
+  }
+  return parts.length > 0 ? parts.join('; ') : undefined
+}
+
+/** The standard 5e CR -> XP table — fixed and universal (unlike a specific
+ * monster's "or X in lair" bonus XP, which isn't stored data we have and is
+ * skipped here as an accepted gap, same spirit as item's missing Ability/
+ * Utilize/Craft fields). Confirmed against three real stat blocks (CR 21 ->
+ * 33,000; CR 10 -> 5,900; CR 6 -> 2,300). */
+const CR_TO_XP: Record<string, number> = {
+  '0': 10,
+  '1/8': 25,
+  '1/4': 50,
+  '1/2': 100,
+  '1': 200,
+  '2': 450,
+  '3': 700,
+  '4': 1100,
+  '5': 1800,
+  '6': 2300,
+  '7': 2900,
+  '8': 3900,
+  '9': 5000,
+  '10': 5900,
+  '11': 7200,
+  '12': 8400,
+  '13': 10000,
+  '14': 11500,
+  '15': 13000,
+  '16': 15000,
+  '17': 18000,
+  '18': 20000,
+  '19': 22000,
+  '20': 25000,
+  '21': 33000,
+  '22': 41000,
+  '23': 50000,
+  '24': 62000,
+  '25': 75000,
+  '26': 90000,
+  '27': 105000,
+  '28': 120000,
+  '29': 135000,
+  '30': 155000,
+}
+
+function formatNumberWithCommas(value: number): string {
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+function formatChallenge(data: Record<string, unknown>): string | undefined {
+  if (!isNonEmptyString(data.cr)) {
+    return undefined
+  }
+  const xp = CR_TO_XP[data.cr]
+  const proficiencyBonus = typeof data.proficiencyBonus === 'number' ? data.proficiencyBonus : undefined
+  const details = [
+    xp !== undefined ? `${translate('Common.XP')} ${formatNumberWithCommas(xp)}` : undefined,
+    // No "PB" abbreviation key exists in the catalog (only the spelled-out
+    // "Proficiency Bonus") — "PB" is a standard, widely-recognized D&D
+    // abbreviation in its own right, not really "untranslated" content.
+    proficiencyBonus !== undefined ? `PB ${formatSigned(proficiencyBonus)}` : undefined,
+  ].filter((part): part is string => Boolean(part))
+  return details.length > 0 ? `${data.cr} (${details.join('; ')})` : data.cr
+}
+
+/** `{name, text, usage?}` renders as `<name> (<usage>). <text>` — matching
+ * the official book style (e.g. "Cold Breath (Recharge 5-6). ..."). */
+/** camelCase -> kebab-case, matching the theme's CSS class names
+ * (`.statblock-bonus-action`, `.statblock-legendary-action`, ...) — the
+ * camelCase form is only used for the catalog lookup (`Monster.BonusActions`). */
+function kebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+}
+
+function featureListHtml(kind: string, entries: unknown): string {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return ''
+  }
+  const cssKind = kebabCase(kind)
+  const items = entries
+    .filter(isPlainObject)
+    .map((entry) => {
+      const name = isNonEmptyString(entry.name) ? entry.name : undefined
+      const usage = isNonEmptyString(entry.usage) ? entry.usage : undefined
+      const text = isNonEmptyString(entry.text) ? entry.text : ''
+      const nameHtml = name
+        ? `<span class="statblock-${cssKind}-name">${escapeHtml(name)}${usage ? ` (${escapeHtml(usage)})` : ''}.</span> `
+        : ''
+      return `<div class="statblock-${cssKind}"><p>${nameHtml}<span class="statblock-${cssKind}-description">${escapeHtml(text)}</span></p></div>`
+    })
+    .join('')
+  const sectionTitle = translateEnum('Monster', kind.charAt(0).toUpperCase() + kind.slice(1) + 's')
+  return `<div class="statblock-section-title">${escapeHtml(sectionTitle)}</div>${items}`
+}
+
+const FEATURE_LIST_KINDS = ['trait', 'action', 'bonusAction', 'reaction', 'legendaryAction'] as const
+const FEATURE_LIST_DATA_FIELDS = ['traits', 'actions', 'bonusActions', 'reactions', 'legendaryActions'] as const
+
+/** Project-level fallback for each `show*` toggle, used only when a
+ * monster's own YAML leaves the field absent — an explicit `true`/`false`
+ * in the monster always wins over this default, same spell/item pattern.
+ * All default to `true`. No icon toggle: a monster has no theme-provided
+ * icon set, same as an item. */
+export interface MonsterDisplayDefaults {
+  showImage?: boolean
+  showToken?: boolean
+  showSources?: boolean
+  showTags?: boolean
+}
+
+export interface MonsterBlockRenderOptions {
+  preview?: boolean
+  displayDefaults?: MonsterDisplayDefaults
+}
+
+const STATBLOCK_COLORS = ['blue', 'green', 'red', 'yellow', 'orange', 'gray', 'purple', 'teal', 'magenta', 'signature']
+
+/** Renders a parsed inline monster (or a standalone monster record, same
+ * shape) into the `.statblock` markup the 5.5e theme's CSS already
+ * provides (ported from EncounterPlus's own real rendering) — this is the
+ * first renderer to actually generate that markup; the CSS existed
+ * beforehand but nothing produced matching HTML for it yet. */
+export function renderMonsterBlockHtml(
+  data: Record<string, unknown>,
+  markdown: MarkdownIt,
+  options: MonsterBlockRenderOptions,
+): string {
+  const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Monster'
+  const monsterData = isPlainObject(data.data) ? data.data : {}
+
+  // `.statblock-description` is positioned by the theme's own CSS as a
+  // caption floating just above the card (bottom: 100%), not inline body
+  // text — same purpose as a spell/item's descr, just rendered differently.
+  const descriptionHtml = isNonEmptyString(data.descr)
+    ? `<div class="statblock-description">${markdown.render(data.descr)}</div>`
+    : ''
+
+  const color = isNonEmptyString(data.color) && STATBLOCK_COLORS.includes(data.color) ? ` ${data.color}` : ''
+  const twoColumn = data.twoColumn === true ? ' two-column' : ''
+
+  const showTokenDefault = options.displayDefaults?.showToken ?? true
+  const showToken = typeof data.showToken === 'boolean' ? data.showToken : showTokenDefault
+  const hasToken = isNonEmptyString(data.token) && data.token !== 'monsters/'
+  const tokenHtml = showToken && hasToken ? `<img class="statblock-token" src="${escapeHtml(String(data.token))}" alt="">` : ''
+
+  const subtitle = formatSubtitle(monsterData)
+
+  const ac = isNonEmptyString(monsterData.ac) ? monsterData.ac : undefined
+  const initiativeBonus = typeof monsterData.initiativeBonus === 'number' ? monsterData.initiativeBonus : undefined
+  const acLine = ac ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.AC'))}</span> ${escapeHtml(ac)}</p>` : ''
+  const initiativeLine =
+    initiativeBonus !== undefined
+      ? `<p class="statblock-initiative"><span class="statblock-topstat-name">${escapeHtml(translate('Common.Initiative'))}</span> <strong>${escapeHtml(formatSigned(initiativeBonus))}</strong> (${10 + initiativeBonus})</p>`
+      : ''
+  const primaryHtml = acLine || initiativeLine ? `<div class="statblock-primary">${acLine}${initiativeLine}</div>` : ''
+
+  const hp = isNonEmptyString(monsterData.hp) ? monsterData.hp : undefined
+  const hpLine = hp ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.HP'))}</span> ${escapeHtml(hp)}</p>` : ''
+  const speedText = formatSpeed(monsterData.speed)
+  const speedLine = speedText
+    ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.Speed'))}</span> ${escapeHtml(speedText)}</p>`
+    : ''
+
+  const propertyLine = (label: string, value: string | undefined): string =>
+    value
+      ? `<p class="statblock-property-line"><span class="statblock-property-name">${escapeHtml(label)}: </span>${escapeHtml(value)}</p>`
+      : ''
+
+  const propertiesHtml = [
+    propertyLine(translate('Monster.SavingThrows'), formatSavingThrows(monsterData)),
+    propertyLine(translate('Monster.Skills'), formatSkills(monsterData.skills)),
+    propertyLine(translate('Monster.Vulnerabilities'), formatDamageList(monsterData.damageVulnerabilities)),
+    propertyLine(translate('Monster.Resistances'), formatDamageList(monsterData.damageResistances)),
+    propertyLine(translate('Monster.Immunities'), formatDamageList(monsterData.damageImmunities)),
+    propertyLine(translate('Monster.ConditionImmunities'), formatStringList(monsterData.conditionImmunities)),
+    propertyLine(translate('Monster.Senses'), formatSenses(monsterData)),
+    propertyLine(translate('Monster.Languages'), formatStringList(monsterData.languages)),
+    propertyLine(translate('Monster.Challenge'), formatChallenge(monsterData)),
+  ].join('')
+
+  const featureListsHtml = FEATURE_LIST_KINDS.map((kind, index) => featureListHtml(kind, monsterData[FEATURE_LIST_DATA_FIELDS[index]])).join(
+    '',
+  )
+
+  const showImageDefault = options.displayDefaults?.showImage ?? true
+  const showImage = typeof data.showImage === 'boolean' ? data.showImage : showImageDefault
+  const hasImage = isNonEmptyString(data.image) && data.image !== 'monsters/'
+  const imageHtml = showImage && hasImage ? `<img class="statblock-image" src="${escapeHtml(String(data.image))}" alt="">` : ''
+
+  const showSourcesDefault = options.displayDefaults?.showSources ?? true
+  const showSources = typeof data.showSources === 'boolean' ? data.showSources : showSourcesDefault
+  const showTagsDefault = options.displayDefaults?.showTags ?? true
+  const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
+  const footerHtml = [
+    propertyLine(translate('Common.Source'), showSources ? formatSources(data.sources) : undefined),
+    propertyLine(translate('Common.Tags'), showTags ? formatTags(data.tags) : undefined),
+  ].join('')
+
+  return [
+    `<div class="statblock${color}${twoColumn}">`,
+    tokenHtml,
+    descriptionHtml,
+    `<div class="statblock-title">${escapeHtml(name)}</div>`,
+    '<hr class="statblock-tapered-rule">',
+    subtitle ? `<div class="statblock-subtitle">${escapeHtml(subtitle)}</div>` : '',
+    primaryHtml,
+    hpLine,
+    speedLine,
+    '<hr class="statblock-tapered-rule">',
+    abilitiesHtml(monsterData),
+    '<hr class="statblock-tapered-rule">',
+    propertiesHtml,
+    featureListsHtml,
+    footerHtml,
+    imageHtml,
+    '</div>',
+  ]
+    .filter(Boolean)
+    .join('')
+}

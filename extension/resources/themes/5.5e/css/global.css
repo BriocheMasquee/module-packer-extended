@@ -1070,7 +1070,7 @@ a.roll {
 }
 
 .statblock-ability-column.physical .statblock-ability-row span:nth-child(4)::before {
-  content: 'JdS';
+  content: 'SAVE';
 }
 
 .statblock-ability-row strong {

@@ -59,11 +59,24 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
     showSources: config.get<boolean>('defaultShowItemSources', true),
     showTags: config.get<boolean>('defaultShowItemTags', true),
   }
+  const monsterDisplayDefaults = {
+    showImage: config.get<boolean>('defaultShowMonsterImage', true),
+    showToken: config.get<boolean>('defaultShowMonsterToken', true),
+    showSources: config.get<boolean>('defaultShowMonsterSources', true),
+    showTags: config.get<boolean>('defaultShowMonsterTags', true),
+  }
 
   try {
     const summary = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'MPX is building the module…' },
-      () => buildModule(moduleFolder, { autoIncrementVersion, defaultMeasurement, spellDisplayDefaults, itemDisplayDefaults }),
+      () =>
+        buildModule(moduleFolder, {
+          autoIncrementVersion,
+          defaultMeasurement,
+          spellDisplayDefaults,
+          itemDisplayDefaults,
+          monsterDisplayDefaults,
+        }),
     )
 
     const versionNote = summary.nextVersion
