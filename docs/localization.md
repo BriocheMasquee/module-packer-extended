@@ -51,7 +51,10 @@ A malformed entry (wrong type, unrecognized language) is skipped with a warning 
 
 `mpx.defaultMeasurement`/`mpx.contentLanguage` already interact for unit *conversion* (feet → meters) — see [Compendium](Compendium#measurement). That link is unrelated to label translation: switching `mpx.contentLanguage` changes both the catalog labels *and* (via the existing `"auto"` fallback) the default measurement system, but you can still pick French labels with imperial units, or English labels with metric, by setting `mpx.defaultMeasurement` explicitly.
 
-## Accepted gaps
+## MPX-authored words (not from the EncounterPlus catalog)
 
-- Distance unit words themselves ("feet"/"meters", "ft"/"m") stay in English regardless of `mpx.contentLanguage` — no catalog key exists upstream for these, unlike every other generated label.
-- The ability table's floating "SAVE" column header (in the 5.5e theme's CSS) is a static `content:` property, not something the renderer produces — it can't switch per-language the way catalog-backed labels do.
+A few labels aren't in EncounterPlus's own catalog at all, so they're handled directly in code rather than through `catalogEn.ts`/`catalogFr.ts` — meaning `scripts/sync-catalogs.mjs` never touches them:
+
+- **A spell's `range` unit word** — `core/src/compendiumBlock.ts`'s `distanceUnitWord()` shows "mètre" when both the measurement is metric and the language is French, "meters"/"feet" otherwise. Only the metric+French word is translated (French projects default to metric — see [Compendium](Compendium#measurement)); the imperial word stays "feet" even when `mpx.contentLanguage` is `"fr"`, since that combination requires overriding `mpx.defaultMeasurement` explicitly and no French word has been set for it. A monster's speed/senses use the shorter "ft"/"m" abbreviations instead (unaffected — "m" already reads the same in both languages).
+- **The ability table's floating "SAVE" column header** (5.5e theme CSS) — a static `content:` property, so it can't read `mpx.contentLanguage` directly. `renderMonsterBlockHtml` adds a `lang-fr` class to `.statblock` when the language is French, and `.statblock.lang-fr ... ::before { content: 'JdS'; }` in `global.css` overrides it — casing matched exactly ("JdS", not "JDS"/"jds").
+- **Weight units ("lb"/"kg")** need no such handling — they're already tied purely to the measurement system, not the language, so "kg" already shows whenever the project is metric, in either language.

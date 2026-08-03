@@ -294,6 +294,17 @@ test('a translation-overrides.json-style override renames a catalog key\'s word 
   assert.match(html, /Compétences: <\/span>Vigilance \+5/)
 })
 
+test('adds a "lang-fr" class to .statblock when language is "fr" (theme CSS switches the floating SAVE header to JdS)', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```monster\nname: Test\n```\n')
+  assert.match(html, /<div class="statblock lang-fr">/)
+})
+
+test('does not add "lang-fr" when language is "en" (the default)', () => {
+  const html = renderMonster('name: Test')
+  assert.doesNotMatch(html, /lang-fr/)
+})
+
 test('language accepts a getter re-read on every render, not resolved once', () => {
   let language = 'en'
   const markdown = createMarkdownRenderer({ language: () => language })

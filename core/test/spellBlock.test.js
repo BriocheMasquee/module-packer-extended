@@ -198,6 +198,12 @@ test('rounds a metric range conversion to the nearest half-meter', () => {
   assert.match(html, /7\.5 meters/)
 })
 
+test('shows the French unit word "mètre" for a metric range when language is "fr"', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric', language: 'fr' })
+  const html = markdown.render('```spell\nname: Test\nrange: 30\n```\n')
+  assert.match(html, /9 mètre/)
+})
+
 test('accepts a measurement getter re-read on every render, not resolved once', () => {
   let current = 'imperial'
   const markdown = createMarkdownRenderer({ measurement: () => current })
