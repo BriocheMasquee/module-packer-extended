@@ -408,7 +408,13 @@ function installMonsterBlockRendering(markdown: MarkdownItInstance, options: Mar
 
     const displayDefaults =
       typeof options.monsterDisplayDefaults === 'function' ? options.monsterDisplayDefaults() : options.monsterDisplayDefaults
-    return renderMonsterBlockHtml(data, markdown, { preview: options.preview, displayDefaults })
+    // markdown-it-attrs already parsed a trailing ` ```monster {.blue} `
+    // class annotation off the info string and onto the token by this
+    // point — same syntax an image caption ({.caption}) or blockquote
+    // variant ({.paper}) already uses elsewhere in this renderer.
+    const blockClassValue = token.attrGet('class')
+    const blockClass = typeof blockClassValue === 'string' ? blockClassValue : undefined
+    return renderMonsterBlockHtml(data, markdown, { preview: options.preview, displayDefaults, blockClass })
   }
 }
 

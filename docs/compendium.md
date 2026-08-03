@@ -267,16 +267,29 @@ showTags: true
 ```
 ```
 
-### `color` / `twoColumn` — presentation-only, never built
+### `color` / two-column — a fence class annotation, not a YAML field
 
-Two YAML fields exist purely for this rendering, matching the `.statblock` CSS's own variants — **not** part of EncounterPlus's schema, and stripped before merging into `monsters.json` (same treatment as `show*` fields):
+Unlike everything else on this page, color and the two-column print layout aren't YAML fields at all — they're a class annotation on the fence itself, the same ` {.class} ` syntax an image caption (`{.caption}`) or a blockquote variant (`{.paper}`) already uses elsewhere in MPX:
 
-- `color`: one of `blue`, `green`, `red`, `yellow`, `orange`, `gray`, `purple`, `teal`, `magenta`, `signature` (default). An unrecognized value is ignored.
-- `twoColumn: true`: adds the CSS's two-column print layout. **Never auto-applied** — the user opts in explicitly per monster; there's no length/complexity heuristic deciding it automatically.
+```
+```monster {.blue .two-column}
+name: "New Monster"
+...
+```
+```
+
+- One of `blue`, `green`, `red`, `yellow`, `orange`, `gray`, `purple`, `teal`, `magenta`, `signature` (the CSS's own default) — an unrecognized value is ignored.
+- `.two-column` adds the theme's two-column print layout. **Never auto-applied** — the user opts in explicitly per monster; there's no length/complexity heuristic deciding it automatically.
+
+Neither ever reaches `monsters.json` — matching every other presentation-only concern on this page, EncounterPlus's own schema has no such fields.
 
 ### `show*` toggles
 
 Four toggles: `showImage`, `showToken`, `showSources`, `showTags` (project defaults: `mpx.defaultShowMonsterImage`, `mpx.defaultShowMonsterToken`, `mpx.defaultShowMonsterSources`, `mpx.defaultShowMonsterTags`) — no icon toggle, same as item. `token` (circular portrait, top-right) and `image` (full-width illustration, bottom) are independent fields/toggles, matching the two separate image-like fields EncounterPlus already gives a monster.
+
+### Source / Tags render outside the card
+
+Unlike every other property line (rendered inside the `.statblock` card, in the theme's own style), Source and Tags render as a **separate block right after the card**, in the same shared `.compendium-block-details-footer` style spell/item use — an explicit design choice, not something EncounterPlus itself does for a real monster card.
 
 ### Ability scores and saving throws
 

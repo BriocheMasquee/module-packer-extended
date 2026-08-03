@@ -3,7 +3,7 @@ import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateMonsterData, MONSTER_ABILITY_KEYS, MONSTER_FEATURE_LIST_FIELDS } from './monsterCompendium.js'
 import { translate } from './catalogEn.js'
-import { escapeHtml, formatSources, formatTags } from './compendiumBlock.js'
+import { escapeHtml, resourceImagePath, formatSources, formatTags } from './compendiumBlock.js'
 
 const MONSTER_META_FIELDS = [
   'id',
@@ -19,10 +19,6 @@ const MONSTER_META_FIELDS = [
   'showSources',
   'tags',
   'showTags',
-  // Inline-authoring-only presentation toggles — never part of a standalone
-  // monster file or monsters.json; EncounterPlus itself has no such fields.
-  'color',
-  'twoColumn',
 ] as const
 const MONSTER_DATA_FIELDS = [
   'size',
@@ -412,6 +408,13 @@ export interface MonsterDisplayDefaults {
 export interface MonsterBlockRenderOptions {
   preview?: boolean
   displayDefaults?: MonsterDisplayDefaults
+  /** The fence's own `{.blue .two-column}` class attribute (markdown-it-attrs
+   * already parses this off the ```monster info string and onto the fence
+   * token — same syntax an image caption or blockquote variant already
+   * uses elsewhere in this renderer), space-separated. Presentation-only:
+   * there's no YAML field for this, matching how it isn't part of
+   * EncounterPlus's own monster schema either. */
+  blockClass?: string
 }
 
 const STATBLOCK_COLORS = ['blue', 'green', 'red', 'yellow', 'orange', 'gray', 'purple', 'teal', 'magenta', 'signature']
@@ -436,13 +439,18 @@ export function renderMonsterBlockHtml(
     ? `<div class="statblock-description">${markdown.render(data.descr)}</div>`
     : ''
 
-  const color = isNonEmptyString(data.color) && STATBLOCK_COLORS.includes(data.color) ? ` ${data.color}` : ''
-  const twoColumn = data.twoColumn === true ? ' two-column' : ''
+  const blockClasses = (options.blockClass ?? '').split(/\s+/).filter(Boolean)
+  const color = blockClasses.find((className) => STATBLOCK_COLORS.includes(className))
+  const colorClass = color ? ` ${color}` : ''
+  const twoColumn = blockClasses.includes('two-column') ? ' two-column' : ''
 
   const showTokenDefault = options.displayDefaults?.showToken ?? true
   const showToken = typeof data.showToken === 'boolean' ? data.showToken : showTokenDefault
   const hasToken = isNonEmptyString(data.token) && data.token !== 'monsters/'
-  const tokenHtml = showToken && hasToken ? `<img class="statblock-token" src="${escapeHtml(String(data.token))}" alt="">` : ''
+  const tokenHtml =
+    showToken && hasToken
+      ? `<img class="statblock-token" src="${escapeHtml(resourceImagePath(String(data.token), options.preview))}" alt="">`
+      : ''
 
   const subtitle = formatSubtitle(monsterData)
 
@@ -486,19 +494,36 @@ export function renderMonsterBlockHtml(
   const showImageDefault = options.displayDefaults?.showImage ?? true
   const showImage = typeof data.showImage === 'boolean' ? data.showImage : showImageDefault
   const hasImage = isNonEmptyString(data.image) && data.image !== 'monsters/'
-  const imageHtml = showImage && hasImage ? `<img class="statblock-image" src="${escapeHtml(String(data.image))}" alt="">` : ''
+  const imageHtml =
+    showImage && hasImage
+      ? `<img class="statblock-image" src="${escapeHtml(resourceImagePath(String(data.image), options.preview))}" alt="">`
+      : ''
 
+  // Unlike every other property line (rendered inside the card, in the
+  // theme's own .statblock-property-line style), Source/Tags render outside
+  // the card entirely, in the same shared .compendium-block-details-footer
+  // style spell/item use — an explicit request, not something EncounterPlus
+  // itself does for a real monster card.
+  const detailLine = (label: string, value: string | undefined): string => {
+    if (!value) {
+      return ''
+    }
+    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}: </span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
+  }
   const showSourcesDefault = options.displayDefaults?.showSources ?? true
   const showSources = typeof data.showSources === 'boolean' ? data.showSources : showSourcesDefault
   const showTagsDefault = options.displayDefaults?.showTags ?? true
   const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
-  const footerHtml = [
-    propertyLine(translate('Common.Source'), showSources ? formatSources(data.sources) : undefined),
-    propertyLine(translate('Common.Tags'), showTags ? formatTags(data.tags) : undefined),
-  ].join('')
+  const footerLines = [
+    detailLine(translate('Common.Source'), showSources ? formatSources(data.sources) : undefined),
+    detailLine(translate('Common.Tags'), showTags ? formatTags(data.tags) : undefined),
+  ]
+    .filter(Boolean)
+    .join('')
+  const footerHtml = footerLines ? `<div class="compendium-block-details compendium-block-details-footer">${footerLines}</div>` : ''
 
   return [
-    `<div class="statblock${color}${twoColumn}">`,
+    `<div class="statblock${colorClass}${twoColumn}">`,
     tokenHtml,
     descriptionHtml,
     `<div class="statblock-title">${escapeHtml(name)}</div>`,
@@ -512,9 +537,9 @@ export function renderMonsterBlockHtml(
     '<hr class="statblock-tapered-rule">',
     propertiesHtml,
     featureListsHtml,
-    footerHtml,
     imageHtml,
     '</div>',
+    footerHtml,
   ]
     .filter(Boolean)
     .join('')

@@ -305,6 +305,12 @@ image: spells/fireball.png
   assert.match(html, /<div class="compendium-image-block"><img class="compendium-image" src="spells\/fireball\.png" alt=""><\/div>/)
 })
 
+test('rewrites the illustration image path with a ../ prefix in preview mode (pages/ is one level deeper than spells/)', () => {
+  const markdown = createMarkdownRenderer({ preview: true })
+  const html = markdown.render('```spell\nname: Fireball\nimage: spells/fireball.png\n```\n')
+  assert.match(html, /src="\.\.\/spells\/fireball\.png"/)
+})
+
 test('treats the untouched "spells/" placeholder as no image set, not a broken path', () => {
   const html = renderSpell(`
 name: Fireball
