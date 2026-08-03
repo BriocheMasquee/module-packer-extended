@@ -1080,6 +1080,10 @@ a.roll {
   content: 'SAVE';
 }
 
+.statblock.lang-fr .statblock-ability-column.physical .statblock-ability-row span:nth-child(4)::before {
+  content: 'JdS';
+}
+
 .statblock-ability-row strong {
   padding: 0.15rem;
   text-align: left;

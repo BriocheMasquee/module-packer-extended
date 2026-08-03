@@ -465,6 +465,10 @@ export function renderMonsterBlockHtml(
   const color = blockClasses.find((className) => STATBLOCK_COLORS.includes(className))
   const colorClass = color ? ` ${color}` : ''
   const twoColumn = blockClasses.includes('two-column') ? ' two-column' : ''
+  // Not catalog-driven (see the theme CSS): the ability table's floating
+  // "SAVE" column header is a static ::before content string, so it needs
+  // its own class hook to switch to "JdS" in French.
+  const languageClass = locale.language === 'fr' ? ' lang-fr' : ''
 
   const showTokenDefault = options.displayDefaults?.showToken ?? true
   const showToken = typeof data.showToken === 'boolean' ? data.showToken : showTokenDefault
@@ -545,7 +549,7 @@ export function renderMonsterBlockHtml(
   const footerHtml = footerLines ? `<div class="compendium-block-details compendium-block-details-footer">${footerLines}</div>` : ''
 
   return [
-    `<div class="statblock${colorClass}${twoColumn}">`,
+    `<div class="statblock${colorClass}${twoColumn}${languageClass}">`,
     tokenHtml,
     descriptionHtml,
     `<div class="statblock-title">${escapeHtml(name)}</div>`,

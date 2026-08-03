@@ -137,7 +137,7 @@ sources:
 
 ### Measurement
 
-`range` and `areaEffectSize` are always authored in feet — when the resolved measurement system is metric, the displayed number is converted using the same simplified factor WotC's own licensed French translations use (feet × 0.3, rounded to the nearest half-unit), not the precise 0.3048 conversion. The unit word itself ("feet"/"meters", "ft"/"m") stays in English regardless of `mpx.contentLanguage` — an accepted gap, since no catalog key exists upstream for these unit words (unlike every other generated label, which does come from the catalog — see [Localization](Localization)).
+`range` and `areaEffectSize` are always authored in feet — when the resolved measurement system is metric, the displayed number is converted using the same simplified factor WotC's own licensed French translations use (feet × 0.3, rounded to the nearest half-unit), not the precise 0.3048 conversion. `range`'s plain unit word switches to "mètre" when both the measurement is metric and `mpx.contentLanguage` is `"fr"` — an MPX-authored word, not from the catalog (EncounterPlus has no key for it) — see [Localization](Localization).
 
 The live preview re-resolves `mpx.defaultMeasurement`/`mpx.contentLanguage`/the five `defaultShowSpell*` settings on every render and refreshes itself automatically when any of them changes — no need to reload the Extension Development Host or reopen the preview.
 
@@ -307,7 +307,7 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 
 - **No auto-generated "Legendary Action Uses: N..." intro paragraph** before the Legendary Actions list — the real books insert this boilerplate automatically (referencing the monster's own name and a legendary-action-count field EncounterPlus's schema doesn't have), so it isn't generated. Add it yourself as free text in `descr`, or as the first `legendaryActions` entry, if wanted.
 - **`languages` always joins with `, `** — the official books sometimes separate a trailing "telepathy N ft." note with a semicolon instead. Minor cosmetic difference, not worth a special case for one entry format.
-- **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS — corrected to "SAVE" to match the English-first screenshots this feature was built against. This one stays a fixed English word regardless of `mpx.contentLanguage`: it's a static CSS `content:` property, not something the catalog/renderer produces (see [Localization](Localization)), so it can't switch per-language the way every other label does.
+- **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS regardless of `mpx.contentLanguage` — corrected to always show "SAVE", with a `.statblock.lang-fr` CSS override switching it back to "JdS" only when the monster block is actually rendered in French (see [Localization](Localization)).
 
 ## Not included (yet)
 

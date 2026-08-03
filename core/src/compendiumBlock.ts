@@ -1,5 +1,5 @@
 import { isNonEmptyString, isPlainObject } from './compendiumShared.js'
-import type { MeasurementSystem } from './localization.js'
+import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
 /** Shared by every inline Compendium block renderer (spell, item, ...) —
  * escapes text dropped into the `.compendium-block` markup. */
@@ -40,6 +40,18 @@ export function feetToDisplayValue(feet: number, measurement: MeasurementSystem)
 
 export function formatDistanceNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+/** The plain unit word appended after a spell range's number (e.g. "9
+ * meters"/"9 mètres") — MPX-authored, not sourced from the upstream
+ * EncounterPlus catalog (it has no key for this), so untouched by
+ * scripts/sync-catalogs.mjs. No French word is given for imperial ("feet")
+ * since French projects default to metric — see resolveMeasurementSystem. */
+export function distanceUnitWord(measurement: MeasurementSystem, language: ContentLanguage): string {
+  if (measurement === 'metric') {
+    return language === 'fr' ? 'mètre' : 'meters'
+  }
+  return 'feet'
 }
 
 export function formatSources(sources: unknown): string | undefined {

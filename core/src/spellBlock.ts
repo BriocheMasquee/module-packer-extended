@@ -9,6 +9,7 @@ import {
   resourceImagePath,
   feetToDisplayValue,
   formatDistanceNumber,
+  distanceUnitWord,
   formatSources,
   formatTags,
 } from './compendiumBlock.js'
@@ -166,7 +167,7 @@ function formatRange(data: Record<string, unknown>, locale: RenderLocale): strin
   // (matching the snippet's own placeholder default), not a literal 0 feet.
   if (typeof data.range === 'number' && data.range > 0) {
     const value = formatDistanceNumber(feetToDisplayValue(data.range, locale.measurement))
-    return `${value} ${locale.measurement === 'metric' ? 'meters' : 'feet'}`
+    return `${value} ${distanceUnitWord(locale.measurement, locale.language)}`
   }
   return undefined
 }
