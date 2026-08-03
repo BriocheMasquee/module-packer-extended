@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it'
+import type { MarkdownIt as MarkdownItInstance, Token, StateBlock, StateInline } from 'markdown-it'
 import { escapeHtml, parseSpellBlock, renderSpellBlockHtml } from './spellBlock.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
 import type { MeasurementSystem } from './localization.js'
@@ -40,6 +41,7 @@ export interface MarkdownRendererOptions {
  * Compendium blocks into the same output as standalone files. Not read
  * during preview rendering. */
 export interface MpxMarkdownEnvironment {
+  [key: string | symbol]: unknown
   inlineSpells?: InlineSpellBlock[]
 }
 
@@ -70,11 +72,12 @@ function wrapClassForBlockquote(blockquoteClass: string | undefined): string | u
   return 'blockquote-wrap'
 }
 
-function firstClass(token: MarkdownIt.Token): string | undefined {
-  return token.attrGet('class')?.split(/\s+/)[0]
+function firstClass(token: Token): string | undefined {
+  const value = token.attrGet('class')
+  return typeof value === 'string' ? value.split(/\s+/)[0] : undefined
 }
 
-function installBlockquoteWrapping(markdown: MarkdownIt): void {
+function installBlockquoteWrapping(markdown: MarkdownItInstance): void {
   const defaultOpen =
     markdown.renderer.rules.blockquote_open ??
     ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
@@ -100,15 +103,15 @@ function installBlockquoteWrapping(markdown: MarkdownIt): void {
   }
 }
 
-function lineText(state: MarkdownIt.StateBlock, line: number): string {
+function lineText(state: StateBlock, line: number): string {
   return state.src.slice(state.bMarks[line] + state.tShift[line], state.eMarks[line])
 }
 
 /** Silently consumes a leading "---\n...\n---" front-matter block so it never
  * appears in the rendered preview (the built .module never sees it at all —
  * front matter isn't part of a page's HTML content either way). */
-function installFrontMatterHiding(markdown: MarkdownIt): void {
-  const rule: MarkdownIt.ParserBlock.RuleBlock = (state, startLine, _endLine, silent) => {
+function installFrontMatterHiding(markdown: MarkdownItInstance): void {
+  const rule = (state: StateBlock, startLine: number, _endLine: number, silent: boolean): boolean => {
     if (startLine !== 0 || state.tShift[startLine] !== 0) {
       return false
     }
@@ -132,7 +135,7 @@ function installFrontMatterHiding(markdown: MarkdownIt): void {
  * `=WIDTHx` / `=xHEIGHT` for a single dimension) sets width/height attributes
  * on the rendered <img>. Reuses the same 'image' token type as the standard
  * rule, so it goes through installImageRendering (captions, path fixes) too. */
-function imageWithSize(state: MarkdownIt.StateInline, silent: boolean): boolean {
+function imageWithSize(state: StateInline, silent: boolean): boolean {
   const startPos = state.pos
   const maxPos = state.posMax
 
@@ -190,7 +193,7 @@ function imageWithSize(state: MarkdownIt.StateInline, silent: boolean): boolean 
 
   if (!silent) {
     const content = state.src.slice(labelStart, labelEnd)
-    const children: MarkdownIt.Token[] = []
+    const children: Token[] = []
     state.md.inline.parse(content, state.md, state.env, children)
 
     const token = state.push('image', 'img', 0)
@@ -213,7 +216,7 @@ function imageWithSize(state: MarkdownIt.StateInline, silent: boolean): boolean 
   return true
 }
 
-function installImageSizeSyntax(markdown: MarkdownIt): void {
+function installImageSizeSyntax(markdown: MarkdownItInstance): void {
   markdown.inline.ruler.before('image', 'mpx_image_size', imageWithSize)
 }
 
@@ -227,14 +230,15 @@ function installImageSizeSyntax(markdown: MarkdownIt): void {
  *   <figure><img>...<figcaption>Alt text</figcaption></figure> instead of a
  *   bare <img> — "caption" itself isn't a real CSS class, just a marker, so
  *   it's removed from the rendered <img>'s class list. */
-function installImageRendering(markdown: MarkdownIt, options: MarkdownRendererOptions): void {
+function installImageRendering(markdown: MarkdownItInstance, options: MarkdownRendererOptions): void {
   const defaultImage =
     markdown.renderer.rules.image ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts))
 
   markdown.renderer.rules.image = (tokens, idx, opts, env, self) => {
     const token = tokens[idx]
 
-    const src = token.attrGet('src')
+    const srcValue = token.attrGet('src')
+    const src = typeof srcValue === 'string' ? srcValue : undefined
     if (src?.startsWith('/images/')) {
       // EncounterPlus expects a relative path within the built module — a
       // leading "/" doesn't resolve there, even though it's a harmless way
@@ -245,7 +249,8 @@ function installImageRendering(markdown: MarkdownIt, options: MarkdownRendererOp
       token.attrSet('src', `../${src}`)
     }
 
-    const classes = token.attrGet('class')?.split(/\s+/).filter(Boolean) ?? []
+    const classValue = token.attrGet('class')
+    const classes: string[] = typeof classValue === 'string' ? classValue.split(/\s+/).filter(Boolean) : []
     const hasCaption = classes.includes('caption')
     const altText = token.children ? self.renderInlineAsText(token.children, opts, env) : ''
 
@@ -268,7 +273,7 @@ function installImageRendering(markdown: MarkdownIt, options: MarkdownRendererOp
 /** EncounterPlus's real renderer always roots a page's content in #page —
  * theme CSS targets that selector. Only applied around actual block content,
  * so inline-only fragments (e.g. a Compendium hover preview) aren't wrapped. */
-function installPageWrapper(markdown: MarkdownIt): void {
+function installPageWrapper(markdown: MarkdownItInstance): void {
   const defaultRender = markdown.renderer.render.bind(markdown.renderer)
   // A rule (e.g. a spell block's description) can call markdown.render()
   // again while already inside a render pass — this guard only wraps the
@@ -293,11 +298,12 @@ function installPageWrapper(markdown: MarkdownIt): void {
  * per page during a build) so it can be merged into spells.json alongside
  * standalone spell files — matching how the original Module Packer and old
  * MPX both supported spells authored directly inside a page. */
-function installSpellBlockRendering(markdown: MarkdownIt, options: MarkdownRendererOptions): void {
+function installSpellBlockRendering(markdown: MarkdownItInstance, options: MarkdownRendererOptions): void {
   const defaultFence =
     markdown.renderer.rules.fence ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts))
 
-  markdown.renderer.rules.fence = (tokens, idx, opts, env: MpxMarkdownEnvironment, self) => {
+  markdown.renderer.rules.fence = (tokens, idx, opts, envArg: MpxMarkdownEnvironment | undefined, self) => {
+    const env: MpxMarkdownEnvironment = envArg ?? {}
     const token = tokens[idx]
     if (token.info.trim().toLowerCase() !== 'spell') {
       return defaultFence(tokens, idx, opts, env, self)
@@ -319,8 +325,14 @@ function installSpellBlockRendering(markdown: MarkdownIt, options: MarkdownRende
   }
 }
 
-export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): MarkdownIt {
+export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): MarkdownItInstance {
   const markdown = new MarkdownIt({ html: true, linkify: true })
+  // markdown-it 15 dropped `utils.assign` (a pre-ES2015 Object.assign shim,
+  // no longer needed natively) — markdown-it-multimd-table@4.2.3 (its latest
+  // release) still calls it once, at registration, so this restores just
+  // enough of the old utils surface for that one call to succeed.
+  ;(markdown.utils as unknown as { assign?: typeof Object.assign }).assign ??= Object.assign
+  markdown
     .use(anchor)
     .use(attrs)
     .use(mark)

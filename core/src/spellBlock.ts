@@ -1,5 +1,5 @@
 import { parse as parseYaml } from 'yaml'
-import type MarkdownIt from 'markdown-it'
+import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateSpellData } from './spellCompendium.js'
 import { translate, pluralize } from './catalogEn.js'
