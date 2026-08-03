@@ -173,6 +173,19 @@ test('buildModule excludes .DS_Store files from images/assets', async () => {
   assert.ok(!listZipEntries(summary.outputPath).includes('images/.DS_Store'))
 })
 
+test('buildModule never bundles translation-overrides.json, even if dropped inside assets/', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await writeFile(join(root, 'translation-overrides.json'), JSON.stringify({ fr: {} }))
+  await mkdir(join(root, 'assets'), { recursive: true })
+  await writeFile(join(root, 'assets', 'translation-overrides.json'), JSON.stringify({ fr: {} }))
+
+  const summary = await buildModule(root)
+
+  const entries = listZipEntries(summary.outputPath)
+  assert.ok(!entries.some((entry) => entry.endsWith('translation-overrides.json')))
+})
+
 test('buildModule bundles the module.json image/banner files at the archive root', async () => {
   const root = await makeTempModule()
   await writeFile(

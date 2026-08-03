@@ -274,3 +274,32 @@ test('the "sleightOfHand" skill translates to "Sleight of Hand" (catalog casing 
   const html = renderMonster('name: Test\nskills: { sleightOfHand: 5 }')
   assert.match(html, /Skills: <\/span>Sleight of Hand \+5/)
 })
+
+test('renders labels in French when language is "fr"', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render(
+    '```monster\nname: Test\nsize: L\ntype: fey\nskills: { perception: 5 }\nsenses:\n  darkvision: 60\n```\n',
+  )
+  assert.match(html, /Compétences: <\/span>Perception \+5/)
+  assert.match(html, /Sens: <\/span>Vision dans le noir 60 ft\./)
+  assert.match(html, /<div class="statblock-subtitle">Grand Fée<\/div>/)
+})
+
+test('a translation-overrides.json-style override renames a catalog key\'s word project-wide', () => {
+  const markdown = createMarkdownRenderer({
+    language: 'fr',
+    overrides: { fr: { 'Skill.Perception': 'Vigilance' } },
+  })
+  const html = markdown.render('```monster\nname: Test\nskills: { perception: 5 }\n```\n')
+  assert.match(html, /Compétences: <\/span>Vigilance \+5/)
+})
+
+test('language accepts a getter re-read on every render, not resolved once', () => {
+  let language = 'en'
+  const markdown = createMarkdownRenderer({ language: () => language })
+  const englishHtml = markdown.render('```monster\nname: Test\nskills: { perception: 5 }\n```\n')
+  assert.match(englishHtml, /Skills: <\/span>Perception \+5/)
+  language = 'fr'
+  const frenchHtml = markdown.render('```monster\nname: Test\nskills: { perception: 5 }\n```\n')
+  assert.match(frenchHtml, /Compétences: <\/span>Perception \+5/)
+})

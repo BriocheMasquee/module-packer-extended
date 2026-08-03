@@ -9,6 +9,7 @@ In this order:
 - A **summary** line (module name, version, system) — clicking it opens `module.json`.
 - **Cover Image** / **Banner** entries, if `module.json`'s `image`/`banner` fields are set and the file exists — labeled by role, with the actual file name shown next to it. Clicking opens the image.
 - **Project Settings**, if `.vscode/settings.json` exists — opens it directly. This is where `mpx.autoIncrementVersion` lives (see [Build Module](Build-Module)).
+- A **Translation Overrides** line — if `translation-overrides.json` exists at the project root, shows the number of overrides it defines (e.g. "2 overrides") and opens it. Otherwise shows "Create…" and runs the same command as **MPX: Create Translation Overrides File** — see [Localization](Localization).
 - A **Compendium :** line — the total entry count (e.g. "15 entries"). Clicking it switches focus to the [Compendium](Compendium) panel, where each category's label shows its own count in parentheses (e.g. "Monsters (3)").
 - **`images/`** and **`assets/`** as expandable folders, browsable in place (files clickable to open) — no need to switch to VSCode's Explorer tab just to look inside them.
 

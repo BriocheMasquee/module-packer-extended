@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { buildModule, ModuleBuildError, resolveMeasurementSystem } from 'mpx-core'
+import { buildModule, ModuleBuildError, resolveMeasurementSystem, normalizeContentLanguage, loadCatalogOverrides } from 'mpx-core'
 
 const BUILD_COMMAND = 'mpx.buildModule'
 
@@ -43,10 +43,14 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
 
   const config = vscode.workspace.getConfiguration('mpx', vscode.Uri.file(moduleFolder))
   const autoIncrementVersion = config.get<boolean>('autoIncrementVersion', true)
-  const defaultMeasurement = resolveMeasurementSystem(
-    config.get<string>('defaultMeasurement', 'auto'),
-    config.get<string>('contentLanguage', 'en'),
-  )
+  const contentLanguage = normalizeContentLanguage(config.get<string>('contentLanguage', 'en'))
+  const defaultMeasurement = resolveMeasurementSystem(config.get<string>('defaultMeasurement', 'auto'), contentLanguage)
+  const { overrides: catalogOverrides, issues: overrideIssues } = await loadCatalogOverrides(moduleFolder)
+  if (overrideIssues.length > 0) {
+    await vscode.window.showWarningMessage(
+      `translation-overrides.json: ${overrideIssues.map((issue) => issue.message).join(' ')}`,
+    )
+  }
   const spellDisplayDefaults = {
     showImage: config.get<boolean>('defaultShowSpellImage', true),
     showSchoolIcon: config.get<boolean>('defaultShowSpellSchoolIcon', true),
@@ -73,6 +77,8 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
         buildModule(moduleFolder, {
           autoIncrementVersion,
           defaultMeasurement,
+          contentLanguage,
+          catalogOverrides,
           spellDisplayDefaults,
           itemDisplayDefaults,
           monsterDisplayDefaults,

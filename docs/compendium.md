@@ -43,7 +43,7 @@ At build time, any item/spell/monster that still has an empty/absent `attributes
 
 `attributes.ruleset` is currently hardcoded to `"5.5e"` everywhere (creation and build fallback alike) — there's no `mpx.ruleset` setting yet. Our schemas and templates have only been verified against real 5.5e data; supporting `"5e"` would need its own format audit first (planned once the 5.5e Compendium is complete).
 
-The translation catalog itself (actually localizing generated labels) is a separate, larger piece of work, deliberately not part of this — only the language↔measurement link is implemented so far.
+`mpx.contentLanguage` also selects which catalog every generated label (school names, skill names, unit words, section titles, ...) is translated from — see [Localization](Localization) for the full catalog/override/sync design. Only static field labels and enum/automatic terms are translated this way; free-text fields (`descr`, `name`, `typeDetail`, ...) are never touched.
 
 ## Mutually exclusive fields (Spell)
 
@@ -137,7 +137,7 @@ sources:
 
 ### Measurement
 
-`range` and `areaEffectSize` are always authored in feet — when the resolved measurement system is metric, the displayed number is converted using the same simplified factor WotC's own licensed French translations use (feet × 0.3, rounded to the nearest half-unit), not the precise 0.3048 conversion. The unit word itself ("feet"/"meters", "ft"/"m") is currently always in English regardless of `mpx.contentLanguage` — full label localization is tracked in [issue #15](https://github.com/BriocheMasquee/mpx-bis/issues/15), not implemented yet.
+`range` and `areaEffectSize` are always authored in feet — when the resolved measurement system is metric, the displayed number is converted using the same simplified factor WotC's own licensed French translations use (feet × 0.3, rounded to the nearest half-unit), not the precise 0.3048 conversion. The unit word itself ("feet"/"meters", "ft"/"m") stays in English regardless of `mpx.contentLanguage` — an accepted gap, since no catalog key exists upstream for these unit words (unlike every other generated label, which does come from the catalog — see [Localization](Localization)).
 
 The live preview re-resolves `mpx.defaultMeasurement`/`mpx.contentLanguage`/the five `defaultShowSpell*` settings on every render and refreshes itself automatically when any of them changes — no need to reload the Extension Development Host or reopen the preview.
 
@@ -307,7 +307,7 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 
 - **No auto-generated "Legendary Action Uses: N..." intro paragraph** before the Legendary Actions list — the real books insert this boilerplate automatically (referencing the monster's own name and a legendary-action-count field EncounterPlus's schema doesn't have), so it isn't generated. Add it yourself as free text in `descr`, or as the first `legendaryActions` entry, if wanted.
 - **`languages` always joins with `, `** — the official books sometimes separate a trailing "telepathy N ft." note with a semicolon instead. Minor cosmetic difference, not worth a special case for one entry format.
-- **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS (unrelated to `mpx.contentLanguage`, which isn't wired into this rendering at all yet — see [issue #15](https://github.com/BriocheMasquee/mpx-bis/issues/15)) — corrected to "SAVE" to match the English-first screenshots this feature was built against.
+- **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS — corrected to "SAVE" to match the English-first screenshots this feature was built against. This one stays a fixed English word regardless of `mpx.contentLanguage`: it's a static CSS `content:` property, not something the catalog/renderer produces (see [Localization](Localization)), so it can't switch per-language the way every other label does.
 
 ## Not included (yet)
 

@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml'
 import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateMonsterData, MONSTER_ABILITY_KEYS, MONSTER_FEATURE_LIST_FIELDS } from './monsterCompendium.js'
-import { translate } from './catalogEn.js'
+import { translate, type RenderLocale, type CatalogOverrides } from './catalog.js'
 import {
   escapeHtml,
   resourceImagePath,
@@ -11,7 +11,7 @@ import {
   formatSources,
   formatTags,
 } from './compendiumBlock.js'
-import type { MeasurementSystem } from './localization.js'
+import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
 const MONSTER_META_FIELDS = [
   'id',
@@ -116,15 +116,15 @@ export function parseMonsterBlock(yamlSource: string): ParsedMonsterBlock {
  * other camelCase key would naively PascalCase to), and `Ability.*` keys
  * which are the short all-caps abbreviations (`STR`, `DEX`, ...), not
  * PascalCase words. */
-function translateEnum(namespace: string, enumKey: string): string {
+function translateEnum(namespace: string, enumKey: string, locale: RenderLocale): string {
   if (namespace === 'Skill' && enumKey === 'sleightOfHand') {
-    return translate('Skill.SleightofHand')
+    return translate('Skill.SleightofHand', locale.language, locale.overrides)
   }
   if (namespace === 'Ability') {
-    return translate(`Ability.${enumKey.toUpperCase()}`)
+    return translate(`Ability.${enumKey.toUpperCase()}`, locale.language, locale.overrides)
   }
   const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
-  return translate(`${namespace}.${pascalKey}`)
+  return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
 }
 
 const SIZE_WORDS: Record<string, string> = {
@@ -152,15 +152,15 @@ const ALIGNMENT_WORDS: Record<string, string> = {
 
 /** "Large Fey, Neutral Evil" — size (+ type, + free-text typeDetail in
  * parens), then alignment. */
-function formatSubtitle(data: Record<string, unknown>): string | undefined {
+function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const size = isNonEmptyString(data.size) ? SIZE_WORDS[data.size] : undefined
-  const sizeLabel = size ? translateEnum('Size', size) : undefined
-  const type = isNonEmptyString(data.type) ? translateEnum('MonsterType', data.type) : undefined
+  const sizeLabel = size ? translateEnum('Size', size, locale) : undefined
+  const type = isNonEmptyString(data.type) ? translateEnum('MonsterType', data.type, locale) : undefined
   const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
   const typePart = type ? (typeDetail ? `${type} (${typeDetail})` : type) : typeDetail
   const sizeTypePart = [sizeLabel, typePart].filter((part): part is string => Boolean(part)).join(' ')
   const alignmentWord = isNonEmptyString(data.alignment) ? ALIGNMENT_WORDS[data.alignment] : undefined
-  const alignmentLabel = alignmentWord ? translateEnum('Alignment', alignmentWord) : undefined
+  const alignmentLabel = alignmentWord ? translateEnum('Alignment', alignmentWord, locale) : undefined
 
   const parts = [sizeTypePart, alignmentLabel].filter((part): part is string => Boolean(part))
   return parts.length > 0 ? parts.join(', ') : undefined
@@ -176,7 +176,7 @@ function formatFeetSuffix(value: number, measurement: MeasurementSystem): string
 /** "40 ft." or "10 ft., Swim 40 ft." — walk has no label of its own (it's
  * the implicit default speed); every other mode is labeled and only shown
  * when set. */
-function formatSpeed(speed: unknown, measurement: MeasurementSystem): string | undefined {
+function formatSpeed(speed: unknown, locale: RenderLocale): string | undefined {
   if (!isPlainObject(speed)) {
     return undefined
   }
@@ -187,11 +187,11 @@ function formatSpeed(speed: unknown, measurement: MeasurementSystem): string | u
       continue
     }
     if (field === 'walk') {
-      parts.push(formatFeetSuffix(value, measurement))
+      parts.push(formatFeetSuffix(value, locale.measurement))
     } else {
-      const label = translateEnum('Movement', field)
-      const hover = field === 'fly' && speed.hover === true ? ` (${translate('Movement.Hover')})` : ''
-      parts.push(`${label} ${formatFeetSuffix(value, measurement)}${hover}`)
+      const label = translateEnum('Movement', field, locale)
+      const hover = field === 'fly' && speed.hover === true ? ` (${translate('Movement.Hover', locale.language, locale.overrides)})` : ''
+      parts.push(`${label} ${formatFeetSuffix(value, locale.measurement)}${hover}`)
     }
   }
   if (isNonEmptyString(speed.other)) {
@@ -213,15 +213,15 @@ function formatSigned(value: number): string {
  * table itself is present at all; save defaults to the modifier (matching
  * the non-proficient case) unless overridden in the sparse `savingThrows`
  * map. */
-function abilityRowHtml(key: string, abilities: Record<string, unknown>, savingThrows: Record<string, unknown>): string {
+function abilityRowHtml(key: string, abilities: Record<string, unknown>, savingThrows: Record<string, unknown>, locale: RenderLocale): string {
   const score = typeof abilities[key] === 'number' ? abilities[key] : 10
   const mod = abilityModifier(score)
   const save = typeof savingThrows[key] === 'number' ? savingThrows[key] : mod
-  const label = translateEnum('Ability', key)
+  const label = translateEnum('Ability', key, locale)
   return `<div class="statblock-ability-row"><strong>${escapeHtml(label)}</strong><span>${score}</span><span>${escapeHtml(formatSigned(mod))}</span><span>${escapeHtml(formatSigned(save))}</span></div>`
 }
 
-function abilitiesHtml(data: Record<string, unknown>): string {
+function abilitiesHtml(data: Record<string, unknown>, locale: RenderLocale): string {
   const abilities = isPlainObject(data.abilities) ? data.abilities : undefined
   if (!abilities) {
     return ''
@@ -230,11 +230,11 @@ function abilitiesHtml(data: Record<string, unknown>): string {
   const physical = MONSTER_ABILITY_KEYS.slice(0, 3)
   const mental = MONSTER_ABILITY_KEYS.slice(3, 6)
   const column = (keys: string[], columnClass: string): string =>
-    `<div class="statblock-ability-column ${columnClass}">${keys.map((key) => abilityRowHtml(key, abilities, savingThrows)).join('')}</div>`
+    `<div class="statblock-ability-column ${columnClass}">${keys.map((key) => abilityRowHtml(key, abilities, savingThrows, locale)).join('')}</div>`
   return `<div class="statblock-abilities">${column(physical, 'physical')}${column(mental, 'mental')}</div>`
 }
 
-function formatSkills(skills: unknown): string | undefined {
+function formatSkills(skills: unknown, locale: RenderLocale): string | undefined {
   if (!isPlainObject(skills)) {
     return undefined
   }
@@ -243,12 +243,12 @@ function formatSkills(skills: unknown): string | undefined {
     return undefined
   }
   return entries
-    .map(([key, value]) => `${translateEnum('Skill', key)} ${formatSigned(value)}`)
+    .map(([key, value]) => `${translateEnum('Skill', key, locale)} ${formatSigned(value)}`)
     .sort((a, b) => a.localeCompare(b))
     .join(', ')
 }
 
-function formatSavingThrows(data: Record<string, unknown>): string | undefined {
+function formatSavingThrows(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const abilities = isPlainObject(data.abilities) ? data.abilities : undefined
   const savingThrows = isPlainObject(data.savingThrows) ? data.savingThrows : undefined
   if (!savingThrows) {
@@ -269,16 +269,16 @@ function formatSavingThrows(data: Record<string, unknown>): string | undefined {
     return undefined
   }
   return divergent
-    .map(([key, value]) => `${translateEnum('Ability', key)} ${formatSigned(value)}`)
+    .map(([key, value]) => `${translateEnum('Ability', key, locale)} ${formatSigned(value)}`)
     .join(', ')
 }
 
-function formatDamageList(values: unknown): string | undefined {
+function formatDamageList(values: unknown, locale: RenderLocale): string | undefined {
   if (!Array.isArray(values)) {
     return undefined
   }
   const entries = values.filter((entry): entry is string => typeof entry === 'string')
-  return entries.length > 0 ? entries.map((entry) => translateEnum('Damage', entry)).join(', ') : undefined
+  return entries.length > 0 ? entries.map((entry) => translateEnum('Damage', entry, locale)).join(', ') : undefined
 }
 
 function formatStringList(values: unknown): string | undefined {
@@ -291,14 +291,14 @@ function formatStringList(values: unknown): string | undefined {
 
 const SENSE_FIELDS = ['blindsight', 'darkvision', 'tremorsense', 'truesight'] as const
 
-function formatSenses(data: Record<string, unknown>, measurement: MeasurementSystem): string | undefined {
+function formatSenses(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const senses = isPlainObject(data.senses) ? data.senses : undefined
   const parts: string[] = []
   if (senses) {
     for (const field of SENSE_FIELDS) {
       const value = senses[field]
       if (typeof value === 'number' && value > 0) {
-        parts.push(`${translateEnum('Sense', field)} ${formatFeetSuffix(value, measurement)}`)
+        parts.push(`${translateEnum('Sense', field, locale)} ${formatFeetSuffix(value, locale.measurement)}`)
       }
     }
     if (isNonEmptyString(senses.other)) {
@@ -306,7 +306,7 @@ function formatSenses(data: Record<string, unknown>, measurement: MeasurementSys
     }
   }
   if (typeof data.passivePerception === 'number') {
-    parts.push(`${translate('Sense.PassivePerception')} ${data.passivePerception}`)
+    parts.push(`${translate('Sense.PassivePerception', locale.language, locale.overrides)} ${data.passivePerception}`)
   }
   return parts.length > 0 ? parts.join('; ') : undefined
 }
@@ -357,14 +357,14 @@ function formatNumberWithCommas(value: number): string {
   return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-function formatChallenge(data: Record<string, unknown>): string | undefined {
+function formatChallenge(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   if (!isNonEmptyString(data.cr)) {
     return undefined
   }
   const xp = CR_TO_XP[data.cr]
   const proficiencyBonus = typeof data.proficiencyBonus === 'number' ? data.proficiencyBonus : undefined
   const details = [
-    xp !== undefined ? `${translate('Common.XP')} ${formatNumberWithCommas(xp)}` : undefined,
+    xp !== undefined ? `${translate('Common.XP', locale.language, locale.overrides)} ${formatNumberWithCommas(xp)}` : undefined,
     // No "PB" abbreviation key exists in the catalog (only the spelled-out
     // "Proficiency Bonus") — "PB" is a standard, widely-recognized D&D
     // abbreviation in its own right, not really "untranslated" content.
@@ -382,7 +382,7 @@ function kebabCase(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
 }
 
-function featureListHtml(kind: string, entries: unknown): string {
+function featureListHtml(kind: string, entries: unknown, locale: RenderLocale): string {
   if (!Array.isArray(entries) || entries.length === 0) {
     return ''
   }
@@ -399,7 +399,7 @@ function featureListHtml(kind: string, entries: unknown): string {
       return `<div class="statblock-${cssKind}"><p>${nameHtml}<span class="statblock-${cssKind}-description">${escapeHtml(text)}</span></p></div>`
     })
     .join('')
-  const sectionTitle = translateEnum('Monster', kind.charAt(0).toUpperCase() + kind.slice(1) + 's')
+  const sectionTitle = translateEnum('Monster', kind.charAt(0).toUpperCase() + kind.slice(1) + 's', locale)
   return `<div class="statblock-section-title">${escapeHtml(sectionTitle)}</div>${items}`
 }
 
@@ -420,6 +420,13 @@ export interface MonsterDisplayDefaults {
 
 export interface MonsterBlockRenderOptions {
   measurement: MeasurementSystem
+  /** Resolved from `mpx.contentLanguage`, same live-refresh getter contract
+   * as `measurement` at the `MarkdownRendererOptions` level. Defaults to
+   * "en" when not provided (e.g. in tests). */
+  language?: ContentLanguage
+  /** The project's `translation-overrides.json`, if any — merged on top of
+   * the resolved language's catalog before every lookup. */
+  overrides?: CatalogOverrides
   preview?: boolean
   displayDefaults?: MonsterDisplayDefaults
   /** The fence's own `{.blue .two-column}` class attribute (markdown-it-attrs
@@ -443,6 +450,7 @@ export function renderMonsterBlockHtml(
   markdown: MarkdownIt,
   options: MonsterBlockRenderOptions,
 ): string {
+  const locale: RenderLocale = { measurement: options.measurement, language: options.language ?? 'en', overrides: options.overrides }
   const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Monster'
   const monsterData = isPlainObject(data.data) ? data.data : {}
 
@@ -466,22 +474,22 @@ export function renderMonsterBlockHtml(
       ? `<img class="statblock-token" src="${escapeHtml(resourceImagePath(String(data.token), options.preview))}" alt="">`
       : ''
 
-  const subtitle = formatSubtitle(monsterData)
+  const subtitle = formatSubtitle(monsterData, locale)
 
   const ac = isNonEmptyString(monsterData.ac) ? monsterData.ac : undefined
   const initiativeBonus = typeof monsterData.initiativeBonus === 'number' ? monsterData.initiativeBonus : undefined
-  const acLine = ac ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.AC'))}</span> ${escapeHtml(ac)}</p>` : ''
+  const acLine = ac ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.AC', locale.language, locale.overrides))}</span> ${escapeHtml(ac)}</p>` : ''
   const initiativeLine =
     initiativeBonus !== undefined
-      ? `<p class="statblock-initiative"><span class="statblock-topstat-name">${escapeHtml(translate('Common.Initiative'))}</span> <strong>${escapeHtml(formatSigned(initiativeBonus))}</strong> (${10 + initiativeBonus})</p>`
+      ? `<p class="statblock-initiative"><span class="statblock-topstat-name">${escapeHtml(translate('Common.Initiative', locale.language, locale.overrides))}</span> <strong>${escapeHtml(formatSigned(initiativeBonus))}</strong> (${10 + initiativeBonus})</p>`
       : ''
   const primaryHtml = acLine || initiativeLine ? `<div class="statblock-primary">${acLine}${initiativeLine}</div>` : ''
 
   const hp = isNonEmptyString(monsterData.hp) ? monsterData.hp : undefined
-  const hpLine = hp ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.HP'))}</span> ${escapeHtml(hp)}</p>` : ''
-  const speedText = formatSpeed(monsterData.speed, options.measurement)
+  const hpLine = hp ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.HP', locale.language, locale.overrides))}</span> ${escapeHtml(hp)}</p>` : ''
+  const speedText = formatSpeed(monsterData.speed, locale)
   const speedLine = speedText
-    ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.Speed'))}</span> ${escapeHtml(speedText)}</p>`
+    ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.Speed', locale.language, locale.overrides))}</span> ${escapeHtml(speedText)}</p>`
     : ''
 
   const propertyLine = (label: string, value: string | undefined): string =>
@@ -490,18 +498,18 @@ export function renderMonsterBlockHtml(
       : ''
 
   const propertiesHtml = [
-    propertyLine(translate('Monster.SavingThrows'), formatSavingThrows(monsterData)),
-    propertyLine(translate('Monster.Skills'), formatSkills(monsterData.skills)),
-    propertyLine(translate('Monster.Vulnerabilities'), formatDamageList(monsterData.damageVulnerabilities)),
-    propertyLine(translate('Monster.Resistances'), formatDamageList(monsterData.damageResistances)),
-    propertyLine(translate('Monster.Immunities'), formatDamageList(monsterData.damageImmunities)),
-    propertyLine(translate('Monster.ConditionImmunities'), formatStringList(monsterData.conditionImmunities)),
-    propertyLine(translate('Monster.Senses'), formatSenses(monsterData, options.measurement)),
-    propertyLine(translate('Monster.Languages'), formatStringList(monsterData.languages)),
-    propertyLine(translate('Monster.Challenge'), formatChallenge(monsterData)),
+    propertyLine(translate('Monster.SavingThrows', locale.language, locale.overrides), formatSavingThrows(monsterData, locale)),
+    propertyLine(translate('Monster.Skills', locale.language, locale.overrides), formatSkills(monsterData.skills, locale)),
+    propertyLine(translate('Monster.Vulnerabilities', locale.language, locale.overrides), formatDamageList(monsterData.damageVulnerabilities, locale)),
+    propertyLine(translate('Monster.Resistances', locale.language, locale.overrides), formatDamageList(monsterData.damageResistances, locale)),
+    propertyLine(translate('Monster.Immunities', locale.language, locale.overrides), formatDamageList(monsterData.damageImmunities, locale)),
+    propertyLine(translate('Monster.ConditionImmunities', locale.language, locale.overrides), formatStringList(monsterData.conditionImmunities)),
+    propertyLine(translate('Monster.Senses', locale.language, locale.overrides), formatSenses(monsterData, locale)),
+    propertyLine(translate('Monster.Languages', locale.language, locale.overrides), formatStringList(monsterData.languages)),
+    propertyLine(translate('Monster.Challenge', locale.language, locale.overrides), formatChallenge(monsterData, locale)),
   ].join('')
 
-  const featureListsHtml = FEATURE_LIST_KINDS.map((kind, index) => featureListHtml(kind, monsterData[FEATURE_LIST_DATA_FIELDS[index]])).join(
+  const featureListsHtml = FEATURE_LIST_KINDS.map((kind, index) => featureListHtml(kind, monsterData[FEATURE_LIST_DATA_FIELDS[index]], locale)).join(
     '',
   )
 
@@ -529,8 +537,8 @@ export function renderMonsterBlockHtml(
   const showTagsDefault = options.displayDefaults?.showTags ?? true
   const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
   const footerLines = [
-    detailLine(translate('Common.Source'), showSources ? formatSources(data.sources) : undefined),
-    detailLine(translate('Common.Tags'), showTags ? formatTags(data.tags) : undefined),
+    detailLine(translate('Common.Source', locale.language, locale.overrides), showSources ? formatSources(data.sources) : undefined),
+    detailLine(translate('Common.Tags', locale.language, locale.overrides), showTags ? formatTags(data.tags) : undefined),
   ]
     .filter(Boolean)
     .join('')
@@ -547,7 +555,7 @@ export function renderMonsterBlockHtml(
     hpLine,
     speedLine,
     '<hr class="statblock-tapered-rule">',
-    abilitiesHtml(monsterData),
+    abilitiesHtml(monsterData, locale),
     '<hr class="statblock-tapered-rule">',
     propertiesHtml,
     featureListsHtml,

@@ -21,6 +21,9 @@ export {
   DEFAULT_MEASUREMENT,
 } from './localization.js'
 export type { ContentLanguage, DefaultMeasurement, MeasurementSystem } from './localization.js'
+export { translate, pluralize } from './catalog.js'
+export type { CatalogOverrides, RenderLocale } from './catalog.js'
+export { loadCatalogOverrides, parseCatalogOverrides, TRANSLATION_OVERRIDES_FILENAME } from './catalogOverrides.js'
 export { createMarkdownRenderer } from './markdownRenderer.js'
 export type {
   MarkdownRendererOptions,

@@ -56,15 +56,27 @@ export function registerPreviewConfiguration(context: vscode.ExtensionContext): 
 
   function rebuildWatchers(): void {
     watchers.forEach((watcher) => watcher.dispose())
-    watchers = (vscode.workspace.workspaceFolders ?? []).map((workspaceFolder) => {
-      const watcher = vscode.workspace.createFileSystemWatcher(
+    watchers = (vscode.workspace.workspaceFolders ?? []).flatMap((workspaceFolder) => {
+      const styleWatcher = vscode.workspace.createFileSystemWatcher(
         new vscode.RelativePattern(workspaceFolder, 'assets/css/{global,custom}.css'),
       )
       const refresh = () => void configureModulePreview(workspaceFolder)
-      watcher.onDidCreate(refresh)
-      watcher.onDidChange(refresh)
-      watcher.onDidDelete(refresh)
-      return watcher
+      styleWatcher.onDidCreate(refresh)
+      styleWatcher.onDidChange(refresh)
+      styleWatcher.onDidDelete(refresh)
+
+      // extension.ts's own watcher reloads the cached override values; this
+      // one tells any already-open preview panel to actually re-render with
+      // them (same reason mpx.contentLanguage below triggers a refresh).
+      const overridesWatcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(workspaceFolder, 'translation-overrides.json'),
+      )
+      const refreshPreview = () => void vscode.commands.executeCommand('markdown.preview.refresh')
+      overridesWatcher.onDidCreate(refreshPreview)
+      overridesWatcher.onDidChange(refreshPreview)
+      overridesWatcher.onDidDelete(refreshPreview)
+
+      return [styleWatcher, overridesWatcher]
     })
   }
 

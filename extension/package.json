@@ -218,6 +218,12 @@
         "category": "MPX"
       },
       {
+        "command": "mpx.createTranslationOverrides",
+        "title": "Create Translation Overrides File",
+        "category": "MPX",
+        "icon": "$(globe)"
+      },
+      {
         "command": "mpx.deleteEntry",
         "title": "Delete",
         "category": "MPX",
@@ -284,6 +290,10 @@
       {
         "fileMatch": "/monsters/*.json",
         "url": "./resources/schemas/monster.schema.json"
+      },
+      {
+        "fileMatch": "/translation-overrides.json",
+        "url": "./resources/schemas/translation-overrides.schema.json"
       }
     ],
     "snippets": [

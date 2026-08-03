@@ -1,0 +1,57 @@
+# Localization
+
+`mpx.contentLanguage` (`"en"` default, or `"fr"`) selects which catalog every generated label — school names, skill names, unit words like "Hour"/"Hours", section titles, "Source"/"Tags", ... — is translated from, wherever the Markdown renderer or `Build Module` produce one (inline `spell`/`item`/`monster` blocks, standalone Compendium file preview text). Run `MPX: Select Content Language` (command palette) for a QuickPick instead of editing `.vscode/settings.json` by hand.
+
+**Only static field labels and enum/automatic terms are translated.** Free-text fields — a spell/item/monster's own `descr`, `name`, `typeDetail`, and similar — are never passed through the catalog; they render exactly as authored, in whichever language you wrote them.
+
+## Where the catalog comes from
+
+`core/src/catalogEn.ts` and `core/src/catalogFr.ts` are sourced from EncounterPlus's own official localization files ([`lang/en.json`](https://github.com/encounterplus/dnd5e/blob/main/lang/en.json) / [`lang/fr.json`](https://github.com/encounterplus/dnd5e/blob/main/lang/fr.json) in `encounterplus/dnd5e`), MIT licensed — confirmed directly with the EncounterPlus developer. Each is a flat `"Namespace.Key": "value"` map, with a handful of `{ one, many }` pluralized entries (e.g. `Unit.Hour`).
+
+Two upstream issues are corrected on ingestion, not left as-is:
+- A trailing-comma JSON syntax error at the end of the real `fr.json`.
+- A key-name mismatch: `fr.json` has `Item.ContainerCapacityWithUnit`, `en.json` has `Item.ContainerCapacity` — renamed on ingestion so both catalogs share one lookup key.
+
+Six `fr.json` entries EncounterPlus itself marks `"(à traduire)"` (untranslated, all vehicle/asset-related — unused by MPX today) are kept exactly as EncounterPlus ships them, not translated by us.
+
+### Keeping the catalogs current
+
+`.github/workflows/sync-catalogs.yml` runs roughly every two weeks (`schedule` + `workflow_dispatch` for a manual run), re-fetches both upstream files via `scripts/sync-catalogs.mjs`, regenerates `catalogEn.ts`/`catalogFr.ts` and `extension/resources/schemas/translation-overrides.schema.json` (see below), and opens a pull request with whatever changed. **It only ever opens a PR — it never merges.** A human reviews the diff (new/removed/changed keys) and merges by hand.
+
+Run `node scripts/sync-catalogs.mjs && node scripts/generate-overrides-schema.mjs` locally to do the same refresh outside the schedule.
+
+## Overriding a specific label
+
+A project can rename any single catalog key's displayed word — in either language — without forking the extension's own bundled catalog, via a `translation-overrides.json` file at the project root:
+
+```json
+{
+  "fr": {
+    "Skill.Perception": "Vigilance"
+  }
+}
+```
+
+This changes what `Skill.Perception` displays **everywhere that key is looked up in the project**, not just one specific monster's `skills` entry — every monster with `perception` in its `skills` map now shows "Vigilance +N" instead of "Perception +N" when previewed or built in French. It's a catalog-key-level rename, not a per-entity setting; a YAML enum value like `perception` and the catalog lookup key `Skill.Perception` it resolves to are two different things (see [Compendium](Compendium) for the enum fields themselves).
+
+An override entry can be a plain string, or (for a pluralized key like `Unit.Hour`) a `{ "one": "...", "many": "..." }` object, same shape as the catalog itself.
+
+**Never bundled into the built `.module`** — `translation-overrides.json` is a local authoring aid, excluded the same way `.DS_Store` is (see `core/src/fileScan.ts`), on top of already living outside every folder the build actually scans.
+
+### Getting started with overrides
+
+Three ways to create/discover the file, all equivalent:
+- **`MPX: Create Translation Overrides File`** (command palette) — creates it (a `{ "en": {}, "fr": {} }` skeleton) if it doesn't exist yet, and opens it either way.
+- The **Project panel**'s **Translation Overrides** line — shows the current override count once the file exists, or "Create…" beforehand; clicking does the same thing as the command above (see [Project Panel](Project-Panel-Section)).
+- Editing the file directly also gets **autocomplete and hover documentation** for all ~550 known catalog keys, each showing its current official value — powered by `extension/resources/schemas/translation-overrides.schema.json`, matched to the file by name via the extension's `jsonValidation` contribution (same mechanism `module.json`/`spells/*.json`/etc. already use). An override key that isn't in the schema yet (e.g. one EncounterPlus added since the schema was last generated) is still accepted at build/preview time — the schema only affects editor autocomplete, not validation.
+
+A malformed entry (wrong type, unrecognized language) is skipped with a warning notification rather than discarding the whole file — one typo doesn't cost you every other override you've already set up.
+
+## Measurement stays a separate setting
+
+`mpx.defaultMeasurement`/`mpx.contentLanguage` already interact for unit *conversion* (feet → meters) — see [Compendium](Compendium#measurement). That link is unrelated to label translation: switching `mpx.contentLanguage` changes both the catalog labels *and* (via the existing `"auto"` fallback) the default measurement system, but you can still pick French labels with imperial units, or English labels with metric, by setting `mpx.defaultMeasurement` explicitly.
+
+## Accepted gaps
+
+- Distance unit words themselves ("feet"/"meters", "ft"/"m") stay in English regardless of `mpx.contentLanguage` — no catalog key exists upstream for these, unlike every other generated label.
+- The ability table's floating "SAVE" column header (in the 5.5e theme's CSS) is a static `content:` property, not something the renderer produces — it can't switch per-language the way catalog-backed labels do.
