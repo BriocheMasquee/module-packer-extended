@@ -406,6 +406,7 @@ function installMonsterBlockRendering(markdown: MarkdownItInstance, options: Mar
     env.inlineMonsters ??= []
     env.inlineMonsters.push({ data, issues, line: token.map?.[0] ?? 0 })
 
+    const measurement = typeof options.measurement === 'function' ? options.measurement() : (options.measurement ?? 'imperial')
     const displayDefaults =
       typeof options.monsterDisplayDefaults === 'function' ? options.monsterDisplayDefaults() : options.monsterDisplayDefaults
     // markdown-it-attrs already parsed a trailing ` ```monster {.blue} `
@@ -414,7 +415,7 @@ function installMonsterBlockRendering(markdown: MarkdownItInstance, options: Mar
     // variant ({.paper}) already uses elsewhere in this renderer.
     const blockClassValue = token.attrGet('class')
     const blockClass = typeof blockClassValue === 'string' ? blockClassValue : undefined
-    return renderMonsterBlockHtml(data, markdown, { preview: options.preview, displayDefaults, blockClass })
+    return renderMonsterBlockHtml(data, markdown, { measurement, preview: options.preview, displayDefaults, blockClass })
   }
 }
 

@@ -3,7 +3,15 @@ import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateSpellData } from './spellCompendium.js'
 import { translate, pluralize } from './catalogEn.js'
-import { escapeHtml, themeAssetPath, resourceImagePath, formatSources, formatTags } from './compendiumBlock.js'
+import {
+  escapeHtml,
+  themeAssetPath,
+  resourceImagePath,
+  feetToDisplayValue,
+  formatDistanceNumber,
+  formatSources,
+  formatTags,
+} from './compendiumBlock.js'
 import type { MeasurementSystem } from './localization.js'
 
 const SPELL_META_FIELDS = [
@@ -147,20 +155,6 @@ function formatCastingTime(data: Record<string, unknown>): string | undefined {
     text += ` or ${translate('Spell.Ritual')}`
   }
   return text
-}
-
-/** Values are always authored in feet (matching D&D's own rules) — metric
- * display converts using the same simplified factor as WotC's own licensed
- * French translations (feet × 0.3, rounded to the nearest half-unit), not
- * the precise 0.3048 metric conversion. */
-const FEET_TO_METERS_FACTOR = 0.3
-
-function feetToDisplayValue(feet: number, measurement: MeasurementSystem): number {
-  return measurement === 'metric' ? Math.round(feet * FEET_TO_METERS_FACTOR * 2) / 2 : feet
-}
-
-function formatDistanceNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 function formatRange(data: Record<string, unknown>, measurement: MeasurementSystem): string | undefined {

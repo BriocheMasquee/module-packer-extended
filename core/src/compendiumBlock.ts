@@ -1,4 +1,5 @@
 import { isNonEmptyString, isPlainObject } from './compendiumShared.js'
+import type { MeasurementSystem } from './localization.js'
 
 /** Shared by every inline Compendium block renderer (spell, item, ...) —
  * escapes text dropped into the `.compendium-block` markup. */
@@ -24,6 +25,21 @@ export function themeAssetPath(fileName: string, preview: boolean | undefined): 
  * in `pages/`, than the project root the path is actually relative to. */
 export function resourceImagePath(resourcePath: string, preview: boolean | undefined): string {
   return preview ? `../${resourcePath}` : resourcePath
+}
+
+/** Values are always authored in feet (matching D&D's own rules) — metric
+ * display converts using the same simplified factor as WotC's own licensed
+ * French translations (feet × 0.3, rounded to the nearest half-unit), not
+ * the precise 0.3048 metric conversion. Shared by every distance shown in a
+ * spell/monster block (a spell's range/area, a monster's speed/senses). */
+const FEET_TO_METERS_FACTOR = 0.3
+
+export function feetToDisplayValue(feet: number, measurement: MeasurementSystem): number {
+  return measurement === 'metric' ? Math.round(feet * FEET_TO_METERS_FACTOR * 2) / 2 : feet
+}
+
+export function formatDistanceNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 export function formatSources(sources: unknown): string | undefined {

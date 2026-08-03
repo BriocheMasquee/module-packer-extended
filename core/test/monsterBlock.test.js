@@ -257,6 +257,19 @@ test('renders speed with multiple movement modes and hover', () => {
   assert.match(html, /Speed<\/span> 10 ft\., Fly 60 ft\. \(Hover\)/)
 })
 
+test('converts speed and senses from feet to meters (x0.3) when measurement is metric', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric' })
+  const html = markdown.render('```monster\nname: Test\nspeed:\n  walk: 40\n  fly: 80\nsenses:\n  darkvision: 120\n```\n')
+  assert.match(html, /Speed<\/span> 12 m\., Fly 24 m\./)
+  assert.match(html, /Senses: <\/span>Darkvision 36 m\./)
+})
+
+test('shows speed/senses in feet when measurement is imperial (the default)', () => {
+  const html = renderMonster('name: Test\nspeed:\n  walk: 40\nsenses:\n  darkvision: 120')
+  assert.match(html, /Speed<\/span> 40 ft\./)
+  assert.match(html, /Senses: <\/span>Darkvision 120 ft\./)
+})
+
 test('the "sleightOfHand" skill translates to "Sleight of Hand" (catalog casing exception)', () => {
   const html = renderMonster('name: Test\nskills: { sleightOfHand: 5 }')
   assert.match(html, /Skills: <\/span>Sleight of Hand \+5/)
