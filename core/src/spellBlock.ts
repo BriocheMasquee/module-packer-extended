@@ -37,7 +37,7 @@ const SPELL_DATA_FIELDS = [
   'classes',
 ] as const
 
-/** Inline `​```spell` YAML is written flat (no `data:` wrapper) for ease of
+/** Inline ````spell` YAML is written flat (no `data:` wrapper) for ease of
  * authoring — this reshapes it into the same { name, slug, data, ... } shape
  * standalone spell files use, so the same validateSpellData applies to both. */
 export function normalizeInlineSpell(raw: Record<string, unknown>): Record<string, unknown> {

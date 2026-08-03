@@ -217,7 +217,7 @@ function validateParentShape(relativePath: string, data: Record<string, unknown>
   }
 }
 
-/** An inline `​```spell` block found while rendering a page, carrying the
+/** An inline ````spell` block found while rendering a page, carrying the
  * page it was found in so a build-time issue can point back to it. */
 interface PageInlineSpellSource {
   pageRelativePath: string
@@ -639,7 +639,7 @@ function readSpells(
 
 const SPELL_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'sources', 'tags', 'data'] as const
 
-/** Normalizes one inline `​```spell` block (already lightly validated at
+/** Normalizes one inline ````spell` block (already lightly validated at
  * preview-render time) into the same record shape a standalone spells/*.json
  * file produces, applying the full build-time validation/defaults/id
  * resolution — so both sources merge into spells.json indistinguishably.
@@ -1361,7 +1361,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const { entries: pages, inlineSpells: inlineSpellSources } = pageResult
   const entries = [...pages, ...groups, ...maps, ...encounters]
 
-  // Inline `​```spell` blocks merge into the same spells.json output as
+  // Inline ````spell` blocks merge into the same spells.json output as
   // standalone files — seed the dedup maps with the standalone spells first,
   // so a collision against either source is caught the same way.
   const spellPathById = new Map(spells.map((spell) => [spell.id as string, 'a standalone spell file']))
