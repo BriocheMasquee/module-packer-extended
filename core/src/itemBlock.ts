@@ -107,13 +107,53 @@ function translateItemType(type: string, locale: RenderLocale): string {
   return type === 'custom' ? translate('Common.Custom', locale.language, locale.overrides) : translateEnum('ItemType', type, locale)
 }
 
+/** French grammatical gender of each item type's own translated noun (e.g.
+ * "Arme"/"Armure" are feminine, "Anneau"/"Bouclier" are masculine) — used
+ * only to pick between "Courant"/"Courante" and "Peu courant"/"Peu
+ * courante" (every other rarity word is already gender-invariant in
+ * French). Confirmed against real 5.5e French SRD item entries (e.g. "Arme
+ * (...), peu courante", "Anneau, rare"); not sourced from the EncounterPlus
+ * catalog (it has no gender data), so kept as its own table. */
+const ITEM_TYPE_FEMININE: Record<string, boolean> = {
+  armor: true,
+  weapon: true,
+  lightArmor: true,
+  mediumArmor: true,
+  heavyArmor: true,
+  meleeWeapon: true,
+  rangedWeapon: true,
+  ammunition: true,
+  wand: true,
+  potion: true,
+  gemstone: true,
+  mount: true,
+  tradeGood: true,
+  wealth: true,
+}
+
+function feminizeFrenchRarity(masculine: string): string {
+  if (masculine === 'Courant') {
+    return 'Courante'
+  }
+  if (masculine === 'Peu courant') {
+    return 'Peu courante'
+  }
+  return masculine
+}
+
 /** Combines type (+ its free-text detail) and rarity into one subtitle line,
  * e.g. "Melee Weapon, Legendary" — mirrors the official book layout's
- * italic subtitle under the item name. */
+ * italic subtitle under the item name. Word order is the same in French
+ * (confirmed against real 5.5e French SRD item entries), only "Courant"/
+ * "Peu courant" change spelling to agree with the item type's gender. */
 function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
-  const type = isNonEmptyString(data.type) ? translateItemType(data.type, locale) : undefined
+  const rawType = isNonEmptyString(data.type) ? data.type : undefined
+  const type = rawType ? translateItemType(rawType, locale) : undefined
   const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
-  const rarity = isNonEmptyString(data.rarity) ? translateEnum('ItemRarity', data.rarity, locale) : undefined
+  let rarity = isNonEmptyString(data.rarity) ? translateEnum('ItemRarity', data.rarity, locale) : undefined
+  if (rarity && locale.language === 'fr' && rawType && ITEM_TYPE_FEMININE[rawType]) {
+    rarity = feminizeFrenchRarity(rarity)
+  }
 
   const typePart = type ? (typeDetail ? `${type} (${typeDetail})` : type) : typeDetail
   const parts = [typePart, rarity].filter((part): part is string => Boolean(part))

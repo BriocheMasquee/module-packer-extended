@@ -150,18 +150,88 @@ const ALIGNMENT_WORDS: Record<string, string> = {
   UU: 'Unaligned',
 }
 
-/** "Large Fey, Neutral Evil" — size (+ type, + free-text typeDetail in
- * parens), then alignment. */
+/** The real French SRD shows size as a letter code, not the spelled-out
+ * catalog word (e.g. "de taille G", never "de taille Grande") — confirmed
+ * against several real stat blocks. "C" (Colossal) has no French code:
+ * it isn't a real 5.5e size, so it's left unmapped rather than guessed.
+ * Not sourced from the EncounterPlus catalog (it has no letter-code data),
+ * so kept as its own table. */
+const FR_SIZE_LETTERS: Record<string, string> = {
+  T: 'TP',
+  S: 'P',
+  M: 'M',
+  L: 'G',
+  H: 'TG',
+  G: 'Gig',
+}
+
+/** French grammatical gender of each monster type's own translated noun
+ * (e.g. "Monstruosité"/"Plante" are feminine, "Mort-vivant"/"Fiélon" are
+ * masculine) — used to pick the alignment adjectives' gendered form.
+ * Confirmed against real 5.5e French SRD stat blocks (Merrow: "Monstruosité
+ * ... Chaotique Mauvaise"; Nalfeshnie: "Fiélon ... Chaotique Mauvais"; Liche:
+ * "Mort-vivant ... Neutre Mauvais"; Tarasque: "Monstruosité ... non
+ * alignée"). Not sourced from the EncounterPlus catalog (it has no gender
+ * data), so kept as its own table. */
+const MONSTER_TYPE_FEMININE: Record<string, boolean> = {
+  aberration: true,
+  beast: true,
+  fey: true,
+  monstrosity: true,
+  ooze: true,
+  plant: true,
+  celestial: false,
+  construct: false,
+  dragon: false,
+  elemental: false,
+  fiend: false,
+  giant: false,
+  humanoid: false,
+  undead: false,
+}
+
+/** Feminizes the catalog's fixed-masculine French alignment string —
+ * "Loyal"/"Bon"/"Mauvais"/"aligné" each have a distinct feminine form
+ * ("Loyale"/"Bonne"/"Mauvaise"/"alignée"); "Chaotique"/"Neutre" don't
+ * change. Confirmed against real French SRD stat blocks (see
+ * MONSTER_TYPE_FEMININE). Post-processes the catalog value instead of
+ * duplicating the whole alignment table, since the masculine form is
+ * already correct EncounterPlus catalog data. */
+function feminizeFrenchAlignment(masculine: string): string {
+  return masculine
+    .replace(/\bLoyal\b/, 'Loyale')
+    .replace(/\bBon\b/, 'Bonne')
+    .replace(/\bMauvais\b/, 'Mauvaise')
+    .replace(/\baligné\b/, 'alignée')
+}
+
+/** "Large Fey, Neutral Evil" in English. French reverses the word order
+ * ("Fey (detail) de taille G, Chaotique Mauvaise" — type before size, "de
+ * taille" before the size letter) and gender-agrees the alignment with the
+ * monster type — confirmed against several real 5.5e French SRD stat
+ * blocks (see FR_SIZE_LETTERS/MONSTER_TYPE_FEMININE above). */
 function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
+  const rawType = isNonEmptyString(data.type) ? data.type : undefined
+  const typeLabel = rawType ? translateEnum('MonsterType', rawType, locale) : undefined
+  const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
+  const typePart = typeLabel ? (typeDetail ? `${typeLabel} (${typeDetail})` : typeLabel) : typeDetail
+  const alignmentWord = isNonEmptyString(data.alignment) ? ALIGNMENT_WORDS[data.alignment] : undefined
+  let alignmentLabel = alignmentWord ? translateEnum('Alignment', alignmentWord, locale) : undefined
+
+  if (locale.language === 'fr') {
+    if (alignmentLabel && rawType && MONSTER_TYPE_FEMININE[rawType]) {
+      alignmentLabel = feminizeFrenchAlignment(alignmentLabel)
+    }
+    const sizeLetter = isNonEmptyString(data.size) ? FR_SIZE_LETTERS[data.size] : undefined
+    const sizePart = sizeLetter ? `de taille ${sizeLetter}` : undefined
+    const typeSizePart = [typePart, sizePart].filter((part): part is string => Boolean(part)).join(' ')
+    const parts = [typeSizePart, alignmentLabel].filter((part): part is string => Boolean(part))
+    return parts.length > 0 ? parts.join(', ') : undefined
+  }
+
   const size = isNonEmptyString(data.size) ? SIZE_WORDS[data.size] : undefined
   const sizeLabel = size ? translateEnum('Size', size, locale) : undefined
-  const type = isNonEmptyString(data.type) ? translateEnum('MonsterType', data.type, locale) : undefined
-  const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
-  const typePart = type ? (typeDetail ? `${type} (${typeDetail})` : type) : typeDetail
   const sizeTypePart = [sizeLabel, typePart].filter((part): part is string => Boolean(part)).join(' ')
-  const alignmentWord = isNonEmptyString(data.alignment) ? ALIGNMENT_WORDS[data.alignment] : undefined
-  const alignmentLabel = alignmentWord ? translateEnum('Alignment', alignmentWord, locale) : undefined
-
   const parts = [sizeTypePart, alignmentLabel].filter((part): part is string => Boolean(part))
   return parts.length > 0 ? parts.join(', ') : undefined
 }

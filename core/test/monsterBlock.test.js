@@ -282,7 +282,28 @@ test('renders labels in French when language is "fr"', () => {
   )
   assert.match(html, /Compétences: <\/span>Perception \+5/)
   assert.match(html, /Sens: <\/span>Vision dans le noir 60 ft\./)
-  assert.match(html, /<div class="statblock-subtitle">Grand Fée<\/div>/)
+  assert.match(html, /<div class="statblock-subtitle">Fée de taille G<\/div>/)
+})
+
+test('reorders the French subtitle (type before size) and gender-agrees the alignment with the monster type', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const feminineHtml = markdown.render('```monster\nname: Test\nsize: M\ntype: monstrosity\nalignment: CE\n```\n')
+  assert.match(feminineHtml, /<div class="statblock-subtitle">Monstruosité de taille M, Chaotique Mauvaise<\/div>/)
+
+  const masculineHtml = markdown.render('```monster\nname: Test2\nsize: M\ntype: undead\nalignment: CE\n```\n')
+  assert.match(masculineHtml, /<div class="statblock-subtitle">Mort-vivant de taille M, Chaotique Mauvais<\/div>/)
+})
+
+test('gender-agrees "Non aligné" to "non alignée" for a feminine monster type in French', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```monster\nname: Test\ntype: monstrosity\nalignment: UU\n```\n')
+  assert.match(html, /alignée/)
+})
+
+test('translates monster size to a French letter code, not the spelled-out word', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```monster\nname: Test\nsize: H\ntype: giant\n```\n')
+  assert.match(html, /<div class="statblock-subtitle">Géant de taille TG<\/div>/)
 })
 
 test('a translation-overrides.json-style override renames a catalog key\'s word project-wide', () => {

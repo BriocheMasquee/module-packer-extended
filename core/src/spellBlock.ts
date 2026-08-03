@@ -116,6 +116,27 @@ function translateEnum(namespace: string, enumKey: string, locale: RenderLocale)
   return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
 }
 
+/** French grammatical gender of each school's own name, used only to pick
+ * "mineur"/"mineure" for a cantrip's heading — confirmed against real 5.5e
+ * French SRD text (e.g. "Nécromancie mineure"); not sourced from the
+ * EncounterPlus catalog (it has no gender data), so kept as its own table. */
+const SPELL_SCHOOL_FEMININE: Record<string, boolean> = {
+  abjuration: true,
+  conjuration: true,
+  divination: true,
+  enchantment: false,
+  evocation: true,
+  illusion: true,
+  necromancy: true,
+  transmutation: true,
+}
+
+/** "1er" for 1, "{n}e" otherwise — matches every ordinal seen in the real
+ * French SRD ("1er niveau", "2e niveau", "6e niveau", ...). */
+function ordinalFr(n: number): string {
+  return n === 1 ? '1er' : `${n}e`
+}
+
 function formatHeading(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const level = typeof data.level === 'number' ? data.level : undefined
   const school = isNonEmptyString(data.school) ? data.school : undefined
@@ -125,7 +146,21 @@ function formatHeading(data: Record<string, unknown>, locale: RenderLocale): str
     : []
 
   const parts: string[] = []
-  if (level === 0 && schoolLabel) {
+  if (locale.language === 'fr') {
+    // Word order is reversed from English (school before level, not after)
+    // and a cantrip reads "{École} mineur(e)", not "{translated Cantrip
+    // word} {École}" — confirmed against real French SRD spell headers.
+    if (level === 0 && schoolLabel && school) {
+      const feminine = SPELL_SCHOOL_FEMININE[school] ?? true
+      parts.push(`${schoolLabel} ${feminine ? 'mineure' : 'mineur'}`)
+    } else if (level !== undefined && schoolLabel) {
+      parts.push(`${schoolLabel} du ${ordinalFr(level)} niveau`)
+    } else if (schoolLabel) {
+      parts.push(schoolLabel)
+    } else if (level !== undefined) {
+      parts.push(`${translate('Common.Level', locale.language, locale.overrides)} ${level}`)
+    }
+  } else if (level === 0 && schoolLabel) {
     parts.push(`${schoolLabel} ${translate('SpellLevel.Cantrip', locale.language, locale.overrides)}`)
   } else if (level !== undefined && schoolLabel) {
     parts.push(`${translate('Common.Level', locale.language, locale.overrides)} ${level} ${schoolLabel}`)
