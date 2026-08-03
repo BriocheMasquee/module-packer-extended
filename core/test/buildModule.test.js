@@ -1699,34 +1699,26 @@ test('buildModule rejects an inline monster whose token references a missing fil
   })
 })
 
-test('buildModule strips color/twoColumn (inline-authoring-only fields) from the built monsters.json', async () => {
+test('buildModule never puts a {.class} fence annotation into the built monsters.json (presentation-only, not a YAML field)', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)
   await mkdir(join(root, 'pages'), { recursive: true })
   await writeFile(
     join(root, 'pages', 'intro.md'),
-    [
-      '---',
-      'name: Introduction',
-      'slug: intro',
-      'rank: 0',
-      'parent: ""',
-      '---',
-      '',
-      '```monster',
-      'name: Dragon',
-      'color: red',
-      'twoColumn: true',
-      '```',
-      '',
-    ].join('\n'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '```monster {.red .two-column}', 'name: Dragon', '```', ''].join(
+      '\n',
+    ),
   )
 
   const summary = await buildModule(root)
   const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
 
   assert.equal(monsters[0].color, undefined)
   assert.equal(monsters[0].twoColumn, undefined)
+  // The built page HTML still reflects the color/two-column class, though —
+  // that's a real rendering concern, just never merged into monsters.json.
+  assert.match(pages[0].content, /<div class="statblock red two-column">/)
 })
 
 test('buildModule applies a project monsterDisplayDefaults to an inline monster missing the show* field', async () => {

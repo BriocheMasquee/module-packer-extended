@@ -133,6 +133,12 @@ test('hides the illustration image when showImage is false', () => {
   assert.doesNotMatch(html, /compendium-image-block/)
 })
 
+test('rewrites the illustration image path with a ../ prefix in preview mode (pages/ is one level deeper than items/)', () => {
+  const markdown = createMarkdownRenderer({ preview: true })
+  const html = markdown.render('```item\nname: Test\nimage: items/ring.png\n```\n')
+  assert.match(html, /src="\.\.\/items\/ring\.png"/)
+})
+
 test('treats the untouched "items/" placeholder as no image set', () => {
   const html = renderItem('name: Test\nimage: items/')
   assert.doesNotMatch(html, /compendium-image-block/)

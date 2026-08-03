@@ -8,6 +8,11 @@ function renderMonster(yamlBody) {
   return markdown.render('```monster\n' + yamlBody + '\n```\n')
 }
 
+function renderMonsterWithClass(classAttr, yamlBody) {
+  const markdown = createMarkdownRenderer()
+  return markdown.render('```monster {' + classAttr + '}\n' + yamlBody + '\n```\n')
+}
+
 const ARCH_HAG_YAML = `
 name: Arch-Hag
 size: L
@@ -117,7 +122,7 @@ test('renders the description through the shared Markdown renderer', () => {
   assert.match(html, /<strong>fearsome<\/strong>/)
 })
 
-test('renders Source and Tags detail lines when present', () => {
+test('renders Source and Tags outside the card, in the shared compendium-block-details-footer style', () => {
   const html = renderMonster(`
 name: Test Monster
 sources:
@@ -125,8 +130,19 @@ sources:
     page: 328
 tags: [dragon]
 `)
-  assert.match(html, /Source: <\/span>Monster Manual p\.328/)
-  assert.match(html, /Tags: <\/span>dragon/)
+  // Closed before the footer, not a .statblock-property-line inside it.
+  const statblockCloseIndex = html.indexOf('</div><div class="compendium-block-details')
+  assert.ok(statblockCloseIndex > -1, 'footer should immediately follow the closed .statblock')
+  assert.match(
+    html,
+    /<span class="compendium-block-detail-label">Source: <\/span><span class="compendium-block-detail-value">Monster Manual p\.328<\/span>/,
+  )
+  assert.match(
+    html,
+    /<span class="compendium-block-detail-label">Tags: <\/span><span class="compendium-block-detail-value">dragon<\/span>/,
+  )
+  assert.doesNotMatch(html, /statblock-property-name">Source/)
+  assert.doesNotMatch(html, /statblock-property-name">Tags/)
 })
 
 test('hides Source when showSources is false', () => {
@@ -151,22 +167,34 @@ test('renders the token image and the illustration image, both hidden when their
   assert.doesNotMatch(hidden, /statblock-image/)
 })
 
+test('rewrites both the token and illustration image paths with a ../ prefix in preview mode', () => {
+  const markdown = createMarkdownRenderer({ preview: true })
+  const html = markdown.render('```monster\nname: Test\nimage: monsters/dragon.png\ntoken: monsters/dragon-token.png\n```\n')
+  assert.match(html, /src="\.\.\/monsters\/dragon-token\.png"/)
+  assert.match(html, /src="\.\.\/monsters\/dragon\.png"/)
+})
+
 test('treats the untouched "monsters/" placeholder as no image/token set', () => {
   const html = renderMonster('name: Test\nimage: monsters/\ntoken: monsters/')
   assert.doesNotMatch(html, /statblock-token/)
   assert.doesNotMatch(html, /statblock-image/)
 })
 
-test('adds the color class and two-column class only when explicitly requested', () => {
+test('adds the color/two-column class only when requested via a {.class} fence annotation, not a YAML field', () => {
   const plain = renderMonster('name: Test')
   assert.match(plain, /<div class="statblock">/)
 
-  const colored = renderMonster('name: Test\ncolor: red\ntwoColumn: true')
+  const colored = renderMonsterWithClass('.red .two-column', 'name: Test')
   assert.match(colored, /<div class="statblock red two-column">/)
+
+  // A "color"/"twoColumn" YAML field is not a recognized field at all —
+  // this is a presentation-only, fence-annotation-only concern.
+  const ignored = renderMonster('name: Test\ncolor: red\ntwoColumn: true')
+  assert.match(ignored, /<div class="statblock">/)
 })
 
-test('ignores an unrecognized color value', () => {
-  const html = renderMonster('name: Test\ncolor: notarealcolor')
+test('ignores an unrecognized color value in the fence annotation', () => {
+  const html = renderMonsterWithClass('.notarealcolor', 'name: Test')
   assert.match(html, /<div class="statblock">/)
 })
 

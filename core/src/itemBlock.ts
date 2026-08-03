@@ -3,7 +3,7 @@ import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateItemData } from './itemCompendium.js'
 import { translate } from './catalogEn.js'
-import { escapeHtml, formatSources, formatTags } from './compendiumBlock.js'
+import { escapeHtml, resourceImagePath, formatSources, formatTags } from './compendiumBlock.js'
 import type { MeasurementSystem } from './localization.js'
 
 const ITEM_META_FIELDS = [
@@ -243,7 +243,7 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
   const showImageDefault = options.displayDefaults?.showImage ?? true
   const showImage = (typeof data.showImage === 'boolean' ? data.showImage : showImageDefault) && hasImage
   const imageHtml = showImage
-    ? `<div class="compendium-image-block"><img class="compendium-image" src="${escapeHtml(String(data.image))}" alt=""></div>`
+    ? `<div class="compendium-image-block"><img class="compendium-image" src="${escapeHtml(resourceImagePath(String(data.image), options.preview))}" alt=""></div>`
     : ''
 
   const showSourcesDefault = options.displayDefaults?.showSources ?? true
