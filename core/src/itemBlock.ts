@@ -6,7 +6,7 @@ import { translate, type RenderLocale, type CatalogOverrides } from './catalog.j
 import { escapeHtml, resourceImagePath, formatSources, formatTags } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
-const ITEM_META_FIELDS = [
+export const ITEM_META_FIELDS = [
   'id',
   'name',
   'slug',
@@ -19,7 +19,7 @@ const ITEM_META_FIELDS = [
   'tags',
   'showTags',
 ] as const
-const ITEM_DATA_FIELDS = [
+export const ITEM_DATA_FIELDS = [
   'type',
   'typeDetail',
   'rarity',

@@ -13,7 +13,7 @@ import {
 } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
-const MONSTER_META_FIELDS = [
+export const MONSTER_META_FIELDS = [
   'id',
   'name',
   'slug',
@@ -28,7 +28,7 @@ const MONSTER_META_FIELDS = [
   'tags',
   'showTags',
 ] as const
-const MONSTER_DATA_FIELDS = [
+export const MONSTER_DATA_FIELDS = [
   'size',
   'type',
   'typeDetail',

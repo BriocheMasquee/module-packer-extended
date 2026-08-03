@@ -309,9 +309,20 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 - **`languages` always joins with `, `** — the official books sometimes separate a trailing "telepathy N ft." note with a semicolon instead. Minor cosmetic difference, not worth a special case for one entry format.
 - **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS regardless of `mpx.contentLanguage` — corrected to always show "SAVE", with a `.statblock.lang-fr` CSS override switching it back to "JdS" only when the monster block is actually rendered in French (see [Localization](Localization)).
 
+## Editing assistance for inline blocks
+
+While editing a ```spell/```item/```monster block, VSCode's Markdown editor provides:
+- **Field-name completion** — on a blank line inside the block, suggests every valid top-level YAML key for that block type.
+- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field; nested object fields (a spell's `activation`, a monster's `speed`/`senses`/`skills`/`savingThrows`/`abilities`) aren't covered yet.
+- **Live diagnostics** — the same validation `Build Module` and the rendered preview's error message already run (`validateSpellData`/`validateItemData`/`validateMonsterData`) also shows up as an editor warning on the block's opening fence line, without needing the preview open. Only checked once the block has its closing ` ``` ` — a block still being typed isn't flagged as broken mid-edit.
+
+Both reuse the exact same field-name/enum-value lists and validators the renderer and `Build Module` already use (`core/src/spellCompendium.ts`/`itemCompendium.ts`/`monsterCompendium.ts`, `parseSpellBlock`/`parseItemBlock`/`parseMonsterBlock`), so this can't drift out of sync with what actually builds.
+
 ## Not included (yet)
 
 - **No inline authoring for roll tables** auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now (tracked in [issue #26](https://github.com/BriocheMasquee/mpx-bis/issues/26)); standalone JSON files only. Spells, items, and monsters all support inline authoring — see above.
 - **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item/monster's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
 - **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists for tables too (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.
+- **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — out of scope for now (tracked in [issue #1](https://github.com/BriocheMasquee/mpx-bis/issues/1), which originally covered both surfaces); front-matter mistakes are still caught at `Build Module` time.
+- **No completion for nested object fields** inside a block (a spell's `activation`, a monster's `speed`/`senses`/`skills`/`savingThrows`/`abilities`) — only top-level scalar/array enum fields are covered so far.

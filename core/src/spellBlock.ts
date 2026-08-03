@@ -15,7 +15,7 @@ import {
 } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
-const SPELL_META_FIELDS = [
+export const SPELL_META_FIELDS = [
   'id',
   'name',
   'slug',
@@ -30,7 +30,7 @@ const SPELL_META_FIELDS = [
   'tags',
   'showTags',
 ] as const
-const SPELL_DATA_FIELDS = [
+export const SPELL_DATA_FIELDS = [
   'level',
   'school',
   'ritual',
