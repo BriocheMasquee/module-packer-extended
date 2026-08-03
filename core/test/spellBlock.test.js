@@ -30,12 +30,12 @@ duration: 8
 descr: "Choose up to three creatures within range. Each target's Hit Point maximum and current Hit Points increase by 5 for the duration."
 `)
 
-  assert.match(html, /<div class="spell-block-title">Aid<\/div>/)
-  assert.match(html, /<div class="spell-block-heading">Level 2 Abjuration \(Bard, Cleric, Druid, Paladin, Ranger\)<\/div>/)
-  assert.match(html, /Casting Time: <\/span><span class="spell-block-detail-value">Action</)
-  assert.match(html, /Range: <\/span><span class="spell-block-detail-value">Touch</)
-  assert.match(html, /Components: <\/span><span class="spell-block-detail-value">V, S, M \(a strip of white cloth\)</)
-  assert.match(html, /Duration: <\/span><span class="spell-block-detail-value">8 Hours</)
+  assert.match(html, /<div class="compendium-block-title">Aid<\/div>/)
+  assert.match(html, /<div class="compendium-block-heading">Level 2 Abjuration \(Bard, Cleric, Druid, Paladin, Ranger\)<\/div>/)
+  assert.match(html, /Casting Time: <\/span><span class="compendium-block-detail-value">Action</)
+  assert.match(html, /Range: <\/span><span class="compendium-block-detail-value">Touch</)
+  assert.match(html, /Components: <\/span><span class="compendium-block-detail-value">V, S, M \(a strip of white cloth\)</)
+  assert.match(html, /Duration: <\/span><span class="compendium-block-detail-value">8 Hours</)
 })
 
 test('renders a cantrip heading with school before "Cantrip" (Blade Ward)', () => {
@@ -54,8 +54,8 @@ duration: 1
 durationUnit: minute
 `)
 
-  assert.match(html, /<div class="spell-block-heading">Abjuration Cantrip \(Bard, Sorcerer, Warlock, Wizard\)<\/div>/)
-  assert.match(html, /Duration: <\/span><span class="spell-block-detail-value">Concentration, up to 1 Minute</)
+  assert.match(html, /<div class="compendium-block-heading">Abjuration Cantrip \(Bard, Sorcerer, Warlock, Wizard\)<\/div>/)
+  assert.match(html, /Duration: <\/span><span class="compendium-block-detail-value">Concentration, up to 1 Minute</)
 })
 
 test('appends "or Ritual" to casting time when ritual is true (Animal Messenger)', () => {
@@ -70,7 +70,7 @@ activation:
 rangeType: unlimited
 `)
 
-  assert.match(html, /Casting Time: <\/span><span class="spell-block-detail-value">Action or Ritual</)
+  assert.match(html, /Casting Time: <\/span><span class="compendium-block-detail-value">Action or Ritual</)
 })
 
 test('renders a numeric range in feet when rangeType is unset (Animate Objects)', () => {
@@ -88,7 +88,7 @@ duration: 1
 durationUnit: minute
 `)
 
-  assert.match(html, /Range: <\/span><span class="spell-block-detail-value">120 feet</)
+  assert.match(html, /Range: <\/span><span class="compendium-block-detail-value">120 feet</)
 })
 
 test('renders "Until dispelled" for a dispel duration type with no duration value (Arcane Lock)', () => {
@@ -106,15 +106,15 @@ componentsDetail: gold dust worth 25+ GP, which the spell consumes
 durationType: dispel
 `)
 
-  assert.match(html, /Duration: <\/span><span class="spell-block-detail-value">Until dispelled</)
+  assert.match(html, /Duration: <\/span><span class="compendium-block-detail-value">Until dispelled</)
 })
 
 test('omits a detail line entirely when its data is absent', () => {
   const html = renderSpell(`
 name: Minimal Spell
 `)
-  assert.doesNotMatch(html, /spell-block-detail-label/)
-  assert.doesNotMatch(html, /spell-block-heading/)
+  assert.doesNotMatch(html, /compendium-block-detail-label/)
+  assert.doesNotMatch(html, /compendium-block-heading/)
 })
 
 test('renders the description through the shared Markdown renderer', () => {
@@ -122,7 +122,7 @@ test('renders the description through the shared Markdown renderer', () => {
 name: Fireball
 descr: "A **bright** streak flashes."
 `)
-  assert.match(html, /<div class="spell-block-description">.*<strong>bright<\/strong>.*<\/div>/s)
+  assert.match(html, /<div class="compendium-block-description">.*<strong>bright<\/strong>.*<\/div>/s)
 })
 
 test('shows a spell-block-error and skips rendering when the YAML is invalid', () => {
@@ -160,7 +160,7 @@ name: Test Spell
 range: 0
 areaEffectSize: 0
 `)
-  assert.doesNotMatch(html, /spell-block-detail-label">Range/)
+  assert.doesNotMatch(html, /compendium-block-detail-label">Range/)
 })
 
 test('leaves the optional enum placeholders as an empty string, not null, so an untouched snippet renders cleanly', () => {
@@ -220,7 +220,7 @@ test('a normal fenced code block (non-spell) still renders as a regular code blo
   const markdown = createMarkdownRenderer()
   const html = markdown.render('```js\nconst x = 1;\n```\n')
   assert.match(html, /<pre>/)
-  assert.doesNotMatch(html, /spell-block/)
+  assert.doesNotMatch(html, /compendium-block/)
 })
 
 test('renders Source and Tags detail lines when present', () => {
@@ -231,9 +231,9 @@ sources:
     page: 241
 tags: [damage, fire]
 `)
-  assert.match(html, /Source: <\/span><span class="spell-block-detail-value">Player's Handbook p\.241</)
-  assert.match(html, /Tags: <\/span><span class="spell-block-detail-value">damage, fire</)
-  assert.match(html, /<div class="spell-block-details spell-block-details-footer">/)
+  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook p\.241</)
+  assert.match(html, /Tags: <\/span><span class="compendium-block-detail-value">damage, fire</)
+  assert.match(html, /<div class="compendium-block-details compendium-block-details-footer">/)
 })
 
 test('hides Source when showSources is false', () => {
@@ -286,7 +286,7 @@ areaEffectSize: 9
 `)
   assert.match(
     html,
-    /Range: <\/span><span class="spell-block-detail-value">Self \(9 ft <img class="spell-block-shape-icon" src="assets\/img\/shape-sphere\.webp" alt="Sphere">\)<\/span>/,
+    /Range: <\/span><span class="compendium-block-detail-value">Self \(9 ft <img class="spell-block-shape-icon" src="assets\/img\/shape-sphere\.webp" alt="Sphere">\)<\/span>/,
   )
 })
 
@@ -302,7 +302,7 @@ test('renders the illustration image when image is set', () => {
 name: Fireball
 image: spells/fireball.png
 `)
-  assert.match(html, /<div class="spell-image-block"><img class="spell-image" src="spells\/fireball\.png" alt=""><\/div>/)
+  assert.match(html, /<div class="compendium-image-block"><img class="compendium-image" src="spells\/fireball\.png" alt=""><\/div>/)
 })
 
 test('treats the untouched "spells/" placeholder as no image set, not a broken path', () => {
@@ -310,7 +310,7 @@ test('treats the untouched "spells/" placeholder as no image set, not a broken p
 name: Fireball
 image: spells/
 `)
-  assert.doesNotMatch(html, /spell-image-block/)
+  assert.doesNotMatch(html, /compendium-image-block/)
 })
 
 test('hides the illustration image when showImage is false', () => {
@@ -319,7 +319,7 @@ name: Fireball
 image: spells/fireball.png
 showImage: false
 `)
-  assert.doesNotMatch(html, /spell-image-block/)
+  assert.doesNotMatch(html, /compendium-image-block/)
 })
 
 test('hides the school icon when showSchoolIcon is false', () => {

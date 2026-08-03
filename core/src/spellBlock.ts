@@ -3,6 +3,7 @@ import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateSpellData } from './spellCompendium.js'
 import { translate, pluralize } from './catalogEn.js'
+import { escapeHtml, themeAssetPath, formatSources, formatTags } from './compendiumBlock.js'
 import type { MeasurementSystem } from './localization.js'
 
 const SPELL_META_FIELDS = [
@@ -106,14 +107,6 @@ function translateEnum(namespace: string, enumKey: string): string {
   return translate(`${namespace}.${pascalKey}`)
 }
 
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-}
-
 function formatHeading(data: Record<string, unknown>): string | undefined {
   const level = typeof data.level === 'number' ? data.level : undefined
   const school = isNonEmptyString(data.school) ? data.school : undefined
@@ -207,13 +200,6 @@ const SHAPE_ICON_FILES: Record<string, string> = {
   square: 'shape-square.webp',
 }
 
-/** Theme images live in the project's own `assets/img/` (copied there at
- * project creation) — same folder the theme's CSS already references via
- * `../img/...`, just resolved from an <img> tag instead of a stylesheet. */
-function themeAssetPath(fileName: string, preview: boolean | undefined): string {
-  return `${preview ? '../' : ''}assets/img/${fileName}`
-}
-
 /** The shape icon, or (when disabled, or no icon file exists for that
  * shape) the shape's translated text label instead — the parenthetical
  * always shows something, never leaves a dangling empty spot. */
@@ -257,7 +243,7 @@ function buildRangeDetailHtml(
         : ''
     value += ` (${escapeHtml(sizeText)}${formatAreaEffectShapeHtml(areaShape, showAreaEffectIcon, preview)})`
   }
-  return `<p class="spell-block-detail"><span class="spell-block-detail-label">${escapeHtml(translate('Common.Range'))}: </span><span class="spell-block-detail-value">${value}</span></p>`
+  return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(translate('Common.Range'))}: </span><span class="compendium-block-detail-value">${value}</span></p>`
 }
 
 function formatComponents(data: Record<string, unknown>): string | undefined {
@@ -269,31 +255,6 @@ function formatComponents(data: Record<string, unknown>): string | undefined {
   }
   const detail = isNonEmptyString(data.componentsDetail) ? ` (${data.componentsDetail})` : ''
   return `${components.join(', ')}${detail}`
-}
-
-function formatSources(sources: unknown): string | undefined {
-  if (!Array.isArray(sources)) {
-    return undefined
-  }
-  const parts = sources
-    .filter(isPlainObject)
-    .map((source) => {
-      if (!isNonEmptyString(source.name)) {
-        return undefined
-      }
-      const page = typeof source.page === 'number' ? ` p.${source.page}` : ''
-      return `${source.name}${page}`
-    })
-    .filter((entry): entry is string => entry !== undefined)
-  return parts.length > 0 ? parts.join('; ') : undefined
-}
-
-function formatTags(tags: unknown): string | undefined {
-  if (!Array.isArray(tags)) {
-    return undefined
-  }
-  const parts = tags.filter((entry): entry is string => typeof entry === 'string')
-  return parts.length > 0 ? parts.join(', ') : undefined
 }
 
 function formatDuration(data: Record<string, unknown>): string | undefined {
@@ -334,7 +295,7 @@ export interface SpellBlockRenderOptions {
 }
 
 /** Renders a parsed inline spell (or a standalone spell record, same shape)
- * into the `.spell-block` markup the 5.5e theme's CSS already styles. */
+ * into the `.compendium-block` markup the 5.5e theme's CSS already styles. */
 export function renderSpellBlockHtml(
   data: Record<string, unknown>,
   markdown: MarkdownIt,
@@ -347,12 +308,12 @@ export function renderSpellBlockHtml(
     if (!value) {
       return ''
     }
-    return `<p class="spell-block-detail"><span class="spell-block-detail-label">${escapeHtml(label)}: </span><span class="spell-block-detail-value">${escapeHtml(value)}</span></p>`
+    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}: </span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
   }
 
   const heading = formatHeading(spellData)
   const descriptionHtml = isNonEmptyString(data.descr)
-    ? `<div class="spell-block-description">${markdown.render(data.descr)}</div>`
+    ? `<div class="compendium-block-description">${markdown.render(data.descr)}</div>`
     : ''
 
   // "spells/" (no file name) is the snippet's own untouched placeholder,
@@ -362,7 +323,7 @@ export function renderSpellBlockHtml(
   const showImageDefault = options.displayDefaults?.showImage ?? true
   const showImage = (typeof data.showImage === 'boolean' ? data.showImage : showImageDefault) && hasImage
   const imageHtml = showImage
-    ? `<div class="spell-image-block"><img class="spell-image" src="${escapeHtml(String(data.image))}" alt=""></div>`
+    ? `<div class="compendium-image-block"><img class="compendium-image" src="${escapeHtml(String(data.image))}" alt=""></div>`
     : ''
 
   const showSchoolIconDefault = options.displayDefaults?.showSchoolIcon ?? true
@@ -386,17 +347,17 @@ export function renderSpellBlockHtml(
   const footerLines = [detailLine(translate('Common.Source'), sourcesText), detailLine(translate('Common.Tags'), tagsText)]
     .filter(Boolean)
     .join('')
-  const footerHtml = footerLines ? `<div class="spell-block-details spell-block-details-footer">${footerLines}</div>` : ''
+  const footerHtml = footerLines ? `<div class="compendium-block-details compendium-block-details-footer">${footerLines}</div>` : ''
 
   return [
-    '<div class="spell-block">',
+    '<div class="compendium-block">',
     imageHtml,
     schoolIconHtml,
-    '<div class="spell-block-top-border"></div>',
-    `<div class="spell-block-title">${escapeHtml(name)}</div>`,
-    heading ? `<div class="spell-block-heading">${escapeHtml(heading)}</div>` : '',
-    '<div class="spell-block-body">',
-    '<div class="spell-block-details">',
+    '<div class="compendium-block-top-border"></div>',
+    `<div class="compendium-block-title">${escapeHtml(name)}</div>`,
+    heading ? `<div class="compendium-block-heading">${escapeHtml(heading)}</div>` : '',
+    '<div class="compendium-block-body">',
+    '<div class="compendium-block-details">',
     detailLine(translate('Spell.CastingTime'), formatCastingTime(spellData)),
     buildRangeDetailHtml(spellData, options.measurement, showAreaEffectIcon, options.preview),
     detailLine(translate('Spell.Components'), formatComponents(spellData)),

@@ -95,6 +95,24 @@
           "default": true,
           "scope": "resource",
           "markdownDescription": "Default for an inline ` ```spell ` block's `showTags` when the field is left absent. An explicit `showTags` in the spell's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+        },
+        "mpx.defaultShowItemImage": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Default for an inline ` ```item ` block's `showImage` when the field is left absent. An explicit `showImage` in the item's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+        },
+        "mpx.defaultShowItemSources": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Default for an inline ` ```item ` block's `showSources` when the field is left absent. An explicit `showSources` in the item's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+        },
+        "mpx.defaultShowItemTags": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Default for an inline ` ```item ` block's `showTags` when the field is left absent. An explicit `showTags` in the item's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
         }
       }
     },

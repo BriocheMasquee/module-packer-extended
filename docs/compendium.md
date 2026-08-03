@@ -61,7 +61,7 @@ A monster's `data.languages` and `data.environments` aren't strictly validated a
 
 ## Inline spell authoring
 
-A spell can also be written directly inside a page's Markdown, as a fenced ` ```spell ` YAML block, instead of (or alongside) a standalone `spells/<slug>.json` file. This is the only Compendium content type that currently supports inline authoring — see "Not included (yet)" below for items/monsters/roll tables.
+A spell can also be written directly inside a page's Markdown, as a fenced ` ```spell ` YAML block, instead of (or alongside) a standalone `spells/<slug>.json` file. Spells and items (see "Inline item authoring" below) are the only two Compendium content types that currently support inline authoring — see "Not included (yet)" below for monsters/roll tables. Both share the same `.compendium-block` CSS (top border, fonts, title) — only the detail lines and field set differ.
 
 ### YAML shape
 
@@ -147,15 +147,66 @@ At build time, every inline spell across every page is merged into `spells.json`
 
 ### Compendium panel entry
 
-An inline spell shows up in the Compendium panel's "Spells" category alongside standalone files, sorted together by name, labeled "inline" — same icon as a standalone spell, since the label already distinguishes it. Clicking it doesn't open a file (there isn't a separate one) — it opens the page and reveals the block's location instead.
+An inline spell (or item) shows up in the Compendium panel's "Spells" ("Items") category alongside standalone files, sorted together by name, labeled "inline" — same icon as a standalone entry, since the label already distinguishes it. Clicking it doesn't open a file (there isn't a separate one) — it opens the page and reveals the block's location instead.
 
 ### A missing closing fence
 
-Forgetting the closing ` ``` ` on a spell block causes its content to swallow everything after it, including the next block's own opening ` ```spell ` line, as literal (invalid) YAML text. The resulting error hints at this specifically ("A previous ```spell block above this one is likely missing its closing ``` line") rather than just surfacing the raw YAML parser error.
+Forgetting the closing ` ``` ` on a spell or item block causes its content to swallow everything after it, including the next block's own opening ` ```spell `/` ```item ` line, as literal (invalid) YAML text. The resulting error hints at this specifically ("A previous ```spell/```item block above this one is likely missing its closing ``` line") rather than just surfacing the raw YAML parser error.
+
+## Inline item authoring
+
+Same mechanism as inline spells (see above) — a fenced ` ```item ` YAML block, standalone `items/<slug>.json` fallback, `mpx-item` snippet (`Ctrl+Space`/`⌃Space` if it doesn't pop up on its own):
+
+```
+```item
+name: "New Item"
+slug: new-item
+attributes:
+  measurement: ""
+  ruleset: "5.5e"
+image: "items/"
+showImage: true
+type: ""
+typeDetail: ""
+rarity: ""
+attunement: false
+attunementDetail: ""
+value: 0
+weight: 0
+ac: 0
+str: 0
+stealth: false
+properties: []
+mastery: ""
+dmg1: ""
+dmg2: ""
+dmgType: ""
+range: ""
+container: false
+capacity: 0
+descr: ""
+sources:
+  - name: ""
+    page: 0
+showSources: true
+tags: []
+showTags: true
+```
+```
+
+Differences from the spell block worth calling out:
+
+- **No school/area-effect icon equivalent** — an item has no theme-provided icon set, so only three `show*` toggles exist: `showImage`, `showSources`, `showTags` (project defaults: `mpx.defaultShowItemImage`, `mpx.defaultShowItemSources`, `mpx.defaultShowItemTags`).
+- **The illustration image renders last**, after Source/Tags, rather than at the top like a spell's — an explicit design choice (an item's image is a "nice to have", not its focal point). The `showImage` field still sits directly under `image:` in the YAML, matching the usual `show*`-below-its-field convention; only the *rendered* position differs.
+- **Subtitle** combines `type` (+ `typeDetail` in parens) and `rarity`, e.g. "Melee Weapon, Legendary". `type: custom` is a special case (no such entry in the catalog) and falls back to "Custom".
+- **Weight/capacity have no unit conversion** — unlike a spell's `range`/`areaEffectSize` (always feet, converted to meters), an item's `weight`/`capacity` are authored directly in whichever unit the project's resolved measurement implies (kg if metric, lb if imperial) and just labeled accordingly. There's no single canonical unit to convert from the way D&D's rules fix spell ranges in feet.
+- **`weight`/`value`/`ac`/`str` of `0` are treated as "not set"**, same convention as a spell's `range: 0`/`areaEffectSize: 0`.
+- **`attunement`/`stealth` render as standalone flag lines** ("Requires Attunement (detail)", "Stealth Check Disadvantage") rather than label:value pairs — there's no natural "value" for a boolean with no text of its own.
+- **No "Ability"/"Utilize"/"Craft" fields** — these appear on official rules-reference cards for tools (e.g. D&D Beyond, EncounterLog) but aren't part of EncounterPlus's own item schema (confirmed against two real exhaustive item exports); a homebrew tool authored via MPX describes that information as prose in `descr` instead. This is an accepted compromise, not a bug — the rendered card won't be pixel-identical to those reference sites for tools specifically.
 
 ## Not included (yet)
 
-- **No inline authoring for items/monsters**, or roll tables auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now; standalone JSON files only. Spells are the first (and so far only) Compendium content type with inline authoring — see above.
-- **No "virtual entry" edit/delete from the Compendium panel** — an inline spell's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
+- **No inline authoring for monsters**, or roll tables auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now; standalone JSON files only. Spells and items are the only two Compendium content types with inline authoring so far — see above.
+- **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
 - **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists for tables too (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.

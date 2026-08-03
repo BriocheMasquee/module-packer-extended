@@ -23,7 +23,14 @@ import {
   stripEmptyValues,
 } from './compendiumShared.js'
 import { SPELL_IMAGE_PATTERN, validateSpellData, stripEmptySpellFields } from './spellCompendium.js'
+import {
+  ITEM_IMAGE_PATTERN,
+  ITEM_DAMAGE_TYPES,
+  validateItemData,
+  stripEmptyItemFields,
+} from './itemCompendium.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
+import type { ItemDisplayDefaults } from './itemBlock.js'
 
 export interface BuildIssue {
   file: string
@@ -217,9 +224,10 @@ function validateParentShape(relativePath: string, data: Record<string, unknown>
   }
 }
 
-/** An inline ````spell` block found while rendering a page, carrying the
- * page it was found in so a build-time issue can point back to it. */
-interface PageInlineSpellSource {
+/** An inline ````spell`/````item` block found while rendering a page,
+ * carrying the page it was found in so a build-time issue can point back
+ * to it. */
+interface PageInlineEntrySource {
   pageRelativePath: string
   data: Record<string, unknown>
 }
@@ -229,10 +237,12 @@ async function readPages(
   issues: BuildIssue[],
   measurement: MeasurementSystem,
   spellDisplayDefaults: SpellDisplayDefaults | undefined,
-): Promise<{ entries: ResolvedEntry[]; inlineSpells: PageInlineSpellSource[] }> {
-  const markdown = createMarkdownRenderer({ measurement, spellDisplayDefaults })
+  itemDisplayDefaults: ItemDisplayDefaults | undefined,
+): Promise<{ entries: ResolvedEntry[]; inlineSpells: PageInlineEntrySource[]; inlineItems: PageInlineEntrySource[] }> {
+  const markdown = createMarkdownRenderer({ measurement, spellDisplayDefaults, itemDisplayDefaults })
   const entries: ResolvedEntry[] = []
-  const inlineSpells: PageInlineSpellSource[] = []
+  const inlineSpells: PageInlineEntrySource[] = []
+  const inlineItems: PageInlineEntrySource[] = []
 
   for (const filePath of await listFilesRecursively(join(moduleRoot, 'pages'), '.md')) {
     const relativePath = toPortablePath(moduleRoot, filePath)
@@ -268,6 +278,9 @@ async function readPages(
     for (const block of env.inlineSpells ?? []) {
       inlineSpells.push({ pageRelativePath: relativePath, data: block.data })
     }
+    for (const block of env.inlineItems ?? []) {
+      inlineItems.push({ pageRelativePath: relativePath, data: block.data })
+    }
 
     entries.push({
       kind: 'page',
@@ -283,7 +296,7 @@ async function readPages(
     })
   }
 
-  return { entries, inlineSpells }
+  return { entries, inlineSpells, inlineItems }
 }
 
 async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<ResolvedEntry[]> {
@@ -328,151 +341,6 @@ async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<Res
   }
 
   return entries
-}
-
-const ITEM_TYPES = [
-  '',
-  'custom',
-  'armor',
-  'weapon',
-  'lightArmor',
-  'mediumArmor',
-  'heavyArmor',
-  'shield',
-  'meleeWeapon',
-  'rangedWeapon',
-  'ammunition',
-  'rod',
-  'staff',
-  'wand',
-  'potion',
-  'ring',
-  'scroll',
-  'wondrousItem',
-  'adventuringGear',
-  'wealth',
-  'gemstone',
-  'tool',
-  'poison',
-  'instrument',
-  'arcaneFocus',
-  'holySymbol',
-  'mount',
-  'equipmentPack',
-  'tradeGood',
-  'druidicFocus',
-  'vehicleLand',
-  'vehicleWater',
-  'vehicleSpace',
-]
-const ITEM_RARITIES = ['', 'common', 'uncommon', 'rare', 'veryrare', 'legendary', 'artifact', 'unknown']
-const ITEM_PROPERTIES = [
-  'ammunition',
-  'finesse',
-  'heavy',
-  'light',
-  'loading',
-  'range',
-  'reach',
-  'special',
-  'thrown',
-  'twoHanded',
-  'versatile',
-  'cleave',
-  'graze',
-  'nick',
-  'push',
-  'sap',
-  'slow',
-  'topple',
-  'vex',
-]
-const ITEM_MASTERIES = ['', 'cleave', 'graze', 'nick', 'push', 'sap', 'slow', 'topple', 'vex']
-const ITEM_DAMAGE_TYPES = [
-  '',
-  'acid',
-  'bludgeoning',
-  'cold',
-  'fire',
-  'force',
-  'lightning',
-  'necrotic',
-  'piercing',
-  'poison',
-  'psychic',
-  'radiant',
-  'slashing',
-  'thunder',
-]
-const ITEM_IMAGE_PATTERN = /^items\/[^/\\]+$/
-
-const ITEM_TOP_LEVEL_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
-const ITEM_DATA_OPTIONAL_FIELDS = [
-  'type',
-  'typeDetail',
-  'rarity',
-  'attunementDetail',
-  'mastery',
-  'dmg1',
-  'dmg2',
-  'dmgType',
-  'range',
-  'properties',
-]
-
-/** EncounterPlus stores an unfilled data/attributes field as absent, not as
- * an empty string/array — the project's own item file still keeps every
- * field, for editing; only the built copy is trimmed. Unlike module.json,
- * a nested object (attributes/data) that ends up fully empty is dropped
- * entirely rather than left behind as `{}`. */
-function stripEmptyItemFields(item: Record<string, unknown>): Record<string, unknown> {
-  const cleaned = stripEmptyValues(item, ITEM_TOP_LEVEL_OPTIONAL_FIELDS)
-  stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
-  stripEmptyNestedField(cleaned, 'data', ITEM_DATA_OPTIONAL_FIELDS)
-  return cleaned
-}
-
-function validateItemData(relativePath: string, data: unknown, issues: BuildIssue[]): void {
-  if (data === undefined) {
-    return
-  }
-  if (!isPlainObject(data)) {
-    issues.push({ file: relativePath, message: 'data must be an object when provided.' })
-    return
-  }
-  if (data.type !== undefined && !ITEM_TYPES.includes(data.type as string)) {
-    issues.push({ file: relativePath, message: `data.type "${String(data.type)}" is not a recognized item type.` })
-  }
-  if (data.rarity !== undefined && !ITEM_RARITIES.includes(data.rarity as string)) {
-    issues.push({ file: relativePath, message: `data.rarity "${String(data.rarity)}" is not a recognized rarity.` })
-  }
-  if (data.dmgType !== undefined && !ITEM_DAMAGE_TYPES.includes(data.dmgType as string)) {
-    issues.push({ file: relativePath, message: `data.dmgType "${String(data.dmgType)}" is not a recognized damage type.` })
-  }
-  if (data.mastery !== undefined && !ITEM_MASTERIES.includes(data.mastery as string)) {
-    issues.push({ file: relativePath, message: `data.mastery "${String(data.mastery)}" is not a recognized mastery.` })
-  }
-  if (
-    data.properties !== undefined &&
-    (!Array.isArray(data.properties) || !data.properties.every((property) => ITEM_PROPERTIES.includes(property)))
-  ) {
-    issues.push({ file: relativePath, message: 'data.properties must be an array of recognized item properties.' })
-  }
-  for (const field of ['value', 'weight', 'ac', 'str', 'capacity']) {
-    if (data[field] !== undefined && typeof data[field] !== 'number') {
-      issues.push({ file: relativePath, message: `data.${field} must be a number when provided.` })
-    }
-  }
-  for (const field of ['attunement', 'stealth', 'container']) {
-    if (data[field] !== undefined && typeof data[field] !== 'boolean') {
-      issues.push({ file: relativePath, message: `data.${field} must be a boolean when provided.` })
-    }
-  }
-  for (const field of ['typeDetail', 'attunementDetail', 'dmg1', 'dmg2', 'range']) {
-    if (data[field] !== undefined && typeof data[field] !== 'string') {
-      issues.push({ file: relativePath, message: `data.${field} must be a string when provided.` })
-    }
-  }
 }
 
 interface CompendiumEntryOptions {
@@ -648,7 +516,7 @@ const SPELL_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'sources'
  * two standalone files already is. */
 async function buildInlineSpellRecord(
   moduleRoot: string,
-  source: PageInlineSpellSource,
+  source: PageInlineEntrySource,
   moduleId: string,
   defaultMeasurement: MeasurementSystem,
   issues: BuildIssue[],
@@ -709,6 +577,75 @@ async function buildInlineSpellRecord(
   }
   applyCompendiumAttributeDefaults(record, defaultMeasurement)
   return stripEmptySpellFields(record)
+}
+
+const ITEM_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'sources', 'tags', 'data'] as const
+
+/** Same mechanism as buildInlineSpellRecord (see its comment) — for items
+ * merging into items.json instead of spells.json. */
+async function buildInlineItemRecord(
+  moduleRoot: string,
+  source: PageInlineEntrySource,
+  moduleId: string,
+  defaultMeasurement: MeasurementSystem,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+  pathById: Map<string, string>,
+  pathBySlug: Map<string, string>,
+): Promise<Record<string, unknown> | undefined> {
+  const { pageRelativePath, data: raw } = source
+  const name = raw.name as string
+  const label = `${pageRelativePath} (inline item "${name}")`
+
+  const slug = isNonEmptyString(raw.slug) ? raw.slug.trim() : slugify(name)
+  validateSlugFormat(label, slug, issues)
+  validateItemData(label, raw.data, issues)
+  if (raw.sources !== undefined && !Array.isArray(raw.sources)) {
+    issues.push({ file: label, message: 'sources must be an array when provided.' })
+  }
+  if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
+    issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
+  }
+  const image = raw.image
+  if (isNonEmptyString(image) && image !== 'items/') {
+    if (!ITEM_IMAGE_PATTERN.test(image)) {
+      issues.push({ file: label, message: 'image must be a path to a file directly inside the items folder.' })
+    } else {
+      const resolved = await checkResourceReference(moduleRoot, label, '"image"', image, issues)
+      if (resolved) {
+        imageResourcesOut.set(image, resolved)
+      }
+    }
+  }
+
+  if (!isValidSlug(slug)) {
+    return undefined
+  }
+
+  const explicitId = isUuid(raw.id) ? (raw.id as string) : undefined
+  const id = explicitId ?? createUuidV5(slug, moduleId)
+
+  const existingSlugPath = pathBySlug.get(slug)
+  if (existingSlugPath) {
+    issues.push({ file: label, message: `Duplicate item slug "${slug}" in ${existingSlugPath} and ${label}.` })
+  } else {
+    pathBySlug.set(slug, label)
+  }
+  const existingIdPath = pathById.get(id)
+  if (existingIdPath) {
+    issues.push({ file: label, message: `Duplicate item id "${id}" in ${existingIdPath} and ${label}.` })
+  } else {
+    pathById.set(id, label)
+  }
+
+  const record: Record<string, unknown> = { id, slug }
+  for (const field of ITEM_ENVELOPE_FIELDS) {
+    if (raw[field] !== undefined) {
+      record[field] = raw[field]
+    }
+  }
+  applyCompendiumAttributeDefaults(record, defaultMeasurement)
+  return stripEmptyItemFields(record)
 }
 
 const MONSTER_SIZES = ['', 'T', 'S', 'M', 'L', 'H', 'G', 'C']
@@ -1327,6 +1264,9 @@ export interface BuildOptions {
    * mpx.defaultShowSpell* settings. Baked into the page's rendered HTML at
    * build time, same as defaultMeasurement. */
   spellDisplayDefaults?: SpellDisplayDefaults
+  /** Same as `spellDisplayDefaults`, for an inline item's `show*` toggles
+   * (mpx.defaultShowItem* settings). */
+  itemDisplayDefaults?: ItemDisplayDefaults
 }
 
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
@@ -1349,7 +1289,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const spellImageResources = new Map<string, string>()
   const monsterImageResources = new Map<string, string>()
   const [pageResult, groups, maps, encounters, items, spells, tables, monsters] = await Promise.all([
-    readPages(moduleRoot, issues, defaultMeasurement, options.spellDisplayDefaults),
+    readPages(moduleRoot, issues, defaultMeasurement, options.spellDisplayDefaults, options.itemDisplayDefaults),
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
     readMapOrEncounterEntries(moduleRoot, 'encounter', issues, exportedResources),
@@ -1358,12 +1298,13 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     readRollTables(moduleRoot, issues),
     readMonsters(moduleRoot, issues, monsterImageResources, defaultMeasurement),
   ])
-  const { entries: pages, inlineSpells: inlineSpellSources } = pageResult
+  const { entries: pages, inlineSpells: inlineSpellSources, inlineItems: inlineItemSources } = pageResult
   const entries = [...pages, ...groups, ...maps, ...encounters]
 
-  // Inline ````spell` blocks merge into the same spells.json output as
-  // standalone files — seed the dedup maps with the standalone spells first,
-  // so a collision against either source is caught the same way.
+  // Inline ````spell`/````item` blocks merge into the same spells.json/
+  // items.json output as standalone files — seed the dedup maps with the
+  // standalone entries first, so a collision against either source is
+  // caught the same way.
   const spellPathById = new Map(spells.map((spell) => [spell.id as string, 'a standalone spell file']))
   const spellPathBySlug = new Map(spells.map((spell) => [spell.slug as string, 'a standalone spell file']))
   for (const source of inlineSpellSources) {
@@ -1382,6 +1323,25 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     }
   }
   spells.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+
+  const itemPathById = new Map(items.map((item) => [item.id as string, 'a standalone item file']))
+  const itemPathBySlug = new Map(items.map((item) => [item.slug as string, 'a standalone item file']))
+  for (const source of inlineItemSources) {
+    const record = await buildInlineItemRecord(
+      moduleRoot,
+      source,
+      moduleId,
+      defaultMeasurement,
+      issues,
+      itemImageResources,
+      itemPathById,
+      itemPathBySlug,
+    )
+    if (record) {
+      items.push(record)
+    }
+  }
+  items.sort((a, b) => String(a.name).localeCompare(String(b.name)))
 
   if (issues.length > 0) {
     throw new ModuleBuildError(issues)

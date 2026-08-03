@@ -1205,10 +1205,11 @@ a.roll {
 }
 
 /* ------------------------------------------------------------------------
-   SPELL
+   COMPENDIUM (shared by inline spell/item blocks — school/shape icons are
+   spell-only, everything else is generic across content types)
    ------------------------------------------------------------------------ */
 
-.spell-block {
+.compendium-block {
   position: relative;
   margin: 1.5rem 0;
 }
@@ -1230,7 +1231,7 @@ a.roll {
   object-fit: contain;
 }
 
-.spell-block-title {
+.compendium-block-title {
   font-family: var(--font-heading);
   color: var(--color-signature);
   font-weight: normal;
@@ -1239,14 +1240,14 @@ a.roll {
   margin: 0;
 }
 
-.spell-block-heading {
+.compendium-block-heading {
   font-family: var(--font-narrative);
   font-style: italic;
   font-size: 1.3rem;
   margin: 0 0 0.5rem;
 }
 
-.spell-block-top-border {
+.compendium-block-top-border {
   display: block;
   height: 0.75rem;
   margin: 0 0 0.6rem;
@@ -1258,11 +1259,11 @@ a.roll {
   opacity: 0.32;
 }
 
-.spell-block-body {
+.compendium-block-body {
   padding: 0;
 }
 
-.spell-block-details {
+.compendium-block-details {
   margin: 0 0 1rem;
   padding: 0;
   font-family: var(--font-data);
@@ -1271,48 +1272,48 @@ a.roll {
   line-height: 1.35;
 }
 
-.spell-block-detail {
+.compendium-block-detail {
   display: block;
   margin: 0;
   padding: 0;
 }
 
-.spell-block-detail-label {
+.compendium-block-detail-label {
   display: inline;
   font-weight: bold;
   font-style: normal;
 }
 
-.spell-block-detail-value {
+.compendium-block-detail-value {
   display: inline;
   font-style: normal;
 }
 
-.spell-block-details-footer .spell-block-detail-value {
+.compendium-block-details-footer .compendium-block-detail-value {
   font-style: italic;
 }
 
-.spell-block-heading-border {
+.compendium-block-heading-border {
   display: none;
 }
 
-.spell-block-description {
+.compendium-block-description {
   font-family: var(--font-narrative);
   font-size: 1.3rem;
   margin: 0.8rem 0 0;
 }
 
-.spell-image-block {
+.compendium-image-block {
   margin: 0 0 0.8rem;
 }
 
-.spell-image {
+.compendium-image {
   display: block;
   width: 100%;
   height: auto;
 }
 
-.spell-block-bottom-border {
+.compendium-block-bottom-border {
   display: none;
 }
 
