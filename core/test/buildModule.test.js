@@ -1555,6 +1555,237 @@ test('buildModule lets an inline item\'s explicit show* field override the proje
   assert.match(pages[0].content, /Tags: /)
 })
 
+test('buildModule merges an inline ```monster page block into monsters.json alongside standalone files', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'goblin.json'),
+    JSON.stringify({
+      id: 'C696B1C4-CA42-48FF-8120-2395C3DBD013',
+      name: 'Goblin',
+      slug: 'goblin',
+      data: { type: 'humanoid', cr: '1/4' },
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```monster',
+      'name: Owlbear',
+      'type: monstrosity',
+      'cr: "3"',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.monsterCount, 2)
+  const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json')).sort((a, b) => a.name.localeCompare(b.name))
+  assert.equal(monsters[0].name, 'Goblin')
+  assert.equal(monsters[1].name, 'Owlbear')
+  assert.equal(monsters[1].slug, 'owlbear')
+  assert.match(monsters[1].id, /^[0-9a-f-]{36}$/)
+  assert.equal(monsters[1].data.type, 'monstrosity')
+  assert.equal(monsters[1].data.cr, '3')
+  assert.deepEqual(monsters[1].attributes, { measurement: 'imperial', ruleset: '5.5e' })
+
+  const secondBuild = await buildModule(root)
+  const monstersAgain = JSON.parse(readZipEntry(secondBuild.outputPath, 'monsters.json')).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  assert.equal(monstersAgain[1].id, monsters[1].id)
+})
+
+test('buildModule rejects an inline monster slug that collides with a standalone monster file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'monsters', 'owlbear.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Owlbear',
+      slug: 'owlbear',
+      data: { type: 'monstrosity' },
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '```monster', 'name: Owlbear', '```', ''].join(
+      '\n',
+    ),
+  )
+
+  await assert.rejects(buildModule(root), (error) => {
+    assert.ok(error instanceof ModuleBuildError)
+    assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate monster slug "owlbear"')))
+    return true
+  })
+})
+
+test('buildModule copies both an inline monster\'s image and token the same way a standalone monster does', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(join(root, 'monsters', 'dragon.png'), 'fake-image-data')
+  await writeFile(join(root, 'monsters', 'dragon-token.png'), 'fake-token-data')
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```monster',
+      'name: Dragon',
+      'image: monsters/dragon.png',
+      'token: monsters/dragon-token.png',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.ok(listZipEntries(summary.outputPath).includes('monsters/dragon.png'))
+  assert.ok(listZipEntries(summary.outputPath).includes('monsters/dragon-token.png'))
+  const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
+  assert.equal(monsters[0].image, 'monsters/dragon.png')
+  assert.equal(monsters[0].token, 'monsters/dragon-token.png')
+})
+
+test('buildModule rejects an inline monster whose token references a missing file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```monster',
+      'name: Dragon',
+      'token: monsters/missing.png',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  await assert.rejects(buildModule(root), (error) => {
+    assert.ok(error instanceof ModuleBuildError)
+    assert.ok(error.issues.some((issue) => issue.message.includes('references a missing file')))
+    return true
+  })
+})
+
+test('buildModule strips color/twoColumn (inline-authoring-only fields) from the built monsters.json', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```monster',
+      'name: Dragon',
+      'color: red',
+      'twoColumn: true',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+  const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
+
+  assert.equal(monsters[0].color, undefined)
+  assert.equal(monsters[0].twoColumn, undefined)
+})
+
+test('buildModule applies a project monsterDisplayDefaults to an inline monster missing the show* field', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```monster',
+      'name: Test Monster',
+      'tags: [dragon]',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root, { monsterDisplayDefaults: { showTags: false } })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.doesNotMatch(pages[0].content, /Tags: /)
+})
+
+test('buildModule lets an inline monster\'s explicit show* field override the project monsterDisplayDefaults', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```monster',
+      'name: Test Monster',
+      'tags: [dragon]',
+      'showTags: true',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root, { monsterDisplayDefaults: { showTags: false } })
+  const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
+
+  assert.match(pages[0].content, /Tags: /)
+})
+
 test('buildModule omits tables.json when there are no roll tables', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)

@@ -22,10 +22,19 @@ export {
 } from './localization.js'
 export type { ContentLanguage, DefaultMeasurement, MeasurementSystem } from './localization.js'
 export { createMarkdownRenderer } from './markdownRenderer.js'
-export type { MarkdownRendererOptions, MpxMarkdownEnvironment, InlineSpellBlock, InlineItemBlock } from './markdownRenderer.js'
+export type {
+  MarkdownRendererOptions,
+  MpxMarkdownEnvironment,
+  InlineSpellBlock,
+  InlineItemBlock,
+  InlineMonsterBlock,
+} from './markdownRenderer.js'
 export type { SpellDisplayDefaults } from './spellBlock.js'
 export type { ItemDisplayDefaults } from './itemBlock.js'
+export type { MonsterDisplayDefaults } from './monsterBlock.js'
 export { findInlineSpells } from './inlineSpellScan.js'
 export type { InlineSpellSummary } from './inlineSpellScan.js'
 export { findInlineItems } from './inlineItemScan.js'
 export type { InlineItemSummary } from './inlineItemScan.js'
+export { findInlineMonsters } from './inlineMonsterScan.js'
+export type { InlineMonsterSummary } from './inlineMonsterScan.js'

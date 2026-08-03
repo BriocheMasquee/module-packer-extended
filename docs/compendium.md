@@ -61,7 +61,7 @@ A monster's `data.languages` and `data.environments` aren't strictly validated a
 
 ## Inline spell authoring
 
-A spell can also be written directly inside a page's Markdown, as a fenced ` ```spell ` YAML block, instead of (or alongside) a standalone `spells/<slug>.json` file. Spells and items (see "Inline item authoring" below) are the only two Compendium content types that currently support inline authoring — see "Not included (yet)" below for monsters/roll tables. Both share the same `.compendium-block` CSS (top border, fonts, title) — only the detail lines and field set differ.
+A spell can also be written directly inside a page's Markdown, as a fenced ` ```spell ` YAML block, instead of (or alongside) a standalone `spells/<slug>.json` file. Spells, items, and monsters (see "Inline item authoring"/"Inline monster authoring" below) are the only Compendium content types that currently support inline authoring — see "Not included (yet)" below for roll tables. Spell and item share the same `.compendium-block` CSS (top border, fonts, title) — only the detail lines and field set differ. Monster uses a separate, older `.statblock` CSS system instead (see "Inline monster authoring") — visually unrelated to `.compendium-block`.
 
 ### YAML shape
 
@@ -147,11 +147,11 @@ At build time, every inline spell across every page is merged into `spells.json`
 
 ### Compendium panel entry
 
-An inline spell (or item) shows up in the Compendium panel's "Spells" ("Items") category alongside standalone files, sorted together by name, labeled "inline" — same icon as a standalone entry, since the label already distinguishes it. Clicking it doesn't open a file (there isn't a separate one) — it opens the page and reveals the block's location instead.
+An inline spell/item/monster shows up in the Compendium panel's "Spells"/"Items"/"Monsters" category alongside standalone files, sorted together by name, labeled "inline" — same icon as a standalone entry, since the label already distinguishes it. Clicking it doesn't open a file (there isn't a separate one) — it opens the page and reveals the block's location instead.
 
 ### A missing closing fence
 
-Forgetting the closing ` ``` ` on a spell or item block causes its content to swallow everything after it, including the next block's own opening ` ```spell `/` ```item ` line, as literal (invalid) YAML text. The resulting error hints at this specifically ("A previous ```spell/```item block above this one is likely missing its closing ``` line") rather than just surfacing the raw YAML parser error.
+Forgetting the closing ` ``` ` on a spell/item/monster block causes its content to swallow everything after it, including the next block's own opening fence line, as literal (invalid) YAML text. The resulting error hints at this specifically (e.g. "A previous ```monster block above this one is likely missing its closing ``` line") rather than just surfacing the raw YAML parser error.
 
 ## Inline item authoring
 
@@ -204,9 +204,97 @@ Differences from the spell block worth calling out:
 - **`attunement`/`stealth` render as standalone flag lines** ("Requires Attunement (detail)", "Stealth Check Disadvantage") rather than label:value pairs — there's no natural "value" for a boolean with no text of its own.
 - **No "Ability"/"Utilize"/"Craft" fields** — these appear on official rules-reference cards for tools (e.g. D&D Beyond, EncounterLog) but aren't part of EncounterPlus's own item schema (confirmed against two real exhaustive item exports); a homebrew tool authored via MPX describes that information as prose in `descr` instead. This is an accepted compromise, not a bug — the rendered card won't be pixel-identical to those reference sites for tools specifically.
 
+## Inline monster authoring
+
+A fenced ` ```monster ` YAML block, standalone `monsters/<slug>.json` fallback, `mpx-monster` snippet — same mechanism as spell/item, but a **different CSS system**: `.statblock`, ported directly from EncounterPlus's own real stat block rendering (it predates this feature — the CSS already existed in the theme, unused, before anything generated matching HTML for it). Confirmed against several real 2024 Monster Manual stat blocks (Arch-Hag, Aboleth, Aarakocra, Young White Dragon).
+
+```
+```monster
+name: "New Monster"
+slug: new-monster
+attributes:
+  measurement: ""
+  ruleset: "5.5e"
+image: "monsters/"
+showImage: true
+token: "monsters/"
+showToken: true
+size: ""
+type: ""
+typeDetail: ""
+alignment: ""
+ac: "0"
+hp: "0"
+speed:
+  walk: 30
+  burrow: 0
+  climb: 0
+  fly: 0
+  hover: false
+  swim: 0
+  other: ""
+abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }
+savingThrows: {}
+skills: {}
+damageVulnerabilities: []
+damageResistances: []
+damageImmunities: []
+conditionImmunities: []
+senses:
+  blindsight: 0
+  darkvision: 0
+  tremorsense: 0
+  truesight: 0
+  other: ""
+passivePerception: 10
+languages: []
+cr: ""
+initiativeBonus: 0
+proficiencyBonus: 2
+environments: []
+traits: []
+actions: []
+bonusActions: []
+reactions: []
+legendaryActions: []
+descr: ""
+sources:
+  - name: ""
+    page: 0
+showSources: true
+tags: []
+showTags: true
+```
+```
+
+### `color` / `twoColumn` — presentation-only, never built
+
+Two YAML fields exist purely for this rendering, matching the `.statblock` CSS's own variants — **not** part of EncounterPlus's schema, and stripped before merging into `monsters.json` (same treatment as `show*` fields):
+
+- `color`: one of `blue`, `green`, `red`, `yellow`, `orange`, `gray`, `purple`, `teal`, `magenta`, `signature` (default). An unrecognized value is ignored.
+- `twoColumn: true`: adds the CSS's two-column print layout. **Never auto-applied** — the user opts in explicitly per monster; there's no length/complexity heuristic deciding it automatically.
+
+### `show*` toggles
+
+Four toggles: `showImage`, `showToken`, `showSources`, `showTags` (project defaults: `mpx.defaultShowMonsterImage`, `mpx.defaultShowMonsterToken`, `mpx.defaultShowMonsterSources`, `mpx.defaultShowMonsterTags`) — no icon toggle, same as item. `token` (circular portrait, top-right) and `image` (full-width illustration, bottom) are independent fields/toggles, matching the two separate image-like fields EncounterPlus already gives a monster.
+
+### Ability scores and saving throws
+
+`abilities` always renders all six scores once the object is present at all (each missing individual score defaults to 10, the SRD baseline) — split into a "physical" row (STR/DEX/CON) and "mental" row (INT/WIS/CHA), matching the theme's own CSS split. Each ability's save defaults to its plain modifier; `savingThrows` is a sparse `{ ability: bonus }` map (only the abilities the monster is actually proficient in), and **a Saving Throws property line only appears when at least one listed value diverges from the plain modifier** — exactly mirroring the official stat block convention of only listing saves worth calling out.
+
+### Challenge rating and XP
+
+`cr` (validated against EncounterPlus's own closed `ChallengeRatingToXP` list) renders as "Challenge {cr} (XP {n}; PB +{proficiencyBonus})" — the XP number comes from the standard, universal 5e CR→XP table (fixed and deterministic, confirmed against three real stat blocks: CR 21 → 33,000 XP, CR 10 → 5,900 XP, CR 6 → 2,300 XP), not stored data. **The "or X XP in lair" variant some published monsters show is not included** — that's monster-specific flavor text, not something EncounterPlus's schema stores, so there's no data to derive it from.
+
+### Accepted compromises
+
+- **No auto-generated "Legendary Action Uses: N..." intro paragraph** before the Legendary Actions list — the real books insert this boilerplate automatically (referencing the monster's own name and a legendary-action-count field EncounterPlus's schema doesn't have), so it isn't generated. Add it yourself as free text in `descr`, or as the first `legendaryActions` entry, if wanted.
+- **`languages` always joins with `, `** — the official books sometimes separate a trailing "telepathy N ft." note with a semicolon instead. Minor cosmetic difference, not worth a special case for one entry format.
+- **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS (unrelated to `mpx.contentLanguage`, which isn't wired into this rendering at all yet — see [issue #15](https://github.com/BriocheMasquee/mpx-bis/issues/15)) — corrected to "SAVE" to match the English-first screenshots this feature was built against.
+
 ## Not included (yet)
 
-- **No inline authoring for monsters**, or roll tables auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now; standalone JSON files only. Spells and items are the only two Compendium content types with inline authoring so far — see above.
-- **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
+- **No inline authoring for roll tables** auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now (tracked in [issue #26](https://github.com/BriocheMasquee/mpx-bis/issues/26)); standalone JSON files only. Spells, items, and monsters all support inline authoring — see above.
+- **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item/monster's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
 - **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists for tables too (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.

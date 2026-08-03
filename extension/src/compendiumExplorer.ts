@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { findInlineSpells, findInlineItems } from 'mpx-core'
+import { findInlineSpells, findInlineItems, findInlineMonsters } from 'mpx-core'
 
 const VIEW_ID = 'mpx.compendiumExplorer'
 const REVEAL_INLINE_ENTRY_COMMAND = 'mpx.revealInlineEntry'
@@ -14,7 +14,7 @@ interface InlineEntrySummary {
 }
 
 const CATEGORIES = [
-  { label: 'Monsters', folder: 'monsters', icon: 'snake', findInline: undefined },
+  { label: 'Monsters', folder: 'monsters', icon: 'snake', findInline: findInlineMonsters },
   { label: 'Spells', folder: 'spells', icon: 'wand', findInline: findInlineSpells },
   { label: 'Items', folder: 'items', icon: 'archive', findInline: findInlineItems },
   { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', findInline: undefined },

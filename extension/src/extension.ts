@@ -195,11 +195,22 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
           showTags: config.get<boolean>('defaultShowItemTags', true),
         }
       }
+      const resolveMonsterDisplayDefaults = () => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
+        return {
+          showImage: config.get<boolean>('defaultShowMonsterImage', true),
+          showToken: config.get<boolean>('defaultShowMonsterToken', true),
+          showSources: config.get<boolean>('defaultShowMonsterSources', true),
+          showTags: config.get<boolean>('defaultShowMonsterTags', true),
+        }
+      }
       return createMarkdownRenderer({
         preview: true,
         measurement: resolveMeasurement,
         spellDisplayDefaults: resolveSpellDisplayDefaults,
         itemDisplayDefaults: resolveItemDisplayDefaults,
+        monsterDisplayDefaults: resolveMonsterDisplayDefaults,
       })
     },
   }
