@@ -3,7 +3,15 @@ import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateMonsterData, MONSTER_ABILITY_KEYS, MONSTER_FEATURE_LIST_FIELDS } from './monsterCompendium.js'
 import { translate } from './catalogEn.js'
-import { escapeHtml, resourceImagePath, formatSources, formatTags } from './compendiumBlock.js'
+import {
+  escapeHtml,
+  resourceImagePath,
+  feetToDisplayValue,
+  formatDistanceNumber,
+  formatSources,
+  formatTags,
+} from './compendiumBlock.js'
+import type { MeasurementSystem } from './localization.js'
 
 const MONSTER_META_FIELDS = [
   'id',
@@ -160,10 +168,15 @@ function formatSubtitle(data: Record<string, unknown>): string | undefined {
 
 const SPEED_FIELDS = ['walk', 'burrow', 'climb', 'fly', 'swim'] as const
 
+function formatFeetSuffix(value: number, measurement: MeasurementSystem): string {
+  const displayValue = formatDistanceNumber(feetToDisplayValue(value, measurement))
+  return `${displayValue} ${measurement === 'metric' ? 'm' : 'ft'}.`
+}
+
 /** "40 ft." or "10 ft., Swim 40 ft." — walk has no label of its own (it's
  * the implicit default speed); every other mode is labeled and only shown
  * when set. */
-function formatSpeed(speed: unknown): string | undefined {
+function formatSpeed(speed: unknown, measurement: MeasurementSystem): string | undefined {
   if (!isPlainObject(speed)) {
     return undefined
   }
@@ -174,11 +187,11 @@ function formatSpeed(speed: unknown): string | undefined {
       continue
     }
     if (field === 'walk') {
-      parts.push(`${value} ft.`)
+      parts.push(formatFeetSuffix(value, measurement))
     } else {
       const label = translateEnum('Movement', field)
       const hover = field === 'fly' && speed.hover === true ? ` (${translate('Movement.Hover')})` : ''
-      parts.push(`${label} ${value} ft.${hover}`)
+      parts.push(`${label} ${formatFeetSuffix(value, measurement)}${hover}`)
     }
   }
   if (isNonEmptyString(speed.other)) {
@@ -278,14 +291,14 @@ function formatStringList(values: unknown): string | undefined {
 
 const SENSE_FIELDS = ['blindsight', 'darkvision', 'tremorsense', 'truesight'] as const
 
-function formatSenses(data: Record<string, unknown>): string | undefined {
+function formatSenses(data: Record<string, unknown>, measurement: MeasurementSystem): string | undefined {
   const senses = isPlainObject(data.senses) ? data.senses : undefined
   const parts: string[] = []
   if (senses) {
     for (const field of SENSE_FIELDS) {
       const value = senses[field]
       if (typeof value === 'number' && value > 0) {
-        parts.push(`${translateEnum('Sense', field)} ${value} ft.`)
+        parts.push(`${translateEnum('Sense', field)} ${formatFeetSuffix(value, measurement)}`)
       }
     }
     if (isNonEmptyString(senses.other)) {
@@ -406,6 +419,7 @@ export interface MonsterDisplayDefaults {
 }
 
 export interface MonsterBlockRenderOptions {
+  measurement: MeasurementSystem
   preview?: boolean
   displayDefaults?: MonsterDisplayDefaults
   /** The fence's own `{.blue .two-column}` class attribute (markdown-it-attrs
@@ -465,7 +479,7 @@ export function renderMonsterBlockHtml(
 
   const hp = isNonEmptyString(monsterData.hp) ? monsterData.hp : undefined
   const hpLine = hp ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.HP'))}</span> ${escapeHtml(hp)}</p>` : ''
-  const speedText = formatSpeed(monsterData.speed)
+  const speedText = formatSpeed(monsterData.speed, options.measurement)
   const speedLine = speedText
     ? `<p class="statblock-topstat-line"><span class="statblock-topstat-name">${escapeHtml(translate('Common.Speed'))}</span> ${escapeHtml(speedText)}</p>`
     : ''
@@ -482,7 +496,7 @@ export function renderMonsterBlockHtml(
     propertyLine(translate('Monster.Resistances'), formatDamageList(monsterData.damageResistances)),
     propertyLine(translate('Monster.Immunities'), formatDamageList(monsterData.damageImmunities)),
     propertyLine(translate('Monster.ConditionImmunities'), formatStringList(monsterData.conditionImmunities)),
-    propertyLine(translate('Monster.Senses'), formatSenses(monsterData)),
+    propertyLine(translate('Monster.Senses'), formatSenses(monsterData, options.measurement)),
     propertyLine(translate('Monster.Languages'), formatStringList(monsterData.languages)),
     propertyLine(translate('Monster.Challenge'), formatChallenge(monsterData)),
   ].join('')

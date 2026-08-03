@@ -291,6 +291,10 @@ Four toggles: `showImage`, `showToken`, `showSources`, `showTags` (project defau
 
 Unlike every other property line (rendered inside the `.statblock` card, in the theme's own style), Source and Tags render as a **separate block right after the card**, in the same shared `.compendium-block-details-footer` style spell/item use — an explicit design choice, not something EncounterPlus itself does for a real monster card.
 
+### Measurement
+
+`speed` (`walk`/`burrow`/`climb`/`fly`/`swim`) and `senses` (`blindsight`/`darkvision`/`tremorsense`/`truesight`) are always authored in feet and converted the same way a spell's `range`/`areaEffectSize` are — the WotC-style simplified factor (feet × 0.3, rounded to the nearest half-unit), not the precise 0.3048 conversion.
+
 ### Ability scores and saving throws
 
 `abilities` always renders all six scores once the object is present at all (each missing individual score defaults to 10, the SRD baseline) — split into a "physical" row (STR/DEX/CON) and "mental" row (INT/WIS/CHA), matching the theme's own CSS split. Each ability's save defaults to its plain modifier; `savingThrows` is a sparse `{ ability: bonus }` map (only the abilities the monster is actually proficient in), and **a Saving Throws property line only appears when at least one listed value diverges from the plain modifier** — exactly mirroring the official stat block convention of only listing saves worth calling out.

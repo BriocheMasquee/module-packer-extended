@@ -993,8 +993,15 @@ a.roll {
 .statblock-primary {
   display: flex;
   align-items: flex-start;
-  gap: 6rem;
   margin: 0 0 0.4rem;
+}
+
+/* Fixed width instead of a `gap` (whose effective offset would shift with
+   AC's text length) — keeps Initiative's start position constant, roughly
+   aligned with where the DEX ability column begins below (each ability
+   column is 1/3 of the card's ~46rem inner content width). */
+.statblock-primary .statblock-topstat-line:first-child {
+  width: 15.3rem;
 }
 
 .statblock-topstat-line {
