@@ -50,6 +50,12 @@ export interface BuildSummary {
   builtVersion: string
   /** Set only when autoIncrementVersion bumped module.json for the next build. */
   nextVersion?: string
+  /** Internal links that don't resolve to any real page/group/map/encounter
+   * slug or, for a `#anchor` link, any heading on the same page — a
+   * non-blocking signal (unlike `issues`/ModuleBuildError), since a broken
+   * link doesn't stop EncounterPlus from importing the module. Always
+   * present, empty when nothing was found. */
+  brokenLinks: BuildIssue[]
 }
 
 type EntryKind = 'page' | 'group' | 'map' | 'encounter'
@@ -1163,6 +1169,67 @@ export interface BuildOptions {
   autoDetectRollTables?: boolean
 }
 
+/** Link forms deliberately never checked: an absolute URL (external site),
+ * a compendium reference (`/item/`, `/spell/`, `/monster/`, `/roll/`), a
+ * same-module page link written in its long form (`/page/...` — same
+ * resolution as the bare-slug form, not worth a second check), and a
+ * cross-module link (`/module/{module-slug}/page/{page-slug}`) — MPX has no
+ * way to know another module's real slugs. Reimplements the original
+ * Module Packer's own skip list (`checkForBrokenLinks` in Module.ts). */
+const BROKEN_LINK_SKIP_PREFIXES = [
+  'http://',
+  'https://',
+  'mailto:',
+  'tel:',
+  '/item/',
+  '/spell/',
+  '/monster/',
+  '/roll/',
+  '/page/',
+  '/module/',
+]
+
+/** Scans every page's already-rendered HTML for `<a href>` links that don't
+ * resolve to a real page/group/map/encounter slug, or (for a `#anchor`
+ * link) a real heading on the same page — reimplementing the original
+ * Module Packer's checkForBrokenLinks, but as a non-blocking warning
+ * (never a build failure) and, unlike the original (which never actually
+ * stripped the leading `#` outside PDF export, so a same-page anchor link
+ * always misfired there), with real anchor-link validation. Regex-based
+ * rather than a full HTML parser since the input is always our own
+ * renderer's predictable output, never arbitrary external HTML. */
+function findBrokenLinks(pages: { relativePath: string; slug: string; content: string }[], validSlugs: Set<string>): BuildIssue[] {
+  const warnings: BuildIssue[] = []
+  for (const page of pages) {
+    const anchorIds = new Set<string>()
+    for (const match of page.content.matchAll(/<h[1-6][^>]*\sid="([^"]*)"/g)) {
+      anchorIds.add(match[1])
+    }
+    for (const match of page.content.matchAll(/<a\s[^>]*href="([^"]*)"/g)) {
+      const href = match[1]
+      if (href === '' || BROKEN_LINK_SKIP_PREFIXES.some((prefix) => href.startsWith(prefix))) {
+        continue
+      }
+      if (href.startsWith('#')) {
+        if (!anchorIds.has(href.slice(1))) {
+          warnings.push({
+            file: page.relativePath,
+            message: `Possible broken link: "${href}" doesn't match any heading on this page.`,
+          })
+        }
+        continue
+      }
+      if (!validSlugs.has(href)) {
+        warnings.push({
+          file: page.relativePath,
+          message: `Possible broken link: "${href}" doesn't match any page/group/map/encounter slug.`,
+        })
+      }
+    }
+  }
+  return warnings
+}
+
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
   const issues: BuildIssue[] = []
 
@@ -1318,6 +1385,13 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const mapRecords = finalRecords('map')
   const encounterRecords = finalRecords('encounter')
 
+  const brokenLinks = findBrokenLinks(
+    entries
+      .filter((entry) => entry.kind === 'page')
+      .map((entry) => ({ relativePath: entry.relativePath, slug: entry.slug, content: String(entry.record.content) })),
+    new Set(entries.map((entry) => entry.slug)),
+  )
+
   const outputPath = join(moduleRoot, `${basename(moduleRoot)}.module`)
 
   // EncounterPlus expects an uncompressed (stored) zip archive.
@@ -1402,5 +1476,6 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     monsterCount: monsters.length,
     builtVersion,
     nextVersion,
+    brokenLinks,
   }
 }
