@@ -29,7 +29,12 @@
   "contributes": {
     "configurationDefaults": {
       "[markdown]": {
-        "editor.wordBasedSuggestions": "off"
+        "editor.wordBasedSuggestions": "off",
+        "editor.quickSuggestions": {
+          "other": true,
+          "comments": true,
+          "strings": true
+        }
       }
     },
     "configuration": {
