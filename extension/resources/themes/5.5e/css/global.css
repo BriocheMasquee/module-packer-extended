@@ -638,7 +638,7 @@ table.magenta { --table-bg: var(--color-magenta-light); --table-accent: var(--co
 table.signature { --table-bg: var(--color-signature-light); --table-accent: var(--color-signature); --table-border: var(--color-signature-dark); }
 
 .color-links a {
-  color: var(--blockquote-accent, var(--table-accent, var(--color-signature)));
+  color: var(--blockquote-accent, var(--table-accent, var(--color-signature))) !important;
 }
 
 td,
