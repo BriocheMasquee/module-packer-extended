@@ -197,7 +197,7 @@
   "MPX Image": {
     "prefix": "mpx-image",
     "body": [
-      "![${2:Description}](images/${3:image.png})${1|{.size-cover},{.float-left},{.float-right},{.center},{.caption}, |}",
+      "![${2:Description}](images/${3:image.png})${1| ,{.size-cover},{.float-left},{.float-right},{.center},{.caption}|}",
       "$0"
     ],
     "description": "Insert an image and choose its presentation"
