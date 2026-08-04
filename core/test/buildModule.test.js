@@ -2423,3 +2423,183 @@ test('buildModule defaults to imperial when no defaultMeasurement option is pass
 
   assert.deepEqual(items[0].attributes, { measurement: 'imperial', ruleset: '5.5e' })
 })
+
+test('buildModule flags a same-module page link that doesn\'t match any real slug, as a non-blocking warning', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '[Broken](typo-slug)', ''].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.pageCount, 1)
+  assert.equal(summary.brokenLinks.length, 1)
+  assert.equal(summary.brokenLinks[0].file, 'pages/intro.md')
+  assert.match(summary.brokenLinks[0].message, /"typo-slug"/)
+})
+
+test('buildModule does not flag a same-module page link that matches a real page/group/map/encounter slug', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '[Good](chapter-two)',
+      '',
+    ].join('\n'),
+  )
+  await writeFile(
+    join(root, 'pages', 'chapter-two.md'),
+    ['---', 'name: Chapter Two', 'slug: chapter-two', 'rank: 1', 'parent: ""', '---', '', 'Content.', ''].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.brokenLinks.length, 0)
+})
+
+test('buildModule flags a #anchor link with no matching heading on the same page', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '# Real Heading',
+      '',
+      '[Broken anchor](#nope)',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.brokenLinks.length, 1)
+  assert.match(summary.brokenLinks[0].message, /"#nope"/)
+  assert.match(summary.brokenLinks[0].message, /heading/)
+})
+
+test('buildModule does not flag a #anchor link that matches a real heading on the same page', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '# Real Heading',
+      '',
+      '[Good anchor](#real-heading)',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.brokenLinks.length, 0)
+})
+
+test('buildModule never flags external URLs, compendium links, or cross-module page links', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '[External](https://example.com)',
+      '',
+      '[Item](/item/some-item)',
+      '',
+      '[Spell](/spell/some-spell)',
+      '',
+      '[Monster](/monster/some-monster)',
+      '',
+      '[Roll](/roll/2d6)',
+      '',
+      '[Table roll](/table-roll/some-table)',
+      '',
+      '[Long-form page](/page/some-page)',
+      '',
+      '[Cross-module](/module/other-module/page/some-page)',
+      '',
+      '[Email](mailto:test@example.com)',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.brokenLinks.length, 0)
+})
+
+test('buildModule does not flag a real auto-detected roll table\'s own rewritten /table-roll/ link', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '|[2d6](/roll/2d6)|Encounter|',
+      '|:---:|:---|',
+      '|2-3|3 Kobolds|',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.tableCount, 1)
+  assert.equal(summary.brokenLinks.length, 0)
+})
+
+test('buildModule flagging a broken link does not fail the build (non-blocking)', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    ['---', 'name: Introduction', 'slug: intro', 'rank: 0', 'parent: ""', '---', '', '[Broken](typo-slug)', ''].join('\n'),
+  )
+
+  // Would throw ModuleBuildError if this were treated as a hard failure.
+  const summary = await buildModule(root)
+  assert.ok(summary.outputPath)
+})

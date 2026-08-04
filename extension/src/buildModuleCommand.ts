@@ -33,6 +33,15 @@ function reportIssues(outputChannel: vscode.OutputChannel, error: ModuleBuildErr
   outputChannel.show(true)
 }
 
+function reportBrokenLinks(outputChannel: vscode.OutputChannel, brokenLinks: { file: string; message: string }[]): void {
+  outputChannel.clear()
+  outputChannel.appendLine(`MPX found ${brokenLinks.length} possible broken link(s) — the module still built successfully:`)
+  for (const link of brokenLinks) {
+    outputChannel.appendLine(`  ${link.file}: ${link.message}`)
+  }
+  outputChannel.show(true)
+}
+
 async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<void> {
   const moduleFolder = await resolveModuleFolder()
   if (!moduleFolder) {
@@ -90,19 +99,25 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
     const versionNote = summary.nextVersion
       ? ` module.json is now set to ${summary.nextVersion} for the next build.`
       : ''
+    const brokenLinksNote =
+      summary.brokenLinks.length > 0 ? ` ${summary.brokenLinks.length} possible broken link(s) found.` : ''
+    const actions = summary.brokenLinks.length > 0 ? ['Reveal Module', 'Show Broken Links'] : ['Reveal Module']
     const selection = await vscode.window.showInformationMessage(
       `Module built as version ${summary.builtVersion}: ${summary.pageCount} page(s), ` +
         `${summary.groupCount} group(s), ${summary.mapCount} map(s), ${summary.encounterCount} encounter(s), ` +
         `${summary.itemCount} item(s), ${summary.spellCount} spell(s), ${summary.tableCount} roll table(s), ` +
         `${summary.monsterCount} monster(s).` +
-        versionNote,
-      'Reveal Module',
+        versionNote +
+        brokenLinksNote,
+      ...actions,
     )
     if (selection === 'Reveal Module') {
       await vscode.commands.executeCommand(
         'revealFileInOS',
         vscode.Uri.file(summary.outputPath),
       )
+    } else if (selection === 'Show Broken Links') {
+      reportBrokenLinks(outputChannel, summary.brokenLinks)
     }
     await vscode.commands.executeCommand('mpx.refreshExplorer')
   } catch (error) {
