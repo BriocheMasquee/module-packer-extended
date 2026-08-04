@@ -261,12 +261,12 @@ h1 {
   text-align: center;
   letter-spacing: 0.1rem;
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--color-signature) 0%, var(--color-signature-light) 100%);
-  background-size: 100% 1em;
+  background-image: linear-gradient(to bottom, var(--color-signature) 0%, var(--color-signature-light) 90%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-stroke: 0.015rem var(--color-gold);
-  filter: drop-shadow(0 0 0.3rem #fefefc) drop-shadow(0 0 0.2rem #fefefc);
 }
 
 h1[data-chapter]::before {
@@ -346,10 +346,14 @@ h1 + p:not(.no-fancy)::first-letter {
   font-weight: normal;
   line-height: 1;
   margin-top: -0.3rem;
+  margin-bottom: -0.6rem;
   padding-right: 0.8rem;
+  padding-bottom: 0.1rem;
   float: left;
   color: transparent;
   background-image: linear-gradient(#b89956, #d8cdb6);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
 }
@@ -574,18 +578,6 @@ img.size-cover {
   margin-left: calc(-2rem);
   margin-right: calc(-2rem);
   margin-bottom: calc(2rem);
-}
-
-/* .size-cover's mirror image: bleeds into the bottom page margin (and
- * still into the side margins) instead of the top one. */
-img.size-footer {
-  max-width: none;
-  width: calc(100% + 4rem);
-  height: auto;
-  margin-top: calc(2rem);
-  margin-left: calc(-2rem);
-  margin-right: calc(-2rem);
-  margin-bottom: calc(-3rem);
 }
 
 figcaption {
