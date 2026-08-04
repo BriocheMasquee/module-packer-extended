@@ -10,6 +10,7 @@ import {
   MONSTER_META_FIELDS,
   MONSTER_DATA_FIELDS,
   SPELL_SCHOOLS,
+  SPELL_ACTIVATION_UNITS,
   SPELL_RANGE_TYPES,
   SPELL_AREA_EFFECT_SHAPES,
   SPELL_COMPONENTS,
@@ -25,6 +26,8 @@ import {
   MONSTER_ALIGNMENTS,
   MONSTER_DAMAGE_TYPES,
   MONSTER_CHALLENGE_RATINGS,
+  MONSTER_ABILITY_KEYS,
+  MONSTER_SKILLS,
   COMPENDIUM_RULESET,
 } from 'mpx-core'
 
@@ -53,12 +56,14 @@ const FIELD_NAMES: Record<BlockKind, readonly string[]> = {
   monster: [...MONSTER_META_FIELDS, ...MONSTER_DATA_FIELDS],
 }
 
-/** Enum-valued fields only — nested object fields (a spell's `activation`,
- * a monster's `speed`/`senses`/`skills`/`savingThrows`/`abilities`) aren't
- * covered yet (tracked as a follow-up, not part of this first pass). Array
- * fields (e.g. `components`, `damageResistances`) are listed the same way
- * as scalar ones: authored inline as `field: [a, b]` in every existing
- * snippet/example, so completing "after the colon" already covers both. */
+/** Enum-valued top-level scalar/array fields. Nested object fields
+ * (`attributes`, a spell's `activation`, a monster's `abilities`/
+ * `savingThrows`/`skills`) have their own children lists below
+ * (CONTAINER_FIELDS) — a monster's `speed`/`senses` aren't covered yet.
+ * Array fields (e.g. `components`, `damageResistances`) are listed the
+ * same way as scalar ones: authored inline as `field: [a, b]` in every
+ * existing snippet/example, so completing "after the colon" already
+ * covers both. */
 const ENUM_VALUES: Record<BlockKind, Record<string, readonly string[]>> = {
   spell: {
     school: withoutBlank(SPELL_SCHOOLS),
@@ -88,20 +93,40 @@ const ENUM_VALUES: Record<BlockKind, Record<string, readonly string[]>> = {
 
 /** Object-valued fields with a known, fixed set of children — completion
  * inside one of these only offers its own children, not the block's
- * top-level fields. `attributes` is the only one covered so far (a
- * monster's `speed`/`senses`/`skills`/`savingThrows`/`abilities` are still
- * a follow-up, same gap noted on ENUM_VALUES above). `attributes.measurement`
- * only ever holds a resolved "imperial"/"metric" once written (never
- * "auto" — that's a project *setting*'s own option, not a legal value for
- * an individual entry, see resolveMeasurementSystem in core). */
+ * top-level fields (or, worse, nothing useful at all — the previous gap
+ * this closes). A monster's `speed`/`senses` aren't covered yet. */
 const ATTRIBUTES_CHILDREN: Record<string, readonly string[]> = {
+  // Only ever holds a resolved "imperial"/"metric" once written (never
+  // "auto" — that's a project *setting*'s own option, not a legal value for
+  // an individual entry, see resolveMeasurementSystem in core).
   measurement: ['imperial', 'metric'],
   ruleset: [COMPENDIUM_RULESET],
 }
+/** Each ability key (`str`/`dex`/.../`cha`) maps to a plain number, so
+ * there's nothing to suggest for the *value* — only the key names
+ * themselves are worth completing. Shared by `abilities` and
+ * `savingThrows` (both keyed the same way). */
+const ABILITY_CHILDREN: Record<string, readonly string[]> = Object.fromEntries(
+  MONSTER_ABILITY_KEYS.map((key) => [key, []]),
+)
+/** Same idea for `skills` — each skill name (`perception`, `stealth`, ...)
+ * maps to a plain number. */
+const SKILL_CHILDREN: Record<string, readonly string[]> = Object.fromEntries(
+  MONSTER_SKILLS.map((key) => [key, []]),
+)
+const ACTIVATION_CHILDREN: Record<string, readonly string[]> = {
+  unit: withoutBlank(SPELL_ACTIVATION_UNITS),
+  time: [],
+}
 const CONTAINER_FIELDS: Record<BlockKind, Record<string, Record<string, readonly string[]>>> = {
-  spell: { attributes: ATTRIBUTES_CHILDREN },
+  spell: { attributes: ATTRIBUTES_CHILDREN, activation: ACTIVATION_CHILDREN },
   item: { attributes: ATTRIBUTES_CHILDREN },
-  monster: { attributes: ATTRIBUTES_CHILDREN },
+  monster: {
+    attributes: ATTRIBUTES_CHILDREN,
+    abilities: ABILITY_CHILDREN,
+    savingThrows: ABILITY_CHILDREN,
+    skills: SKILL_CHILDREN,
+  },
 }
 
 const FENCE_OPEN = /^```\s*(spell|item|monster)\b/i
@@ -265,7 +290,12 @@ export function registerCompendiumBlockAssistance(context: vscode.ExtensionConte
 
   context.subscriptions.push(
     diagnosticCollection,
-    vscode.languages.registerCompletionItemProvider('markdown', new CompendiumBlockCompletionProvider(), ':', ' ', '['),
+    // No ' ' (space) trigger character: retriggering completion on every
+    // space typed inside a free-text field's value (descr, typeDetail, ...)
+    // reopened the suggestion widget constantly while composing prose —
+    // ':' (right after a field name) and '[' (entering an inline array) are
+    // the only positions completion is actually useful at.
+    vscode.languages.registerCompletionItemProvider('markdown', new CompendiumBlockCompletionProvider(), ':', '['),
     vscode.workspace.onDidOpenTextDocument(refresh),
     vscode.workspace.onDidChangeTextDocument((event) => refresh(event.document)),
     vscode.workspace.onDidCloseTextDocument((document) => diagnosticCollection.delete(document.uri)),

@@ -312,9 +312,17 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 ## Editing assistance for inline blocks
 
 While editing a ```spell/```item/```monster block, VSCode's Markdown editor provides:
-- **Field-name completion** — on a blank line inside the block, suggests every valid top-level YAML key for that block type; on a blank line nested under `attributes:`, suggests only `measurement`/`ruleset` instead (not the block's own top-level fields).
-- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field, plus `attributes.measurement` (`imperial`/`metric` — never `auto`, which is only a valid *setting* value, not something an individual entry ever stores) and `attributes.ruleset` (always `5.5e`). Other nested object fields (a spell's `activation`, a monster's `speed`/`senses`/`skills`/`savingThrows`/`abilities`) aren't covered yet.
+- **Field-name completion** — on a blank line inside the block, suggests every valid top-level YAML key for that block type. On a blank line nested under a known container field, suggests only *that* field's own children instead of the block's top-level fields:
+  - `attributes:` → `measurement`/`ruleset` (spell, item, monster)
+  - a spell's `activation:` → `unit`/`time`
+  - a monster's `abilities:`/`savingThrows:` → the six ability keys (`str`/`dex`/`con`/`int`/`wis`/`cha`)
+  - a monster's `skills:` → every skill name (`perception`, `stealth`, ...)
+
+  A monster's `speed:`/`senses:` aren't covered yet — nested under either one, completion abstains rather than falling back to the top-level list.
+- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field, plus the nested fields above that have their own value list (`attributes.measurement` is `imperial`/`metric` — never `auto`, which is only a valid *setting* value, not something an individual entry ever stores; `attributes.ruleset` is always `5.5e`; a spell's `activation.unit` gets the activation-unit list). Ability/skill values are plain numbers, so only their key names are completed, not a value list. `languages`/`environments` still accept free-form values with no suggested list (same gap as their build-time validation — see [Fields that accept a custom value alongside a standard list](#fields-that-accept-a-custom-value-alongside-a-standard-list) — tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)).
 - **Live diagnostics** — the same validation `Build Module` and the rendered preview's error message already run (`validateSpellData`/`validateItemData`/`validateMonsterData`) also shows up as an editor warning on the block's opening fence line, without needing the preview open. Only checked once the block has its closing ` ``` ` — a block still being typed isn't flagged as broken mid-edit.
+
+Completion only re-triggers on `:` (right after a field name) and `[` (entering an inline array) — not on every space — so it stays out of the way while composing free text like `descr`.
 
 Both reuse the exact same field-name/enum-value lists and validators the renderer and `Build Module` already use (`core/src/spellCompendium.ts`/`itemCompendium.ts`/`monsterCompendium.ts`, `parseSpellBlock`/`parseItemBlock`/`parseMonsterBlock`), so this can't drift out of sync with what actually builds.
 
@@ -325,4 +333,4 @@ Both reuse the exact same field-name/enum-value lists and validators the rendere
 - **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists for tables too (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.
 - **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — out of scope for now (tracked in [issue #1](https://github.com/BriocheMasquee/mpx-bis/issues/1), which originally covered both surfaces); front-matter mistakes are still caught at `Build Module` time.
-- **No completion for nested object fields** inside a block (a spell's `activation`, a monster's `speed`/`senses`/`skills`/`savingThrows`/`abilities`) — only top-level scalar/array enum fields are covered so far.
+- **No completion for a monster's `speed`/`senses`** nested fields — every other nested object field (`attributes`, a spell's `activation`, a monster's `abilities`/`savingThrows`/`skills`) is covered, see [Editing assistance for inline blocks](#editing-assistance-for-inline-blocks).

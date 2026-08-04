@@ -54,6 +54,7 @@ export { parseMonsterBlock, MONSTER_META_FIELDS, MONSTER_DATA_FIELDS } from './m
 export type { ParsedMonsterBlock } from './monsterBlock.js'
 export {
   SPELL_SCHOOLS,
+  SPELL_ACTIVATION_UNITS,
   SPELL_RANGE_TYPES,
   SPELL_AREA_EFFECT_SHAPES,
   SPELL_COMPONENTS,
@@ -67,5 +68,7 @@ export {
   MONSTER_ALIGNMENTS,
   MONSTER_DAMAGE_TYPES,
   MONSTER_CHALLENGE_RATINGS,
+  MONSTER_ABILITY_KEYS,
+  MONSTER_SKILLS,
 } from './monsterCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'
