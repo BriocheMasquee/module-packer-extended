@@ -1,9 +1,17 @@
 import { access, readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { loadCatalogOverrides } from 'mpx-core'
+import { loadCatalogOverrides, discoverProjectThemes, resolveProjectTheme, DEFAULT_PROJECT_THEME_ID } from 'mpx-core'
 
 const VIEW_ID = 'mpx.projectExplorer'
+
+// Duplicated (not imported) from extension.ts's own themesRootDirectory —
+// a one-line pure path helper isn't worth risking a circular import between
+// the two modules (extension.ts already imports registerProjectExplorer
+// from here).
+function themesRootDirectory(context: vscode.ExtensionContext): string {
+  return join(context.extensionPath, 'resources', 'themes')
+}
 
 class SummaryItem extends vscode.TreeItem {
   constructor(name: string, description: string | undefined, moduleJsonPath: string) {
@@ -26,6 +34,18 @@ class ProjectSettingsItem extends vscode.TreeItem {
       command: 'vscode.open',
       title: 'Open',
       arguments: [vscode.Uri.file(filePath)],
+    }
+  }
+}
+
+class ThemeItem extends vscode.TreeItem {
+  constructor(themeName: string) {
+    super('Theme', vscode.TreeItemCollapsibleState.None)
+    this.description = themeName
+    this.iconPath = new vscode.ThemeIcon('paintcan')
+    this.command = {
+      command: 'mpx.selectProjectTheme',
+      title: 'Select Project Theme',
     }
   }
 }
@@ -109,6 +129,7 @@ class ProjectFileItem extends vscode.TreeItem {
 
 type ProjectItem =
   | SummaryItem
+  | ThemeItem
   | CompendiumSummaryItem
   | ProjectSettingsItem
   | TranslationOverridesItem
@@ -153,6 +174,8 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
   private readonly changeEmitter = new vscode.EventEmitter<void>()
   readonly onDidChangeTreeData = this.changeEmitter.event
 
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
   refresh(): void {
     this.changeEmitter.fire()
   }
@@ -187,6 +210,14 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
       const system = typeof moduleJson.system === 'string' ? moduleJson.system : undefined
       const description = [version ? `v${version}` : undefined, system].filter(Boolean).join(' · ')
       items.push(new SummaryItem(name, description || undefined, moduleJsonPath))
+
+      const themes = await discoverProjectThemes(themesRootDirectory(this.context))
+      if (themes.length > 0) {
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder)
+        const currentThemeId = config.get<string>('projectTheme', DEFAULT_PROJECT_THEME_ID)
+        const currentTheme = resolveProjectTheme(themes, currentThemeId) ?? themes[0]
+        items.push(new ThemeItem(currentTheme.name))
+      }
 
       for (const [field, label] of [
         ['image', 'Cover Image'],
@@ -226,7 +257,7 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
 }
 
 export function registerProjectExplorer(context: vscode.ExtensionContext): void {
-  const provider = new ProjectExplorerProvider()
+  const provider = new ProjectExplorerProvider(context)
   const refresh = () => provider.refresh()
 
   let watcher: vscode.FileSystemWatcher | undefined

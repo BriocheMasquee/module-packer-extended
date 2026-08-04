@@ -1,5 +1,13 @@
 export { createModuleProject, detectWorkspaceKind, MODULE_CATEGORIES } from './moduleProject.js'
 export type { ModuleCategory, ModuleJson, WorkspaceKind } from './moduleProject.js'
+export {
+  discoverProjectThemes,
+  resolveProjectTheme,
+  projectAssetsMatchTheme,
+  replaceProjectThemeAssets,
+  DEFAULT_PROJECT_THEME_ID,
+} from './themeCatalog.js'
+export type { ProjectTheme } from './themeCatalog.js'
 export { parseModuleTree } from './moduleTree.js'
 export type { ModuleTreeNode, ModuleTreeNodeKind } from './moduleTree.js'
 export {

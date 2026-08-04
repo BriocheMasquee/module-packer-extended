@@ -153,6 +153,18 @@
           "default": true,
           "scope": "resource",
           "markdownDescription": "Whether a page's Markdown table whose header links to `/roll/...` is automatically detected and built into `tables.json` as a roll table, with no separate file needed.\n\nPossible values: `true` (default) or `false` — a plain Markdown table, even with a `/roll/...` header link, is then never treated specially."
+        },
+        "mpx.projectTheme": {
+          "type": "string",
+          "enum": [
+            "5.5e"
+          ],
+          "enumDescriptions": [
+            "Modern D&D 5.5e appearance and resources."
+          ],
+          "default": "5.5e",
+          "scope": "resource",
+          "markdownDescription": "The theme whose CSS/image/font assets are copied into this project's `assets/` folder (see the \"MPX: Select Project Theme\" command or the Project panel's Theme entry to change it, which resyncs `assets/` from the extension's bundled copy). Only one theme ships today; more will extend this list without changing what's already set.\n\nPossible values: `\"5.5e\"` (default)."
         }
       }
     },
@@ -232,6 +244,12 @@
         "command": "mpx.selectDefaultMeasurement",
         "title": "Select Default Measurement",
         "category": "MPX"
+      },
+      {
+        "command": "mpx.selectProjectTheme",
+        "title": "Select Project Theme",
+        "category": "MPX",
+        "icon": "$(paintcan)"
       },
       {
         "command": "mpx.createTranslationOverrides",
