@@ -61,7 +61,7 @@ A monster's `data.languages` and `data.environments` aren't strictly validated a
 
 ## Inline spell authoring
 
-A spell can also be written directly inside a page's Markdown, as a fenced ` ```spell ` YAML block, instead of (or alongside) a standalone `spells/<slug>.json` file. Spells, items, and monsters (see "Inline item authoring"/"Inline monster authoring" below) are the only Compendium content types that currently support inline authoring — see "Not included (yet)" below for roll tables. Spell and item share the same `.compendium-block` CSS (top border, fonts, title) — only the detail lines and field set differ. Monster uses a separate, older `.statblock` CSS system instead (see "Inline monster authoring") — visually unrelated to `.compendium-block`.
+A spell can also be written directly inside a page's Markdown, as a fenced ` ```spell ` YAML block, instead of (or alongside) a standalone `spells/<slug>.json` file. Spells, items, and monsters (see "Inline item authoring"/"Inline monster authoring" below) support this fenced-block style of inline authoring; a roll table instead gets auto-detected straight from a plain Markdown table, no fenced block needed — see [Roll table auto-detection](#roll-table-auto-detection). Spell and item share the same `.compendium-block` CSS (top border, fonts, title) — only the detail lines and field set differ. Monster uses a separate, older `.statblock` CSS system instead (see "Inline monster authoring") — visually unrelated to `.compendium-block`.
 
 ### YAML shape
 
@@ -319,6 +319,30 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 - **`languages` always joins with `, `** — the official books sometimes separate a trailing "telepathy N ft." note with a semicolon instead. Minor cosmetic difference, not worth a special case for one entry format.
 - **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS regardless of `mpx.contentLanguage` — corrected to always show "SAVE", with a `.statblock.lang-fr` CSS override switching it back to "JdS" only when the monster block is actually rendered in French (see [Localization](Localization)).
 
+## Roll table auto-detection
+
+A page's Markdown table becomes a roll table at build time on its own — no fenced block, no snippet, no separate `tables/<slug>.json` file needed — reimplementing what the original Module Packer and old MPX both supported. Detection heuristic: the header's first cell links to `/roll/...` (the dice notation, e.g. `[2d6](/roll/2d6)` — the destination itself is never followed, only its `/roll/` prefix matters):
+
+```
+## Encounter Table {.table-title}
+
+|[2d6](/roll/2d6)|Encounter|
+|:---:|:---|
+|2-3|3 Kobolds|
+|4-5|2 Owlbears|
+|6-8|10 Giant Rats|
+|9-10|1 Vampire|
+|11-12|1 Tarrasque|
+```
+
+- **Name/slug** default to `"{page name} — {result column headers}"` / `{page-slug}-{that text, slugified}`, with a `(2)`/`(3)`... suffix on a same-page collision. A heading placed right above the table (anywhere before it, as long as no other heading comes between) carrying a `{.table-title}` class overrides this entirely — the heading's own text becomes the table's full name, and the heading itself still renders normally on the page. `.table-title` is a real theme CSS class (small-caps, no border), not something new introduced for this.
+- **`{.no-repeat}`/`{.each-row}`** immediately after the roll link select `rollMode` (`noRepeat`/`eachRow`), same as a standalone table's `rollMode` field — the marker itself never leaks into the rendered link.
+- **Build merge** works exactly like an inline spell/item/monster block: every detected table across every page merges into `tables.json` alongside standalone files, validated the same way (columns/rows shape, `rollMode` enum), with duplicate-slug/duplicate-id detection applying across both sources. Unlike spells/items/monsters, an inline table never carries an explicit `id` — it's always derived from its slug.
+- **Compendium panel entry** — a detected table shows up in the "Roll Tables" category alongside standalone files, same as an inline spell/item/monster; clicking it reveals the table's location in the page.
+- **Preview-only caption** — the live preview shows a small caption ("Detected as roll table — `{slug}`", localized to French when `mpx.contentLanguage` is `"fr"`) right under a detected table, so it's obvious at a glance which tables will end up in `tables.json`. Purely an editor affordance — never part of the built `.module`.
+- **Two back-to-back tables need two blank lines between them**, not one — `markdown-it-multimd-table`'s own "multibody" feature merges tables separated by exactly one blank line into a single table with multiple `<tbody>` sections (a pre-existing renderer behavior, unrelated to roll table detection specifically, but easy to trip over when authoring two roll tables right after each other).
+- **No opt-out toggle** — always on, matching the old MPX's own behavior (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), previously blocked on this feature existing at all).
+
 ## Editing assistance for inline blocks
 
 While editing a ```spell/```item/```monster block, VSCode's Markdown editor provides:
@@ -342,9 +366,8 @@ Both reuse the exact same field-name/enum-value lists and validators the rendere
 
 ## Not included (yet)
 
-- **No inline authoring for roll tables** auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now (tracked in [issue #26](https://github.com/BriocheMasquee/mpx-bis/issues/26)); standalone JSON files only. Spells, items, and monsters all support inline authoring — see above.
-- **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item/monster's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
-- **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists for tables too (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
+- **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item/monster's entry (and an auto-detected roll table's) reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
+- **No on/off toggle for roll table auto-detection** — always on for now (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), previously blocked on detection existing at all — see [Roll table auto-detection](#roll-table-auto-detection) — now unblocked).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.
-- **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — out of scope for now (tracked in [issue #1](https://github.com/BriocheMasquee/mpx-bis/issues/1), which originally covered both surfaces); front-matter mistakes are still caught at `Build Module` time.
+- **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — deliberately not planned (closed as not wanted, see former issue #1); front-matter mistakes are still caught at `Build Module` time.
 - **No completion for a monster's `speed`/`senses`** nested fields — every other nested object field (`attributes`, a spell's `activation`, a monster's `abilities`/`savingThrows`/`skills`) is covered, see [Editing assistance for inline blocks](#editing-assistance-for-inline-blocks).

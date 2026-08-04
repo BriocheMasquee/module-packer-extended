@@ -25,4 +25,4 @@ While editing any of these files, VSCode validates them against their EncounterP
 
 - No parent picker at creation time — `parent` is always written empty; set it by hand in the file. The Module Explorer will pick up the nesting once you do.
 - No automatic rank calculation — `rank` is always `0`; reorder siblings by hand if needed.
-- No authoring assistance for Markdown page front matter (no native VSCode schema support for that) — tracked separately in [issue #1](https://github.com/BriocheMasquee/mpx-bis/issues/1).
+- No authoring assistance for Markdown page front matter (no native VSCode schema support for that) — deliberately not planned (closed as not wanted, see former issue #1).
