@@ -341,7 +341,7 @@ A page's Markdown table becomes a roll table at build time on its own — no fen
 - **Compendium panel entry** — a detected table shows up in the "Roll Tables" category alongside standalone files, same as an inline spell/item/monster; clicking it reveals the table's location in the page.
 - **Preview-only caption** — the live preview shows a small caption ("Detected as roll table — `{slug}`", localized to French when `mpx.contentLanguage` is `"fr"`) right under a detected table, so it's obvious at a glance which tables will end up in `tables.json`. Purely an editor affordance — never part of the built `.module`.
 - **Two back-to-back tables need two blank lines between them**, not one — `markdown-it-multimd-table`'s own "multibody" feature merges tables separated by exactly one blank line into a single table with multiple `<tbody>` sections (a pre-existing renderer behavior, unrelated to roll table detection specifically, but easy to trip over when authoring two roll tables right after each other).
-- **No opt-out toggle** — always on, matching the old MPX's own behavior (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), previously blocked on this feature existing at all).
+- **`mpx.autoDetectRollTables`** (project setting, default `true`) turns this off entirely when set to `false` — a table with a `/roll/...` header link then renders as a completely plain table (link untouched, no `tables.json` entry, no preview caption, nothing listed in the Compendium panel). The old MPX had this always on with no way to disable it; the original Module Packer's own opt-in equivalent was a `create-roll-tables: true` field in `Module.yaml` — this project instead defaults to on (matching what most authors coming from old MPX expect) with an explicit opt-out.
 
 ## Editing assistance for inline blocks
 
@@ -367,7 +367,6 @@ Both reuse the exact same field-name/enum-value lists and validators the rendere
 ## Not included (yet)
 
 - **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item/monster's entry (and an auto-detected roll table's) reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
-- **No on/off toggle for roll table auto-detection** — always on for now (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), previously blocked on detection existing at all — see [Roll table auto-detection](#roll-table-auto-detection) — now unblocked).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.
 - **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — deliberately not planned (closed as not wanted, see former issue #1); front-matter mistakes are still caught at `Build Module` time.
 - **No completion for a monster's `speed`/`senses`** nested fields — every other nested object field (`attributes`, a spell's `activation`, a monster's `abilities`/`savingThrows`/`skills`) is covered, see [Editing assistance for inline blocks](#editing-assistance-for-inline-blocks).

@@ -69,6 +69,7 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
     showSources: config.get<boolean>('defaultShowMonsterSources', true),
     showTags: config.get<boolean>('defaultShowMonsterTags', true),
   }
+  const autoDetectRollTables = config.get<boolean>('autoDetectRollTables', true)
 
   try {
     const summary = await vscode.window.withProgress(
@@ -82,6 +83,7 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
           spellDisplayDefaults,
           itemDisplayDefaults,
           monsterDisplayDefaults,
+          autoDetectRollTables,
         }),
     )
 

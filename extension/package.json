@@ -147,6 +147,12 @@
           "default": true,
           "scope": "resource",
           "markdownDescription": "Default for an inline ` ```monster ` block's `showTags` when the field is left absent. An explicit `showTags` in the monster's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+        },
+        "mpx.autoDetectRollTables": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Whether a page's Markdown table whose header links to `/roll/...` is automatically detected and built into `tables.json` as a roll table, with no separate file needed.\n\nPossible values: `true` (default) or `false` — a plain Markdown table, even with a `/roll/...` header link, is then never treated specially."
         }
       }
     },

@@ -56,6 +56,12 @@ export interface MarkdownRendererOptions {
   itemDisplayDefaults?: ItemDisplayDefaults | (() => ItemDisplayDefaults)
   /** Same as `spellDisplayDefaults`, for a monster's `show*` toggles. */
   monsterDisplayDefaults?: MonsterDisplayDefaults | (() => MonsterDisplayDefaults)
+  /** Project-wide opt-out for roll table auto-detection (`mpx.autoDetectRollTables`,
+   * default `true`) — when `false`, a table whose header links to `/roll/...`
+   * renders as a plain table, with no env.inlineRollTables entry, no href
+   * rewrite, and no preview caption. Same getter-vs-value flexibility as
+   * `measurement`, for the same live-preview-refresh reason. */
+  autoDetectRollTables?: boolean | (() => boolean)
 }
 
 /** Collected while rendering a page, so the build can merge inline
@@ -591,6 +597,9 @@ function installRollTableDetection(markdown: MarkdownItInstance, options: Markdo
   // `## Heading {.table-title}` heading already carries its class attribute
   // by the time this rule reads it.
   markdown.core.ruler.after('curly_attributes', 'mpx_roll_tables', (state) => {
+    if (!resolveOption(options.autoDetectRollTables, true)) {
+      return
+    }
     const env = state.env as MpxMarkdownEnvironment | undefined
     const pageName = env?.pageName ?? extractFrontMatterField(state.src, 'name') ?? 'Page'
     const pageSlug = env?.pageSlug ?? extractFrontMatterField(state.src, 'slug') ?? 'page'

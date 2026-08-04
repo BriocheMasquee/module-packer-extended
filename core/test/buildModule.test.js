@@ -2096,6 +2096,33 @@ test('buildModule rejects an inline roll table slug that collides with a standal
   })
 })
 
+test('buildModule({ autoDetectRollTables: false }) never merges a table auto-detected from a page', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '|[2d6](/roll/2d6)|Encounter|',
+      '|:---:|:---|',
+      '|2-3|3 Kobolds|',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root, { autoDetectRollTables: false })
+
+  assert.equal(summary.tableCount, 0)
+  assert.ok(!listZipEntries(summary.outputPath).includes('tables.json'))
+})
+
 test('buildModule omits monsters.json when there are no monsters', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)

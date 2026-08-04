@@ -13,11 +13,22 @@ interface InlineEntrySummary {
   line: number
 }
 
+/** mpx.autoDetectRollTables off means nothing will actually build from a
+ * page's Markdown tables — mirror that in the panel by reporting no inline
+ * entries at all, rather than listing tables a build would just ignore. */
+async function findInlineRollTablesIfEnabled(moduleRoot: string): Promise<InlineEntrySummary[]> {
+  const config = vscode.workspace.getConfiguration('mpx', vscode.Uri.file(moduleRoot))
+  if (!config.get<boolean>('autoDetectRollTables', true)) {
+    return []
+  }
+  return findInlineRollTables(moduleRoot)
+}
+
 const CATEGORIES = [
   { label: 'Monsters', folder: 'monsters', icon: 'snake', findInline: findInlineMonsters },
   { label: 'Spells', folder: 'spells', icon: 'wand', findInline: findInlineSpells },
   { label: 'Items', folder: 'items', icon: 'archive', findInline: findInlineItems },
-  { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', findInline: findInlineRollTables },
+  { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', findInline: findInlineRollTablesIfEnabled },
 ] satisfies readonly {
   label: string
   folder: string

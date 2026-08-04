@@ -286,3 +286,27 @@ test('createMarkdownRenderer (build mode, not preview) never emits the roll-tabl
 
   assert.doesNotMatch(html, /mpx-roll-table-caption/)
 })
+
+test('createMarkdownRenderer({ autoDetectRollTables: false }) never detects a table, even with a /roll/ header link', () => {
+  const markdown = createMarkdownRenderer({ autoDetectRollTables: false, preview: true })
+  const env = { pageName: 'My Page', pageSlug: 'my-page' }
+  const html = markdown.render(rollTableSource('[2d6](/roll/2d6){.no-repeat}'), env)
+
+  assert.equal(env.inlineRollTables, undefined)
+  assert.doesNotMatch(html, /mpx-roll-table-caption/)
+  // The link is left completely untouched — still points at /roll/, not rewritten to /table-roll/.
+  assert.match(html, /<a href="\/roll\/2d6"/)
+})
+
+test('createMarkdownRenderer accepts an autoDetectRollTables getter re-read on every render, not resolved once', () => {
+  let enabled = false
+  const markdown = createMarkdownRenderer({ autoDetectRollTables: () => enabled })
+  const env1 = { pageName: 'My Page', pageSlug: 'my-page' }
+  markdown.render(rollTableSource('[2d6](/roll/2d6)'), env1)
+  assert.equal(env1.inlineRollTables, undefined)
+
+  enabled = true
+  const env2 = { pageName: 'My Page', pageSlug: 'my-page' }
+  markdown.render(rollTableSource('[2d6](/roll/2d6)'), env2)
+  assert.equal(env2.inlineRollTables.length, 1)
+})

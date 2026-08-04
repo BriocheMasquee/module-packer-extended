@@ -233,6 +233,7 @@ async function readPages(
   spellDisplayDefaults: SpellDisplayDefaults | undefined,
   itemDisplayDefaults: ItemDisplayDefaults | undefined,
   monsterDisplayDefaults: MonsterDisplayDefaults | undefined,
+  autoDetectRollTables: boolean,
 ): Promise<{
   entries: ResolvedEntry[]
   inlineSpells: PageInlineEntrySource[]
@@ -247,6 +248,7 @@ async function readPages(
     spellDisplayDefaults,
     itemDisplayDefaults,
     monsterDisplayDefaults,
+    autoDetectRollTables,
   })
   const entries: ResolvedEntry[] = []
   const inlineSpells: PageInlineEntrySource[] = []
@@ -1154,6 +1156,11 @@ export interface BuildOptions {
   /** Same as `spellDisplayDefaults`, for an inline monster's `show*` toggles
    * (mpx.defaultShowMonster* settings). */
   monsterDisplayDefaults?: MonsterDisplayDefaults
+  /** Resolved from the project's `mpx.autoDetectRollTables` setting — when
+   * `false`, a page's Markdown tables are never auto-detected as roll
+   * tables, even one whose header links to `/roll/...`. Defaults to `true`
+   * if not provided. */
+  autoDetectRollTables?: boolean
 }
 
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
@@ -1185,6 +1192,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       options.spellDisplayDefaults,
       options.itemDisplayDefaults,
       options.monsterDisplayDefaults,
+      options.autoDetectRollTables ?? true,
     ),
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
