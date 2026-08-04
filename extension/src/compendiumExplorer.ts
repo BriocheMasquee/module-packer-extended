@@ -214,6 +214,16 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
       rebuildWatchers()
       refresh()
     }),
+    // Unlike the other mpx.default* settings (which only change how an
+    // already-listed entry renders), this one changes whether a page's
+    // tables are listed here at all — a plain file/page-content watcher
+    // never fires for a settings.json edit, so a config-change listener is
+    // needed for the panel to reflect the toggle without a manual refresh.
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('mpx.autoDetectRollTables')) {
+        refresh()
+      }
+    }),
     new vscode.Disposable(() => watchers.forEach((watcher) => watcher.dispose())),
   )
 }
