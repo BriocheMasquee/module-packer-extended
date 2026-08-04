@@ -576,6 +576,18 @@ img.size-cover {
   margin-bottom: calc(2rem);
 }
 
+/* .size-cover's mirror image: bleeds into the bottom page margin (and
+ * still into the side margins) instead of the top one. */
+img.size-footer {
+  max-width: none;
+  width: calc(100% + 4rem);
+  height: auto;
+  margin-top: calc(2rem);
+  margin-left: calc(-2rem);
+  margin-right: calc(-2rem);
+  margin-bottom: calc(-3rem);
+}
+
 figcaption {
   text-align: center;
   font-family: var(--font-caption);
