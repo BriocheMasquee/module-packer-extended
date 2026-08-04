@@ -4,3 +4,5 @@
 *.vsix
 coverage/
 .claude/settings.local.json
+/examples/
+/wiki/
