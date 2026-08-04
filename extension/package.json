@@ -27,6 +27,11 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "configurationDefaults": {
+      "[markdown]": {
+        "editor.wordBasedSuggestions": "off"
+      }
+    },
     "configuration": {
       "title": "Module Packer Extended",
       "properties": {

@@ -324,6 +324,8 @@ While editing a ```spell/```item/```monster block, VSCode's Markdown editor prov
 
 Completion only re-triggers on `:` (right after a field name) and `[` (entering an inline array) — not on every space — so it stays out of the way while composing free text like `descr`.
 
+The extension also ships `"[markdown]": { "editor.wordBasedSuggestions": "off" }` as a default (`configurationDefaults` in `package.json`) — VSCode's own built-in word-based suggestions (any word already typed elsewhere in the document, offered as a completion regardless of context) run independently of the completion described above and can't be selectively suppressed inside just a Compendium block, so free-text fields like `descr`/`typeDetail` were getting a irrelevant word list on every keystroke. This is only a *default*: an explicit `editor.wordBasedSuggestions` setting the user has already set (workspace or user level) still wins.
+
 Both reuse the exact same field-name/enum-value lists and validators the renderer and `Build Module` already use (`core/src/spellCompendium.ts`/`itemCompendium.ts`/`monsterCompendium.ts`, `parseSpellBlock`/`parseItemBlock`/`parseMonsterBlock`), so this can't drift out of sync with what actually builds.
 
 ## Not included (yet)
