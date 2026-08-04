@@ -12,6 +12,7 @@ import {
   distanceUnitWord,
   formatSources,
   formatTags,
+  labelSeparator,
 } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
@@ -273,7 +274,7 @@ function buildRangeDetailHtml(
         : ''
     value += ` (${escapeHtml(sizeText)}${formatAreaEffectShapeHtml(areaShape, showAreaEffectIcon, preview, locale)})`
   }
-  return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(translate('Common.Range', locale.language, locale.overrides))}: </span><span class="compendium-block-detail-value">${value}</span></p>`
+  return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(translate('Common.Range', locale.language, locale.overrides))}${labelSeparator(locale.language)}</span><span class="compendium-block-detail-value">${value}</span></p>`
 }
 
 function formatComponents(data: Record<string, unknown>): string | undefined {
@@ -347,7 +348,7 @@ export function renderSpellBlockHtml(
     if (!value) {
       return ''
     }
-    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}: </span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
+    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}${labelSeparator(locale.language)}</span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
   }
 
   const heading = formatHeading(spellData, locale)

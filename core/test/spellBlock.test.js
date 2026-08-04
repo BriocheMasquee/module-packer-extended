@@ -204,6 +204,12 @@ test('shows the French unit word "mètre" for a metric range when language is "f
   assert.match(html, /9 mètre/)
 })
 
+test('uses a non-breaking space before the colon in French detail labels', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```spell\nname: Test\nlevel: 1\nschool: abjuration\ncomponents: [V]\n```\n')
+  assert.match(html, /Composantes&nbsp;: /)
+})
+
 test('reverses the French spell heading order (school before level, not after)', () => {
   const markdown = createMarkdownRenderer({ language: 'fr' })
   const html = markdown.render(

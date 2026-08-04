@@ -280,15 +280,23 @@ test('renders labels in French when language is "fr"', () => {
   const html = markdown.render(
     '```monster\nname: Test\nsize: L\ntype: fey\nskills: { perception: 5 }\nsenses:\n  darkvision: 60\n```\n',
   )
-  assert.match(html, /Compétences: <\/span>Perception \+5/)
-  assert.match(html, /Sens: <\/span>Vision dans le noir 60 ft\./)
+  assert.match(html, /Compétences&nbsp;: <\/span>Perception \+5/)
+  assert.match(html, /Sens&nbsp;: <\/span>Vision dans le noir 60 ft\./)
   assert.match(html, /<div class="statblock-subtitle">Fée de taille G<\/div>/)
+})
+
+test('uses a non-breaking space before the colon in French labels ("Compétences&nbsp;: "), plain colon in English', () => {
+  const frenchHtml = createMarkdownRenderer({ language: 'fr' }).render('```monster\nname: Test\nskills: { perception: 5 }\n```\n')
+  assert.match(frenchHtml, /Compétences&nbsp;: /)
+  const englishHtml = renderMonster('name: Test\nskills: { perception: 5 }')
+  assert.match(englishHtml, /Skills: /)
+  assert.doesNotMatch(englishHtml, /&nbsp;/)
 })
 
 test('translates known languages against the catalog when language is "fr", leaving a custom/unknown one as-is', () => {
   const markdown = createMarkdownRenderer({ language: 'fr' })
   const html = markdown.render('```monster\nname: Test\nlanguages: [Common, Draconic, Zorbaxian]\n```\n')
-  assert.match(html, /Langues: <\/span>Commun, Draconique, Zorbaxian/)
+  assert.match(html, /Langues&nbsp;: <\/span>Commun, Draconique, Zorbaxian/)
 })
 
 test('leaves languages in English as-authored when language is "en" (already matches the catalog value)', () => {
@@ -323,7 +331,7 @@ test('a translation-overrides.json-style override renames a catalog key\'s word 
     overrides: { fr: { 'Skill.Perception': 'Vigilance' } },
   })
   const html = markdown.render('```monster\nname: Test\nskills: { perception: 5 }\n```\n')
-  assert.match(html, /Compétences: <\/span>Vigilance \+5/)
+  assert.match(html, /Compétences&nbsp;: <\/span>Vigilance \+5/)
 })
 
 test('adds a "lang-fr" class to .statblock when language is "fr" (theme CSS switches the floating SAVE header to JdS)', () => {
@@ -344,5 +352,5 @@ test('language accepts a getter re-read on every render, not resolved once', () 
   assert.match(englishHtml, /Skills: <\/span>Perception \+5/)
   language = 'fr'
   const frenchHtml = markdown.render('```monster\nname: Test\nskills: { perception: 5 }\n```\n')
-  assert.match(frenchHtml, /Compétences: <\/span>Perception \+5/)
+  assert.match(frenchHtml, /Compétences&nbsp;: <\/span>Perception \+5/)
 })

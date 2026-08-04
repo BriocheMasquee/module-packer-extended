@@ -10,6 +10,7 @@ import {
   formatDistanceNumber,
   formatSources,
   formatTags,
+  labelSeparator,
 } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
@@ -591,7 +592,7 @@ export function renderMonsterBlockHtml(
 
   const propertyLine = (label: string, value: string | undefined): string =>
     value
-      ? `<p class="statblock-property-line"><span class="statblock-property-name">${escapeHtml(label)}: </span>${escapeHtml(value)}</p>`
+      ? `<p class="statblock-property-line"><span class="statblock-property-name">${escapeHtml(label)}${labelSeparator(locale.language)}</span>${escapeHtml(value)}</p>`
       : ''
 
   const propertiesHtml = [
@@ -627,7 +628,7 @@ export function renderMonsterBlockHtml(
     if (!value) {
       return ''
     }
-    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}: </span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
+    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}${labelSeparator(locale.language)}</span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
   }
   const showSourcesDefault = options.displayDefaults?.showSources ?? true
   const showSources = typeof data.showSources === 'boolean' ? data.showSources : showSourcesDefault
