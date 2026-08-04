@@ -164,24 +164,6 @@
     ],
     "description": "Insert a read-aloud text blockquote"
   },
-  "MPX Paper Block": {
-    "prefix": "mpx-paper",
-    "body": [
-      "> ${1:Text on parchment.}",
-      "{.paper}",
-      "$0"
-    ],
-    "description": "Insert a parchment-style blockquote"
-  },
-  "MPX Flavor Text Block": {
-    "prefix": "mpx-flavortext",
-    "body": [
-      "> ${1:Flavor text.}",
-      "{.flavortext}",
-      "$0"
-    ],
-    "description": "Insert a flavor text blockquote"
-  },
   "MPX Large Quote": {
     "prefix": "mpx-large-quote",
     "body": [
