@@ -432,13 +432,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "echo \"no tests yet\""
   },
-  "dependencies": {
-    "mpx-core": "*"
-  },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.28.1",
+    "mpx-core": "*",
     "typescript": "^7.0.2"
   }
 }
