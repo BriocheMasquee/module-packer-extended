@@ -7,6 +7,7 @@
 
   ![License: CC0-1.0](https://img.shields.io/badge/license-CC0--1.0-blue)
   ![Status: beta](https://img.shields.io/badge/status-beta-orange)
+  [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/BriocheMasquee.module-packer-extended?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=BriocheMasquee.module-packer-extended)
 </div>
 
 > [!WARNING]
@@ -36,6 +37,8 @@ It started from personal needs the original project didn't cover: French/English
 ## What MPX is
 
 MPX is a tool for **module content authors**, complementary to [EncounterPlus](https://itunes.apple.com/us/app/encounter+/id1170693487?ls=1&mt=8) itself (which runs the module at the table) and to a rules-reference tool like EncounterLog — it's what you use beforehand, to write and package the content.
+
+Install it from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=BriocheMasquee.module-packer-extended), or search for "Module Packer Extended" in VSCode's Extensions view.
 
 ## Documentation and current state
 
