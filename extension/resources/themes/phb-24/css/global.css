@@ -384,7 +384,7 @@ blockquote {
   font-family: var(--font-data);
   font-size: 1.3rem;
   display: block;
-  background-color: var(--blockquote-bg, #e0e4c3);
+  background-color: var(--blockquote-bg, #e8d7c4);
   padding: 1rem 1.5rem;
   margin: 2rem 0;
   position: relative;
@@ -461,7 +461,7 @@ blockquote.read {
   border-bottom: none;
   border-left: 0.2rem solid var(--color-signature);
   border-right: 0.2rem solid var(--color-signature);
-  background-color: #edebe8;
+  background-color: #dae8ed;
   box-shadow: none;
 }
 
@@ -637,7 +637,7 @@ table {
   margin-bottom: 3rem;
   page-break-inside: avoid;
   overflow-wrap: break-word;
-  border-bottom: 0.1rem solid var(--table-border, transparent);
+  border-bottom: 0.1rem solid var(--table-border, #7c9eba);
 }
 
 table.center {
@@ -652,11 +652,11 @@ thead {
   font-weight: bold;
   font-size: 1.15rem;
   color: var(--table-accent, inherit);
-  border-bottom: 0.1rem solid var(--table-border, transparent);
+  border-bottom: 0.1rem solid var(--table-border, #7c9eba);
 }
 
 tbody tr:nth-child(odd) {
-  background: var(--table-bg, #e0e4c3);
+  background: var(--table-bg, #dae8ed);
 }
 
 table.blue    { --table-bg: var(--color-blue-light);    --table-accent: var(--color-blue);    --table-border: var(--color-blue-dark); }
