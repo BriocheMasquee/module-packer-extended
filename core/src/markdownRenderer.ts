@@ -601,7 +601,11 @@ function installRollTableDetection(markdown: MarkdownItInstance, options: Markdo
     for (let index = 0; index < state.tokens.length; index += 1) {
       const token = state.tokens[index]
 
-      if (token.type === 'heading_open') {
+      // {.table-title} is a real theme CSS class meant for a short caption
+      // above a table — authors reach for it on either a heading (`## Foo
+      // {.table-title}`) or a plain paragraph (`Foo {.table-title}`), so
+      // both count as "the nearest preceding title" here.
+      if (token.type === 'heading_open' || token.type === 'paragraph_open') {
         const inline = state.tokens[index + 1]
         precedingTableTitle = hasClass(token, 'table-title') ? tokenText(inline) || undefined : undefined
         continue

@@ -205,6 +205,24 @@ test('installRollTableDetection names the table after a preceding {.table-title}
   assert.match(html, /<h2 class="table-title"[^>]*>Encounter Table<\/h2>/)
 })
 
+test('installRollTableDetection also honors a plain paragraph carrying {.table-title}, not just a heading', () => {
+  const markdown = createMarkdownRenderer()
+  const env = { pageName: 'My Page', pageSlug: 'my-page' }
+  const source = [
+    'Encounter Table{.table-title}',
+    '',
+    '|[2d6](/roll/2d6)|Encounter|',
+    '|:---:|:---|',
+    '|2-3|3 Kobolds|',
+    '',
+  ].join('\n')
+  const html = markdown.render(source, env)
+
+  assert.equal(env.inlineRollTables[0].data.name, 'Encounter Table')
+  assert.equal(env.inlineRollTables[0].data.slug, 'my-page-encounter-table')
+  assert.match(html, /<p class="table-title">Encounter Table<\/p>/)
+})
+
 test('installRollTableDetection does not let an older {.table-title} heading apply to a later, unrelated table', () => {
   const markdown = createMarkdownRenderer()
   const env = { pageName: 'My Page', pageSlug: 'my-page' }
