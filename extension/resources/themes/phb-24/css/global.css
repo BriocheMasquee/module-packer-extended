@@ -248,38 +248,49 @@ h6 {
 }
 
 /* Chapter title: a small uppercase label (from the heading's own
- * data-chapter attribute), the gradient title text, then a decorative
- * rule — ported from the PHB-2024 mock-up's own H1 system, colored with
- * this theme's existing --color-gold/--color-signature tokens instead of
- * the mock-up's bespoke palette, and set in --font-heading (already a
- * small-caps face) rather than the mock-up's unavailable 'Wolpe Pegasus'. */
+ * data-chapter attribute, flanked by a pair of gold flourish images), the
+ * gradient title text, then a decorative rule — ported from the PHB-2024
+ * mock-up's own H1 system, colored with this theme's existing
+ * --color-signature/--color-gold tokens instead of the mock-up's bespoke
+ * palette, and set in --font-heading (the mock-up's 'Wolpe Pegasus' isn't
+ * bundled here). */
 h1 {
-  font-size: 3.7rem;
-  line-height: 4.1rem;
+  font-size: 4.6rem;
+  line-height: 5rem;
   padding-bottom: 0.5rem;
   text-align: center;
   letter-spacing: 0.1rem;
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--color-gold) 0%, var(--color-signature) 90%);
+  background-image: linear-gradient(to bottom, var(--color-signature) 0%, var(--color-signature-dark) 100%);
   background-size: 100% 1em;
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-stroke: 0.02rem var(--color-signature-dark);
+  -webkit-text-stroke: 0.015rem var(--color-gold);
   filter: drop-shadow(0 0 0.3rem #fefefc) drop-shadow(0 0 0.2rem #fefefc);
 }
 
 h1[data-chapter]::before {
   content: attr(data-chapter);
   display: block;
-  font-family: var(--font-data-caps);
-  font-size: 1.4rem;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  font-size: 1.15rem;
   font-weight: normal;
   letter-spacing: 0.15rem;
   line-height: 1em;
-  margin-bottom: 0.2rem;
-  text-transform: uppercase;
-  color: var(--color-signature-dark);
-  -webkit-text-stroke: 0;
+  margin-bottom: 0.05rem;
+  padding: 0 3.2rem;
+  color: var(--color-signature);
+  -webkit-text-stroke: 0.012rem var(--color-black);
+  background-repeat: no-repeat, no-repeat;
+  background-position: left center, right center;
+  background-size: 2.4rem 0.8rem, 2.4rem 0.8rem;
+  background-image:
+    url('../img/chapter-label-flourish-left.webp'),
+    url('../img/chapter-label-flourish-right.webp');
 }
 
 h1::after {
