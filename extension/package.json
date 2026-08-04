@@ -3,7 +3,7 @@
   "displayName": "Module Packer Extended",
   "description": "Build EncounterPlus V5 modules from Markdown projects.",
   "version": "0.26.3",
-  "publisher": "local",
+  "publisher": "BriocheMasquee",
   "license": "CC0-1.0",
   "repository": {
     "type": "git",
