@@ -139,3 +139,132 @@ test('createMarkdownRenderer falls back to a plain image when the size syntax is
   assert.doesNotMatch(html, /width=/)
   assert.match(html, /=0x0/)
 })
+
+function rollTableSource(headerLink, { title } = {}) {
+  return [
+    ...(title ? [`## ${title} {.table-title}`, ''] : []),
+    `|${headerLink}|Encounter|`,
+    '|:---:|:---|',
+    '|2-3|3 Kobolds|',
+    '|4-5|2 Owlbears|',
+    '',
+  ].join('\n')
+}
+
+test('installRollTableDetection records a table whose header links to /roll/... on env.inlineRollTables', () => {
+  const markdown = createMarkdownRenderer()
+  const env = { pageName: 'My Page', pageSlug: 'my-page' }
+  markdown.render(rollTableSource('[2d6](/roll/2d6)'), env)
+
+  assert.equal(env.inlineRollTables.length, 1)
+  const table = env.inlineRollTables[0].data
+  assert.equal(table.name, 'My Page — Encounter')
+  assert.equal(table.slug, 'my-page-encounter')
+  assert.deepEqual(table.columns, [{ name: '2d6' }, { name: 'Encounter' }])
+  assert.deepEqual(table.rows, [
+    ['2-3', '3 Kobolds'],
+    ['4-5', '2 Owlbears'],
+  ])
+  assert.equal(table.rollMode, undefined)
+})
+
+test('installRollTableDetection ignores a plain table with no /roll/ link in its header', () => {
+  const markdown = createMarkdownRenderer()
+  const env = { pageName: 'My Page', pageSlug: 'my-page' }
+  markdown.render('|A|B|\n|---|---|\n|1|2|\n', env)
+
+  assert.equal(env.inlineRollTables, undefined)
+})
+
+test('installRollTableDetection reads rollMode from a {.no-repeat} marker on the header link', () => {
+  const markdown = createMarkdownRenderer()
+  const env = {}
+  const html = markdown.render(rollTableSource('[2d6](/roll/2d6){.no-repeat}'), env)
+
+  assert.equal(env.inlineRollTables[0].data.rollMode, 'noRepeat')
+  // The marker shouldn't leak into the rendered link as a stray class.
+  assert.doesNotMatch(html, /no-repeat/)
+})
+
+test('installRollTableDetection reads rollMode from a {.each-row} marker on the header link', () => {
+  const markdown = createMarkdownRenderer()
+  const env = {}
+  markdown.render(rollTableSource('[2d6](/roll/2d6){.each-row}'), env)
+
+  assert.equal(env.inlineRollTables[0].data.rollMode, 'eachRow')
+})
+
+test('installRollTableDetection names the table after a preceding {.table-title} heading instead of the default scheme', () => {
+  const markdown = createMarkdownRenderer()
+  const env = { pageName: 'My Page', pageSlug: 'my-page' }
+  const html = markdown.render(rollTableSource('[2d6](/roll/2d6)', { title: 'Encounter Table' }), env)
+
+  assert.equal(env.inlineRollTables[0].data.name, 'Encounter Table')
+  assert.equal(env.inlineRollTables[0].data.slug, 'my-page-encounter-table')
+  // The heading itself still renders normally in the page.
+  assert.match(html, /<h2 class="table-title"[^>]*>Encounter Table<\/h2>/)
+})
+
+test('installRollTableDetection does not let an older {.table-title} heading apply to a later, unrelated table', () => {
+  const markdown = createMarkdownRenderer()
+  const env = { pageName: 'My Page', pageSlug: 'my-page' }
+  const source = [
+    '## First Table {.table-title}',
+    '',
+    '|[2d6](/roll/2d6)|Encounter|',
+    '|:---:|:---|',
+    '|2-3|3 Kobolds|',
+    '',
+    '## Just Some Heading',
+    '',
+    '|[1d4](/roll/1d4)|Item|',
+    '|:---:|:---|',
+    '|1|Sword|',
+    '',
+  ].join('\n')
+  markdown.render(source, env)
+
+  assert.equal(env.inlineRollTables.length, 2)
+  assert.equal(env.inlineRollTables[0].data.name, 'First Table')
+  assert.equal(env.inlineRollTables[1].data.name, 'My Page — Item')
+})
+
+test('installRollTableDetection appends a "(2)" suffix when two auto-named tables on the same page collide', () => {
+  const markdown = createMarkdownRenderer()
+  const env = { pageName: 'My Page', pageSlug: 'my-page' }
+  // markdown-it-multimd-table merges two tables separated by a single blank
+  // line into one multi-tbody table (its own "multibody" feature) — a
+  // second blank line is what keeps these genuinely separate tables.
+  const source = [rollTableSource('[2d6](/roll/2d6)'), '', rollTableSource('[2d8](/roll/2d8)')].join('\n')
+  markdown.render(source, env)
+
+  assert.equal(env.inlineRollTables.length, 2)
+  assert.equal(env.inlineRollTables[0].data.slug, 'my-page-encounter')
+  assert.equal(env.inlineRollTables[1].data.slug, 'my-page-encounter-2')
+  assert.equal(env.inlineRollTables[1].data.name, 'My Page — Encounter (2)')
+})
+
+test('installRollTableDetection falls back to reading name/slug off the raw front matter when env.pageName/pageSlug are unset (preview path)', () => {
+  const markdown = createMarkdownRenderer()
+  const env = {}
+  markdown.render(`---\nname: Ma Page\nslug: ma-page\n---\n\n${rollTableSource('[2d6](/roll/2d6)')}`, env)
+
+  assert.equal(env.inlineRollTables[0].data.slug, 'ma-page-encounter')
+  assert.equal(env.inlineRollTables[0].data.name, 'Ma Page — Encounter')
+})
+
+test('createMarkdownRenderer({ preview: true }) appends a roll-table caption after the table, in French when language is "fr"', () => {
+  const markdown = createMarkdownRenderer({ preview: true, language: 'fr' })
+  const html = markdown.render(rollTableSource('[2d6](/roll/2d6)'), {})
+
+  assert.match(html, /<div class="mpx-roll-table-caption">/)
+  assert.match(html, /Détectée comme roll table/)
+  assert.match(html, /<span class="mpx-roll-table-caption-slug">page-encounter<\/span>/)
+})
+
+test('createMarkdownRenderer (build mode, not preview) never emits the roll-table caption', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render(rollTableSource('[2d6](/roll/2d6)'), {})
+
+  assert.doesNotMatch(html, /mpx-roll-table-caption/)
+})

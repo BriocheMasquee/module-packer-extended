@@ -7,6 +7,7 @@ import type { ItemDisplayDefaults } from './itemBlock.js'
 import { parseMonsterBlock, renderMonsterBlockHtml } from './monsterBlock.js'
 import type { MonsterDisplayDefaults } from './monsterBlock.js'
 import { escapeHtml } from './compendiumBlock.js'
+import { slugify } from './slug.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 import type { CatalogOverrides } from './catalog.js'
 import type { ValidationIssue } from './compendiumShared.js'
@@ -65,6 +66,15 @@ export interface MpxMarkdownEnvironment {
   inlineSpells?: InlineSpellBlock[]
   inlineItems?: InlineItemBlock[]
   inlineMonsters?: InlineMonsterBlock[]
+  inlineRollTables?: InlineRollTableBlock[]
+  /** The current page's front-matter name/slug, used only to build a roll
+   * table's default name/slug when no {.table-title} heading precedes it.
+   * Set by callers that already parse front matter (buildModule's
+   * readPages, findInlineRollTables) before calling render; when unset (the
+   * real VSCode preview, which drives render() itself) installRollTableDetection
+   * falls back to reading the raw front-matter block off state.src. */
+  pageName?: string
+  pageSlug?: string
 }
 
 export interface InlineSpellBlock {
@@ -85,6 +95,12 @@ export interface InlineMonsterBlock {
   data: Record<string, unknown>
   issues: ValidationIssue[]
   /** 0-based source line the fence starts at, for "reveal in page" navigation. */
+  line: number
+}
+
+export interface InlineRollTableBlock {
+  data: Record<string, unknown>
+  /** 0-based source line the table starts at, for "reveal in page" navigation. */
   line: number
 }
 
@@ -445,6 +461,244 @@ function installMonsterBlockRendering(markdown: MarkdownItInstance, options: Mar
   }
 }
 
+function hasClass(token: Token, name: string): boolean {
+  const value = token.attrGet('class')
+  return typeof value === 'string' && value.split(/\s+/).includes(name)
+}
+
+/** Reads a scalar front-matter field (e.g. "name: My Page") directly off the
+ * raw source — only used as a fallback when the caller hasn't already parsed
+ * front matter and set env.pageName/pageSlug (the real VSCode preview, which
+ * drives render() itself and passes the untouched file text, front matter
+ * included, since installFrontMatterHiding only hides it at render time
+ * rather than stripping it beforehand). Not a general YAML parser: just
+ * enough to recover a plain scalar value for the roll table naming fallback. */
+function extractFrontMatterField(src: string, field: string): string | undefined {
+  const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(src)
+  if (!block) {
+    return undefined
+  }
+  const line = block[1].split(/\r?\n/).find((candidate) => new RegExp(`^${field}\\s*:`).test(candidate))
+  if (!line) {
+    return undefined
+  }
+  const value = line.slice(line.indexOf(':') + 1).trim().replace(/^['"]|['"]$/g, '')
+  return value.length > 0 ? value : undefined
+}
+
+function findClosingToken(tokens: Token[], start: number, openType: string, closeType: string): number {
+  let depth = 0
+  for (let index = start; index < tokens.length; index += 1) {
+    if (tokens[index].type === openType) {
+      depth += 1
+    } else if (tokens[index].type === closeType) {
+      depth -= 1
+      if (depth === 0) {
+        return index
+      }
+    }
+  }
+  return tokens.length - 1
+}
+
+function tokenText(token: Token | undefined): string {
+  if (!token?.children) {
+    return token?.content ?? ''
+  }
+  return token.children
+    .map((child) => {
+      if (child.type === 'text' || child.type === 'code_inline' || child.type === 'html_inline') {
+        return child.content
+      }
+      if (child.type === 'image') {
+        return child.attrGet('alt') ?? child.content
+      }
+      if (child.type === 'softbreak' || child.type === 'hardbreak') {
+        return '\n'
+      }
+      return ''
+    })
+    .join('')
+    .replace(/\{\.(?:no-repeat|each-row)\}\s*$/i, '')
+    .trim()
+}
+
+function rowCells(tokens: Token[], start: number, end: number, cellType: 'th_open' | 'td_open'): string[] {
+  const cells: string[] = []
+  for (let index = start; index < end; index += 1) {
+    if (tokens[index].type !== cellType) {
+      continue
+    }
+    cells.push(tokenText(tokens[index + 1]))
+  }
+  return cells
+}
+
+type RollTableMode = 'normal' | 'noRepeat' | 'eachRow'
+
+/** Finds a `[dice](/roll/...)` link among the header row's first inline
+ * token's children and its optional `{.no-repeat}`/`{.each-row}` marker.
+ * Since this rule runs after markdown-it-attrs' own core rule, that plugin
+ * has already turned a `{.no-repeat}` immediately after the link into a
+ * `class="no-repeat"` on the link itself — but fall back to a raw trailing
+ * text marker too, in case a table shape (e.g. no space before the closing
+ * cell pipe) leaves it unconsumed, matching the original Module
+ * Packer/MPX1 behavior this reimplements. */
+function rollLink(inline: Token | undefined): { token: Token; mode: RollTableMode } | undefined {
+  for (const child of inline?.children ?? []) {
+    if (child.type !== 'link_open') {
+      continue
+    }
+    const destination = child.attrGet('href')
+    if (typeof destination !== 'string' || !destination.startsWith('/roll/')) {
+      continue
+    }
+    let mode: RollTableMode = 'normal'
+    if (hasClass(child, 'no-repeat')) {
+      mode = 'noRepeat'
+    } else if (hasClass(child, 'each-row')) {
+      mode = 'eachRow'
+    }
+    for (const sibling of inline?.children ?? []) {
+      if (sibling.type !== 'text') {
+        continue
+      }
+      const trimmed = sibling.content.trim()
+      if (/^\{\.no-repeat\}$/i.test(trimmed)) {
+        mode = 'noRepeat'
+        sibling.content = ''
+      } else if (/^\{\.each-row\}$/i.test(trimmed)) {
+        mode = 'eachRow'
+        sibling.content = ''
+      }
+    }
+    return { token: child, mode }
+  }
+  return undefined
+}
+
+/** Detects a Markdown table whose header's first cell links to `/roll/...`
+ * (e.g. `[2d6](/roll/2d6)`) and records it on env.inlineRollTables so a build
+ * can merge it into tables.json — the same "no separate file needed"
+ * behavior the original Module Packer and old MPX both supported. A table's
+ * name/slug come from the nearest preceding heading carrying a
+ * `{.table-title}` class if there is one, otherwise from
+ * "{page name} — {result column headers}" (mirroring the original
+ * heuristic), with an in-page "(2)", "(3)"... suffix on a name collision. */
+function installRollTableDetection(markdown: MarkdownItInstance, options: MarkdownRendererOptions): void {
+  // Runs after markdown-it-attrs' own core rule (registered `before('linkify', ...)`,
+  // i.e. right after `inline`) rather than right after `inline` itself, so a
+  // `## Heading {.table-title}` heading already carries its class attribute
+  // by the time this rule reads it.
+  markdown.core.ruler.after('curly_attributes', 'mpx_roll_tables', (state) => {
+    const env = state.env as MpxMarkdownEnvironment | undefined
+    const pageName = env?.pageName ?? extractFrontMatterField(state.src, 'name') ?? 'Page'
+    const pageSlug = env?.pageSlug ?? extractFrontMatterField(state.src, 'slug') ?? 'page'
+    const preview = options.preview === true
+    const language = resolveOption(options.language, 'en' as ContentLanguage)
+    let precedingTableTitle: string | undefined
+
+    for (let index = 0; index < state.tokens.length; index += 1) {
+      const token = state.tokens[index]
+
+      if (token.type === 'heading_open') {
+        const inline = state.tokens[index + 1]
+        precedingTableTitle = hasClass(token, 'table-title') ? tokenText(inline) || undefined : undefined
+        continue
+      }
+
+      if (token.type !== 'table_open') {
+        continue
+      }
+      const tableEnd = findClosingToken(state.tokens, index, 'table_open', 'table_close')
+      const headerRowStart = state.tokens.findIndex(
+        (candidate, candidateIndex) =>
+          candidateIndex > index && candidateIndex < tableEnd && candidate.type === 'tr_open',
+      )
+      if (headerRowStart < 0) {
+        index = tableEnd
+        precedingTableTitle = undefined
+        continue
+      }
+      const headerRowEnd = findClosingToken(state.tokens, headerRowStart, 'tr_open', 'tr_close')
+      const firstHeaderInline = state.tokens
+        .slice(headerRowStart, headerRowEnd)
+        .find((candidate) => candidate.type === 'inline')
+      const detected = rollLink(firstHeaderInline)
+      if (!detected) {
+        index = tableEnd
+        precedingTableTitle = undefined
+        continue
+      }
+
+      const columns = rowCells(state.tokens, headerRowStart, headerRowEnd, 'th_open').map((name) => ({ name }))
+      const rows: string[][] = []
+      for (let rowStart = headerRowEnd + 1; rowStart < tableEnd; rowStart += 1) {
+        if (state.tokens[rowStart].type !== 'tr_open') {
+          continue
+        }
+        const rowEnd = findClosingToken(state.tokens, rowStart, 'tr_open', 'tr_close')
+        const cells = rowCells(state.tokens, rowStart, rowEnd, 'td_open')
+        if (cells.length > 0) {
+          rows.push(cells)
+        }
+        rowStart = rowEnd
+      }
+
+      const resultHeading =
+        columns
+          .slice(1)
+          .map((column) => column.name)
+          .filter(Boolean)
+          .join(' - ') || 'Roll table'
+      const baseName = precedingTableTitle ?? `${pageName} — ${resultHeading}`
+      const baseSlug = `${pageSlug}-${slugify(precedingTableTitle ?? resultHeading) || 'roll-table'}`
+
+      let duplicateIndex = 1
+      let slug = baseSlug
+      while (env?.inlineRollTables?.some((table) => table.data.slug === slug)) {
+        duplicateIndex += 1
+        slug = `${baseSlug}-${duplicateIndex}`
+      }
+      const name = duplicateIndex === 1 ? baseName : `${baseName} (${duplicateIndex})`
+
+      detected.token.attrSet('href', `/table-roll/${slug}`)
+      // The {.no-repeat}/{.each-row} marker is only meant to select rollMode,
+      // not to leave a stray unstyled class on the rendered link.
+      const classIndex = detected.token.attrIndex('class')
+      if (classIndex >= 0 && detected.token.attrs) {
+        detected.token.attrs.splice(classIndex, 1)
+      }
+
+      if (env) {
+        env.inlineRollTables ??= []
+        env.inlineRollTables.push({
+          data: {
+            name,
+            slug,
+            columns,
+            rows,
+            ...(detected.mode === 'normal' ? {} : { rollMode: detected.mode }),
+          },
+          line: token.map?.[0] ?? 0,
+        })
+      }
+
+      if (preview) {
+        const label = language === 'fr' ? 'Détectée comme roll table' : 'Detected as roll table'
+        const caption = `<div class="mpx-roll-table-caption"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg>${escapeHtml(label)} — <span class="mpx-roll-table-caption-slug">${escapeHtml(slug)}</span></div>`
+        const captionToken = new state.Token('html_block', '', 0)
+        captionToken.content = caption
+        captionToken.block = true
+        state.tokens.splice(tableEnd + 1, 0, captionToken)
+      }
+
+      precedingTableTitle = undefined
+      index = tableEnd
+    }
+  })
+}
+
 export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): MarkdownItInstance {
   const markdown = new MarkdownIt({ html: true, linkify: true })
   // markdown-it 15 dropped `utils.assign` (a pre-ES2015 Object.assign shim,
@@ -467,6 +721,7 @@ export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): M
   installSpellBlockRendering(markdown, options)
   installItemBlockRendering(markdown, options)
   installMonsterBlockRendering(markdown, options)
+  installRollTableDetection(markdown, options)
 
   if (options.preview) {
     installFrontMatterHiding(markdown)

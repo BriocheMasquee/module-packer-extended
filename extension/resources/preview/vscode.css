@@ -5,3 +5,34 @@ html, body.vscode-body {
 #page .blockquote-wrap > blockquote {
   border-left: 0;
 }
+
+/* Preview-only annotation under a Markdown table auto-detected as a roll
+ * table (see installRollTableDetection in core/src/markdownRenderer.ts) —
+ * never part of the built .module, purely an editor affordance. */
+.mpx-roll-table-caption {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  font-size: 0.75rem;
+  color: var(--color-signature, #6f1f11);
+  opacity: 0.75;
+  /* Tables carry a generous margin-bottom of their own (theme CSS) — pull
+   * this caption up close under the table it annotates instead of leaving
+   * both gaps stacked. */
+  margin-top: -2.3rem;
+  margin-bottom: 2.3rem;
+}
+
+.mpx-roll-table-caption svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.mpx-roll-table-caption-slug {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  background: color-mix(in srgb, var(--color-signature, #6f1f11) 12%, transparent);
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+}

@@ -1967,6 +1967,135 @@ test('buildModule rejects duplicate roll table ids and slugs', async () => {
   )
 })
 
+test('buildModule merges a roll table auto-detected from a page\'s Markdown table into tables.json', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '## Encounter Table {.table-title}',
+      '',
+      '|[2d6](/roll/2d6){.no-repeat}|Encounter|',
+      '|:---:|:---|',
+      '|2-3|3 Kobolds|',
+      '|4-5|2 Owlbears|',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.tableCount, 1)
+  const tables = JSON.parse(readZipEntry(summary.outputPath, 'tables.json'))
+  assert.equal(tables[0].name, 'Encounter Table')
+  assert.equal(tables[0].slug, 'intro-encounter-table')
+  assert.match(tables[0].id, /^[0-9a-f-]{36}$/)
+  assert.equal(tables[0].rollMode, 'noRepeat')
+  assert.deepEqual(tables[0].columns, [{ name: '2d6' }, { name: 'Encounter' }])
+  assert.deepEqual(tables[0].rows, [
+    ['2-3', '3 Kobolds'],
+    ['4-5', '2 Owlbears'],
+  ])
+
+  // The same slug always resolves to the same id, run to run.
+  const secondBuild = await buildModule(root)
+  const tablesAgain = JSON.parse(readZipEntry(secondBuild.outputPath, 'tables.json'))
+  assert.equal(tablesAgain[0].id, tables[0].id)
+})
+
+test('buildModule merges an inline roll table alongside a standalone one in the same build', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'tables'), { recursive: true })
+  await writeFile(
+    join(root, 'tables', 'loot.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'Loot',
+      slug: 'loot',
+      columns: [{ name: 'D4' }, { name: 'Item' }],
+      rows: [['1', 'Sword']],
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '|[2d6](/roll/2d6)|Encounter|',
+      '|:---:|:---|',
+      '|2-3|3 Kobolds|',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.tableCount, 2)
+  const tables = JSON.parse(readZipEntry(summary.outputPath, 'tables.json')).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  assert.deepEqual(
+    tables.map((table) => table.name),
+    ['Introduction — Encounter', 'Loot'],
+  )
+})
+
+test('buildModule rejects an inline roll table slug that collides with a standalone table file', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await mkdir(join(root, 'tables'), { recursive: true })
+  await writeFile(
+    join(root, 'tables', 'encounter.json'),
+    JSON.stringify({
+      id: '2FC0C658-407E-4385-85B2-454702C98BA2',
+      name: 'Introduction — Encounter',
+      slug: 'intro-encounter',
+      columns: [{ name: 'D4' }, { name: 'Item' }],
+      rows: [['1', 'Sword']],
+    }),
+  )
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '## Encounter {.table-title}',
+      '',
+      '|[2d6](/roll/2d6)|Encounter|',
+      '|:---:|:---|',
+      '|2-3|3 Kobolds|',
+      '',
+    ].join('\n'),
+  )
+
+  await assert.rejects(buildModule(root), (error) => {
+    assert.ok(error instanceof ModuleBuildError)
+    assert.ok(error.issues.some((issue) => issue.message.includes('Duplicate roll table slug "intro-encounter"')))
+    return true
+  })
+})
+
 test('buildModule omits monsters.json when there are no monsters', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)
