@@ -31,6 +31,6 @@ Two more rules apply in both modes — the real app needs them just as much as t
 
 ## Known limitations
 
-- **Reopen the preview after switching a project's theme** (once theme switching exists again, see [issue #6](https://github.com/BriocheMasquee/mpx-bis/issues/6)) — VSCode has no reliable API to force-reload an already-open preview.
-- **Replaces VSCode's Markdown renderer rather than extending it** — matches how both the original Module Packer and the old MPX always did it, but means other installed Markdown extensions' rendering additions don't apply while previewing an MPX page. Tracked as a possible future improvement in [issue #13](https://github.com/BriocheMasquee/mpx-bis/issues/13), not solved upfront.
+- **Reopen the preview after switching a project's theme** (once theme switching exists again, see [issue #6](https://github.com/BriocheMasquee/module-packer-extended/issues/6)) — VSCode has no reliable API to force-reload an already-open preview.
+- **Replaces VSCode's Markdown renderer rather than extending it** — matches how both the original Module Packer and the old MPX always did it, but means other installed Markdown extensions' rendering additions don't apply while previewing an MPX page. Tracked as a possible future improvement in [issue #13](https://github.com/BriocheMasquee/module-packer-extended/issues/13), not solved upfront.
 - **No `.ttc`/`.otc` font collection support** — VSCode's preview can't load font collection files directly (the current theme only uses `.woff2`, so this doesn't affect it today); revisit if a future theme needs it.

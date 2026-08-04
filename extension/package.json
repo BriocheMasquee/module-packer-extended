@@ -7,7 +7,7 @@
   "license": "CC0-1.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/BriocheMasquee/mpx-bis.git"
+    "url": "https://github.com/BriocheMasquee/module-packer-extended.git"
   },
   "icon": "mpx-icon-128.png",
   "engines": {

@@ -367,6 +367,6 @@ Both reuse the exact same field-name/enum-value lists and validators the rendere
 ## Not included (yet)
 
 - **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item/monster's entry (and an auto-detected roll table's) reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
-- **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.
+- **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/module-packer-extended/issues/3)), so both fields just accept free-form strings for now.
 - **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — deliberately not planned (closed as not wanted, see former issue #1); front-matter mistakes are still caught at `Build Module` time.
 - **No completion for a monster's `speed`/`senses`** nested fields — every other nested object field (`attributes`, a spell's `activation`, a monster's `abilities`/`savingThrows`/`skills`) is covered, see [Editing assistance for inline blocks](#editing-assistance-for-inline-blocks).

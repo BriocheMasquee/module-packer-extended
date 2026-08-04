@@ -1,6 +1,6 @@
 # Third-Party Licenses
 
-`mpx-bis`'s own code and content is released under CC0 1.0 Universal (see `LICENSE.md`) — but that can only apply to work this project actually holds the rights to. The third-party work below is used under its own license/permission, never CC0.
+MPX's own code and content is released under CC0 1.0 Universal (see `LICENSE.md`) — but that can only apply to work this project actually holds the rights to. The third-party work below is used under its own license/permission, never CC0.
 
 Theme assets are tracked **per theme**, not as one blanket statement — a different theme can (and likely will) bundle different fonts under different terms. This file gets a new theme section whenever a theme is added.
 

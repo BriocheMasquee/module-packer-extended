@@ -6,7 +6,7 @@
 
 ## Where the catalog comes from
 
-`core/src/catalogEn.ts` and `core/src/catalogFr.ts` are sourced from EncounterPlus's own official localization files ([`lang/en.json`](https://github.com/encounterplus/dnd5e/blob/main/lang/en.json) / [`lang/fr.json`](https://github.com/encounterplus/dnd5e/blob/main/lang/fr.json) in `encounterplus/dnd5e`) — that repository has no `LICENSE` file of its own; usage and redistribution was requested and granted directly by the EncounterPlus developer (MIT terms) — see [THIRD-PARTY-LICENSES.md](https://github.com/BriocheMasquee/mpx-bis/blob/main/THIRD-PARTY-LICENSES.md) for the full basis. Each catalog is a flat `"Namespace.Key": "value"` map, with a handful of `{ one, many }` pluralized entries (e.g. `Unit.Hour`).
+`core/src/catalogEn.ts` and `core/src/catalogFr.ts` are sourced from EncounterPlus's own official localization files ([`lang/en.json`](https://github.com/encounterplus/dnd5e/blob/main/lang/en.json) / [`lang/fr.json`](https://github.com/encounterplus/dnd5e/blob/main/lang/fr.json) in `encounterplus/dnd5e`) — that repository has no `LICENSE` file of its own; usage and redistribution was requested and granted directly by the EncounterPlus developer (MIT terms) — see [THIRD-PARTY-LICENSES.md](https://github.com/BriocheMasquee/module-packer-extended/blob/main/THIRD-PARTY-LICENSES.md) for the full basis. Each catalog is a flat `"Namespace.Key": "value"` map, with a handful of `{ one, many }` pluralized entries (e.g. `Unit.Hour`).
 
 Two upstream issues are corrected on ingestion, not left as-is:
 - A trailing-comma JSON syntax error at the end of the real `fr.json`.
