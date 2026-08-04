@@ -1,7 +1,7 @@
 import { access, readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { normalizeContentLanguage } from 'mpx-core'
+import { normalizeContentLanguage, loadCatalogOverrides } from 'mpx-core'
 
 const VIEW_ID = 'mpx.projectExplorer'
 
@@ -39,6 +39,27 @@ class CompendiumSummaryItem extends vscode.TreeItem {
       command: 'mpx.compendiumExplorer.focus',
       title: 'Reveal',
     }
+  }
+}
+
+/** Only shown once translation-overrides.json exists — before that, the
+ * title bar's "Create Translation Overrides File" button is the only way to
+ * get one, no "Create…" row duplicating it. */
+class TranslationOverridesItem extends vscode.TreeItem {
+  constructor(readonly filePath: string, overrideCount: number) {
+    super('Translation Overrides', vscode.TreeItemCollapsibleState.None)
+    this.description = `${overrideCount} override${overrideCount === 1 ? '' : 's'}`
+    this.iconPath = new vscode.ThemeIcon('globe')
+    this.command = {
+      command: 'vscode.open',
+      title: 'Open',
+      arguments: [vscode.Uri.file(filePath)],
+    }
+    // Reuses the same generic "Delete" context-menu action every other
+    // deletable tree item has (see deleteEntryCommand.ts) — deleting the
+    // file is the reset: no separate command needed, and this row simply
+    // stops appearing on its own once the file watcher notices it's gone.
+    this.contextValue = 'mpxDeletableEntry'
   }
 }
 
@@ -80,6 +101,7 @@ type ProjectItem =
   | SummaryItem
   | CompendiumSummaryItem
   | ProjectSettingsItem
+  | TranslationOverridesItem
   | ImageResourceItem
   | ProjectFolderItem
   | ProjectFileItem
@@ -176,6 +198,13 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
         items.push(new ProjectSettingsItem(settingsPath))
       }
 
+      const overridesPath = join(projectRoot, 'translation-overrides.json')
+      if (await fileExists(overridesPath)) {
+        const { overrides } = await loadCatalogOverrides(projectRoot)
+        const overrideCount = Object.values(overrides).reduce((sum, entries) => sum + Object.keys(entries ?? {}).length, 0)
+        items.push(new TranslationOverridesItem(overridesPath, overrideCount))
+      }
+
       items.push(await buildCompendiumSummary(projectRoot))
     }
 
@@ -203,7 +232,7 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
     watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(
         workspaceFolder,
-        '{module.json,.vscode/settings.json,images/**,assets/**,items/*.json,spells/*.json,tables/*.json,monsters/*.json}',
+        '{module.json,.vscode/settings.json,translation-overrides.json,images/**,assets/**,items/*.json,spells/*.json,tables/*.json,monsters/*.json}',
       ),
     )
     watcher.onDidCreate(refresh)

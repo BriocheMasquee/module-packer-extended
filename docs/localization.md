@@ -40,15 +40,16 @@ An override entry can be a plain string, or (for a pluralized key like `Unit.Hou
 
 ### Getting started with overrides
 
-Two ways to create/discover the file, equivalent either way:
+Three ways to create/discover the file, all equivalent:
 - **`MPX: Create Translation Overrides File`** (command palette, or its icon button in the [Project panel](Project-Panel-Section)'s title bar) — creates it (a `{ "en": {}, "fr": {} }` skeleton) if it doesn't exist yet, and opens it either way.
+- The **Project panel**'s **Translation Overrides** line — only appears once the file exists (before that, use the title bar button above — no "Create…" row duplicating it), shows the current override count, and opens it; see [Project Panel](Project-Panel-Section).
 - Editing the file directly also gets **autocomplete and hover documentation** for all ~550 known catalog keys, each showing its current official value — powered by `extension/resources/schemas/translation-overrides.schema.json`, matched to the file by name via the extension's `jsonValidation` contribution (same mechanism `module.json`/`spells/*.json`/etc. already use). An override key that isn't in the schema yet (e.g. one EncounterPlus added since the schema was last generated) is still accepted at build/preview time — the schema only affects editor autocomplete, not validation.
 
 A malformed entry (wrong type, unrecognized language) is skipped with a warning notification rather than discarding the whole file — one typo doesn't cost you every other override you've already set up.
 
 ### Resetting
 
-Delete `translation-overrides.json` from VSCode's Explorer (or any other file manager) — no separate "reset" command, deleting the file is the reset. There's no Project-panel row for it anymore to right-click a Delete action from (see [Project Panel](Project-Panel-Section)) — its title bar button only creates/opens, it doesn't delete.
+Right-click the **Translation Overrides** line in the Project panel and choose **Delete** (moves the file to the OS trash) — the same generic delete action every other Project-panel entry has. No separate "reset" command: deleting the file is the reset, and the row disappears on its own once the file watcher notices it's gone (falling back to the title bar's "Create Translation Overrides File" button).
 
 ## Measurement stays a separate setting
 
