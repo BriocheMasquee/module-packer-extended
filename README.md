@@ -14,7 +14,7 @@
 
 <div align="center">
 
-📖 **[Documentation (Wiki)](../../wiki)**
+📖 **[Documentation (Wiki)](https://github.com/BriocheMasquee/module-packer-extended/wiki)**
 
 </div>
 
@@ -39,7 +39,7 @@ MPX is a tool for **module content authors**, complementary to [EncounterPlus](h
 
 ## Documentation and current state
 
-Full documentation — every feature, field, and setting — lives on the **[Wiki](../../wiki)** (English; a French version may follow).
+Full documentation — every feature, field, and setting — lives on the **[Wiki](https://github.com/BriocheMasquee/module-packer-extended/wiki)** (English; a French version may follow).
 
 Tested against real EncounterPlus imports. What MPX adds on top of the original Module Packer:
 
