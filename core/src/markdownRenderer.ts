@@ -112,17 +112,24 @@ export interface InlineRollTableBlock {
 
 /** Wraps a blockquote in the container div its CSS class expects (matching
  * the current theme's actual stylesheet, not every variant the original MPX
- * themes ever used) — "paper" and "flavortext" get their own wrapper class,
- * plain/"read"/colors share the generic one. "flowchart"/"flowchart-with-link"
- * get no wrapper at all: the theme puts that variant's spacing and connecting
- * line directly on the <blockquote> itself, and a wrapper's own padding/
- * overflow clips the border image and breaks the line's alignment. */
+ * themes ever used) — "paper", "flavortext", and "read" each get their own
+ * wrapper class (with horizontal padding matching how far that variant's own
+ * ::before/::after decoration extends past the <blockquote> box — "read"'s
+ * corner dots sit at ±0.3rem, so its wrap needs 0.3rem too, the same reason
+ * "paper"/"flavortext" already have their own), plain/colors share the
+ * generic one. "flowchart"/"flowchart-with-link" get no wrapper at all: the
+ * theme puts that variant's spacing and connecting line directly on the
+ * <blockquote> itself, and a wrapper's own padding/overflow clips the
+ * border image and breaks the line's alignment. */
 function wrapClassForBlockquote(blockquoteClass: string | undefined): string | undefined {
   if (blockquoteClass === 'paper') {
     return 'blockquote-paper-wrap'
   }
   if (blockquoteClass === 'flavortext') {
     return 'blockquote-flavortext-wrap'
+  }
+  if (blockquoteClass === 'read') {
+    return 'blockquote-read-wrap'
   }
   if (blockquoteClass === 'flowchart' || blockquoteClass === 'flowchart-with-link') {
     return undefined

@@ -373,6 +373,16 @@ blockquote.signature { --blockquote-bg: var(--color-signature-light); --blockquo
    BLOCKQUOTE — read
    ------------------------------------------------------------------------ */
 
+.blockquote-read-wrap {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
+  margin: 0;
+  overflow: hidden;
+  page-break-inside: avoid;
+}
+
 blockquote.read {
   border-top: none;
   border-bottom: none;
@@ -433,8 +443,23 @@ blockquote.flowchart-with-link::before {
   left: 50%;
   margin-top: -8rem;
   height: 10rem;
-  border-left: 0.3rem solid var(--color-signature);
+  border-left: 0.3rem solid var(--blockquote-accent, var(--color-signature));
 }
+
+/* The border is a 9-sliced raster (flowchart.webp has no color to swap via a
+ * CSS variable), so a color class needs its own pre-tinted copy — one image
+ * per accent, reused by both .flowchart and .flowchart-with-link since the
+ * border art itself is identical between them. No .signature variant: it's
+ * already flowchart.webp's own default color, nothing to swap to. */
+blockquote.flowchart.blue,    blockquote.flowchart-with-link.blue    { border-image-source: url('../img/flowchart-blue.webp'); }
+blockquote.flowchart.green,   blockquote.flowchart-with-link.green   { border-image-source: url('../img/flowchart-green.webp'); }
+blockquote.flowchart.red,     blockquote.flowchart-with-link.red     { border-image-source: url('../img/flowchart-red.webp'); }
+blockquote.flowchart.orange,  blockquote.flowchart-with-link.orange  { border-image-source: url('../img/flowchart-orange.webp'); }
+blockquote.flowchart.yellow,  blockquote.flowchart-with-link.yellow  { border-image-source: url('../img/flowchart-yellow.webp'); }
+blockquote.flowchart.gray,    blockquote.flowchart-with-link.gray    { border-image-source: url('../img/flowchart-gray.webp'); }
+blockquote.flowchart.purple,  blockquote.flowchart-with-link.purple  { border-image-source: url('../img/flowchart-purple.webp'); }
+blockquote.flowchart.teal,    blockquote.flowchart-with-link.teal    { border-image-source: url('../img/flowchart-teal.webp'); }
+blockquote.flowchart.magenta, blockquote.flowchart-with-link.magenta { border-image-source: url('../img/flowchart-magenta.webp'); }
 
 /* ------------------------------------------------------------------------
    BLOCKQUOTE — paper
@@ -628,7 +653,7 @@ table.magenta { --table-bg: var(--color-magenta-light); --table-accent: var(--co
 table.signature { --table-bg: var(--color-signature-light); --table-accent: var(--color-signature); --table-border: var(--color-signature-dark); }
 
 .color-links a {
-  color: var(--blockquote-accent, var(--table-accent, var(--color-signature)));
+  color: var(--blockquote-accent, var(--table-accent, var(--color-signature))) !important;
 }
 
 td,
@@ -840,6 +865,33 @@ a[href*='/roll/'],
 a.roll {
   color: var(--color-orange);
 }
+
+/* ------------------------------------------------------------------------
+   TEXT COLOR — coloring a word or phrase without any other markup, via
+   ==text=={.text-red} (mark), or *text*{.text-red}/**text**{.text-red}
+   (em/strong) when italics/bold is wanted too. mark has no default style
+   here (no highlight background) — it's purely a coloring carrier.
+
+   Narrow edge case, not special-cased: a title's `strong:first-child`
+   inside a plain/flowchart/color blockquote already gets a color from a
+   more specific selector (see BLOCKQUOTE — base) and wins over these.
+   ------------------------------------------------------------------------ */
+
+mark {
+  background: transparent;
+}
+
+mark.text-blue,      strong.text-blue,      em.text-blue      { color: var(--color-blue); }
+mark.text-green,     strong.text-green,     em.text-green     { color: var(--color-green); }
+mark.text-red,       strong.text-red,       em.text-red       { color: var(--color-red); }
+mark.text-orange,    strong.text-orange,    em.text-orange    { color: var(--color-orange); }
+mark.text-yellow,    strong.text-yellow,    em.text-yellow    { color: var(--color-yellow); }
+mark.text-gray,      strong.text-gray,      em.text-gray      { color: var(--color-gray); }
+mark.text-purple,    strong.text-purple,    em.text-purple    { color: var(--color-purple); }
+mark.text-teal,      strong.text-teal,      em.text-teal      { color: var(--color-teal); }
+mark.text-magenta,   strong.text-magenta,   em.text-magenta   { color: var(--color-magenta); }
+mark.text-signature, strong.text-signature, em.text-signature { color: var(--color-signature); }
+mark.text-black,     strong.text-black,     em.text-black     { color: var(--color-black); }
 
 /* ------------------------------------------------------------------------
    STATBLOCK — monster

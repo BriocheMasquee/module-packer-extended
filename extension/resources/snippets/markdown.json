@@ -154,5 +154,102 @@
       "$0"
     ],
     "description": "Insert a complete MPX inline monster block (all fields, with sensible empty defaults)"
+  },
+  "MPX Read-Aloud Block": {
+    "prefix": "mpx-read",
+    "body": [
+      "> ${1:Text to read aloud.}",
+      "{.read}",
+      "$0"
+    ],
+    "description": "Insert a read-aloud text blockquote"
+  },
+  "MPX Paper Block": {
+    "prefix": "mpx-paper",
+    "body": [
+      "> ${1:Text on parchment.}",
+      "{.paper}",
+      "$0"
+    ],
+    "description": "Insert a parchment-style blockquote"
+  },
+  "MPX Flavor Text Block": {
+    "prefix": "mpx-flavortext",
+    "body": [
+      "> ${1:Flavor text.}",
+      "{.flavortext}",
+      "$0"
+    ],
+    "description": "Insert a flavor text blockquote"
+  },
+  "MPX Large Quote": {
+    "prefix": "mpx-large-quote",
+    "body": [
+      "> ${1:Quotation text.}",
+      "{.large-quote}",
+      "$0"
+    ],
+    "description": "Insert a large centered pull-quote blockquote"
+  },
+  "MPX Blockquote": {
+    "prefix": "mpx-blockquote",
+    "body": [
+      "> **${1:Title}**",
+      ">",
+      "> ${2:Quotation text.}",
+      "$0"
+    ],
+    "description": "Insert a plain Markdown blockquote"
+  },
+  "MPX Flowchart Step": {
+    "prefix": "mpx-flowchart",
+    "body": [
+      "> **${2:Title}** {.text-center}",
+      ">",
+      "> ${3:Flowchart text.}",
+      "{.${1|flowchart,flowchart-with-link|}}",
+      "$0"
+    ],
+    "description": "Insert a flowchart step, with or without a connector"
+  },
+  "MPX Image": {
+    "prefix": "mpx-image",
+    "body": [
+      "![${2:Description}](images/${3:image.png})${1|{.size-cover},{.float-left},{.float-right},{.center},{.caption}, |}",
+      "$0"
+    ],
+    "description": "Insert an image and choose its presentation"
+  },
+  "MPX Aligned Text": {
+    "prefix": "mpx-text",
+    "body": [
+      "${2:Text.} {.${1|text-center,text-right,text-left|}}",
+      "$0"
+    ],
+    "description": "Insert a paragraph with text alignment"
+  },
+  "MPX Table": {
+    "prefix": "mpx-table",
+    "body": [
+      "| ${2:Column 1} | ${3:Column 2} |",
+      "| --- | --- |",
+      "| ${4:Value 1} | ${5:Value 2} |",
+      "${1|{.blue},{.green},{.red},{.orange},{.yellow},{.gray},{.purple},{.teal},{.magenta},{.signature},{.center},{.float-left},{.float-right}, |}",
+      "$0"
+    ],
+    "description": "Insert a table with a color or presentation choice"
+  },
+  "MPX Roll Table": {
+    "prefix": "mpx-roll-table",
+    "body": [
+      "${1:Roll Table Title} {.table-title}",
+      "",
+      "| [${2:2d6}](/roll/${2:2d6}) | ${3:Result} |",
+      "|:---:|:---|",
+      "| ${4:2} | ${5:Result A} |",
+      "| ${6:3-4} | ${7:Result B} |",
+      "$0"
+    ],
+    "description": "Insert a Markdown table auto-detected as a roll table at build time"
   }
 }
