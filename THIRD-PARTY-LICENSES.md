@@ -1,8 +1,14 @@
 # Third-Party Licenses
 
-`mpx-bis`'s own code and content is released under CC0 1.0 Universal (see `LICENSE.md`) — but that can only apply to work this project actually holds the rights to. The bundled theme fonts below are third-party work, used under their own license, listed here per theme (see [Themes](docs/themes.md) for what each theme is).
+`mpx-bis`'s own code and content is released under CC0 1.0 Universal (see `LICENSE.md`) — but that can only apply to work this project actually holds the rights to. The third-party work below is used under its own license/permission, never CC0.
 
-Licensing is tracked **per theme**, not as one blanket statement — a different theme can (and likely will) bundle different fonts under different terms. This file gets a new section whenever a theme is added.
+Theme assets are tracked **per theme**, not as one blanket statement — a different theme can (and likely will) bundle different fonts under different terms. This file gets a new theme section whenever a theme is added.
+
+## Localization catalog (`core/src/catalogEn.ts`, `catalogFr.ts`)
+
+Sourced from `encounterplus/dnd5e`'s own `lang/en.json`/`lang/fr.json` (<https://github.com/encounterplus/dnd5e/tree/main/lang>), re-synced periodically by `.github/workflows/sync-catalogs.yml` (opens a PR, never auto-merges).
+
+That repository has no `LICENSE` file or other public license declaration of its own. Permission to use and redistribute it was requested and granted directly by the EncounterPlus developer via Discord, confirmed 2026-08-03 — the developer confirmed free use of anything published under the `encounterplus` GitHub projects and suggested MIT terms specifically. Treated here as an MIT grant for `lang/en.json`/`lang/fr.json` on that basis.
 
 ## Theme: `5.5e` (`extension/resources/themes/5.5e/font/`)
 

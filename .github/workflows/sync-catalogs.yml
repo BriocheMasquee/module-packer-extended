@@ -68,7 +68,7 @@ jobs:
           commit-message: 'chore: sync translation catalogs from EncounterPlus'
           title: 'chore: sync translation catalogs from EncounterPlus'
           body: |
-            Automated bi-weekly sync from [encounterplus/dnd5e](https://github.com/encounterplus/dnd5e/tree/main/lang) (MIT licensed).
+            Automated bi-weekly sync from [encounterplus/dnd5e](https://github.com/encounterplus/dnd5e/tree/main/lang) — see THIRD-PARTY-LICENSES.md for the license basis (usage granted directly by the EncounterPlus developer).
 
             Regenerates `core/src/catalogEn.ts`, `core/src/catalogFr.ts`, and `extension/resources/schemas/translation-overrides.schema.json`.
 
