@@ -255,13 +255,13 @@ h6 {
  * palette, and set in --font-heading (the mock-up's 'Wolpe Pegasus' isn't
  * bundled here). */
 h1 {
-  font-size: 4.6rem;
-  line-height: 5rem;
-  padding-bottom: 0.5rem;
+  font-size: 5.6rem;
+  line-height: 6rem;
+  padding-bottom: 0.15rem;
   text-align: center;
   letter-spacing: 0.1rem;
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--color-signature) 0%, var(--color-signature-dark) 100%);
+  background-image: linear-gradient(to bottom, var(--color-black) 0%, var(--color-signature) 100%);
   background-size: 100% 1em;
   -webkit-background-clip: text;
   background-clip: text;
@@ -277,17 +277,17 @@ h1[data-chapter]::before {
   margin-right: auto;
   font-family: var(--font-heading);
   text-transform: uppercase;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   font-weight: normal;
   letter-spacing: 0.15rem;
   line-height: 1em;
-  margin-bottom: 0.05rem;
-  padding: 0 3.2rem;
+  margin-bottom: 0;
+  padding: 0 4rem;
   color: var(--color-signature);
   -webkit-text-stroke: 0.012rem var(--color-black);
   background-repeat: no-repeat, no-repeat;
   background-position: left center, right center;
-  background-size: 2.4rem 0.8rem, 2.4rem 0.8rem;
+  background-size: 3.2rem 1.05rem, 3.2rem 1.05rem;
   background-image:
     url('../img/chapter-label-flourish-left.webp'),
     url('../img/chapter-label-flourish-right.webp');
@@ -296,10 +296,10 @@ h1[data-chapter]::before {
 h1::after {
   content: '';
   display: block;
-  width: 30rem;
+  width: 34rem;
   max-width: 100%;
-  height: 1.6rem;
-  margin: 0.2rem auto 0.5rem;
+  height: 1.85rem;
+  margin: 0 auto 0.5rem;
   background-image: url('../img/chapter-underline.webp');
   background-repeat: no-repeat;
   background-position: center;
