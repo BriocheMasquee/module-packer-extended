@@ -1175,7 +1175,10 @@ export interface BuildOptions {
  * resolution as the bare-slug form, not worth a second check), and a
  * cross-module link (`/module/{module-slug}/page/{page-slug}`) — MPX has no
  * way to know another module's real slugs. Reimplements the original
- * Module Packer's own skip list (`checkForBrokenLinks` in Module.ts). */
+ * Module Packer's own skip list (`checkForBrokenLinks` in Module.ts), plus
+ * `/table-roll/` — installRollTableDetection's own rewritten href for an
+ * auto-detected roll table (see markdownRenderer.ts), not a real
+ * page/group/map/encounter slug either. */
 const BROKEN_LINK_SKIP_PREFIXES = [
   'http://',
   'https://',
@@ -1185,6 +1188,7 @@ const BROKEN_LINK_SKIP_PREFIXES = [
   '/spell/',
   '/monster/',
   '/roll/',
+  '/table-roll/',
   '/page/',
   '/module/',
 ]

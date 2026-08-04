@@ -2547,6 +2547,8 @@ test('buildModule never flags external URLs, compendium links, or cross-module p
       '',
       '[Roll](/roll/2d6)',
       '',
+      '[Table roll](/table-roll/some-table)',
+      '',
       '[Long-form page](/page/some-page)',
       '',
       '[Cross-module](/module/other-module/page/some-page)',
@@ -2558,6 +2560,33 @@ test('buildModule never flags external URLs, compendium links, or cross-module p
 
   const summary = await buildModule(root)
 
+  assert.equal(summary.brokenLinks.length, 0)
+})
+
+test('buildModule does not flag a real auto-detected roll table\'s own rewritten /table-roll/ link', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '|[2d6](/roll/2d6)|Encounter|',
+      '|:---:|:---|',
+      '|2-3|3 Kobolds|',
+      '',
+    ].join('\n'),
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.tableCount, 1)
   assert.equal(summary.brokenLinks.length, 0)
 })
 
