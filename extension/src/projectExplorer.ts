@@ -1,23 +1,9 @@
 import { access, readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import {
-  loadCatalogOverrides,
-  discoverProjectThemes,
-  resolveProjectTheme,
-  DEFAULT_PROJECT_THEME_ID,
-  normalizeContentLanguage,
-} from 'mpx-core'
+import { normalizeContentLanguage } from 'mpx-core'
 
 const VIEW_ID = 'mpx.projectExplorer'
-
-// Duplicated (not imported) from extension.ts's own themesRootDirectory —
-// a one-line pure path helper isn't worth risking a circular import between
-// the two modules (extension.ts already imports registerProjectExplorer
-// from here).
-function themesRootDirectory(context: vscode.ExtensionContext): string {
-  return join(context.extensionPath, 'resources', 'themes')
-}
 
 class SummaryItem extends vscode.TreeItem {
   constructor(name: string, description: string | undefined, moduleJsonPath: string) {
@@ -44,18 +30,6 @@ class ProjectSettingsItem extends vscode.TreeItem {
   }
 }
 
-class ThemeItem extends vscode.TreeItem {
-  constructor(themeName: string) {
-    super('Theme', vscode.TreeItemCollapsibleState.None)
-    this.description = themeName
-    this.iconPath = new vscode.ThemeIcon('paintcan')
-    this.command = {
-      command: 'mpx.selectProjectTheme',
-      title: 'Select Project Theme',
-    }
-  }
-}
-
 class CompendiumSummaryItem extends vscode.TreeItem {
   constructor(description: string) {
     super('Compendium :', vscode.TreeItemCollapsibleState.None)
@@ -64,37 +38,6 @@ class CompendiumSummaryItem extends vscode.TreeItem {
     this.command = {
       command: 'mpx.compendiumExplorer.focus',
       title: 'Reveal',
-    }
-  }
-}
-
-class TranslationOverridesItem extends vscode.TreeItem {
-  constructor(readonly filePath: string, overrideCount: number) {
-    super('Translation Overrides', vscode.TreeItemCollapsibleState.None)
-    this.description = `${overrideCount} override${overrideCount === 1 ? '' : 's'}`
-    this.iconPath = new vscode.ThemeIcon('globe')
-    this.command = {
-      command: 'vscode.open',
-      title: 'Open',
-      arguments: [vscode.Uri.file(filePath)],
-    }
-    // Reuses the same generic "Delete" context-menu action every other
-    // deletable tree item has (see deleteEntryCommand.ts) — deleting the
-    // file is the reset: no separate command/tree row needed, and the
-    // panel falls back to CreateTranslationOverridesItem on its own once
-    // the file watcher notices it's gone.
-    this.contextValue = 'mpxDeletableEntry'
-  }
-}
-
-class CreateTranslationOverridesItem extends vscode.TreeItem {
-  constructor() {
-    super('Translation Overrides', vscode.TreeItemCollapsibleState.None)
-    this.description = 'Create…'
-    this.iconPath = new vscode.ThemeIcon('globe')
-    this.command = {
-      command: 'mpx.createTranslationOverrides',
-      title: 'Create Translation Overrides File',
     }
   }
 }
@@ -135,11 +78,8 @@ class ProjectFileItem extends vscode.TreeItem {
 
 type ProjectItem =
   | SummaryItem
-  | ThemeItem
   | CompendiumSummaryItem
   | ProjectSettingsItem
-  | TranslationOverridesItem
-  | CreateTranslationOverridesItem
   | ImageResourceItem
   | ProjectFolderItem
   | ProjectFileItem
@@ -180,8 +120,6 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
   private readonly changeEmitter = new vscode.EventEmitter<void>()
   readonly onDidChangeTreeData = this.changeEmitter.event
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
-
   refresh(): void {
     this.changeEmitter.fire()
   }
@@ -220,13 +158,6 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
       const description = [version ? `v${version}` : undefined, systemAndLanguage].filter(Boolean).join(' · ')
       items.push(new SummaryItem(name, description || undefined, moduleJsonPath))
 
-      const themes = await discoverProjectThemes(themesRootDirectory(this.context))
-      if (themes.length > 0) {
-        const currentThemeId = config.get<string>('projectTheme', DEFAULT_PROJECT_THEME_ID)
-        const currentTheme = resolveProjectTheme(themes, currentThemeId) ?? themes[0]
-        items.push(new ThemeItem(currentTheme.name))
-      }
-
       for (const [field, label] of [
         ['image', 'Cover Image'],
         ['banner', 'Banner'],
@@ -245,15 +176,6 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
         items.push(new ProjectSettingsItem(settingsPath))
       }
 
-      const overridesPath = join(projectRoot, 'translation-overrides.json')
-      if (await fileExists(overridesPath)) {
-        const { overrides } = await loadCatalogOverrides(projectRoot)
-        const overrideCount = Object.values(overrides).reduce((sum, entries) => sum + Object.keys(entries ?? {}).length, 0)
-        items.push(new TranslationOverridesItem(overridesPath, overrideCount))
-      } else {
-        items.push(new CreateTranslationOverridesItem())
-      }
-
       items.push(await buildCompendiumSummary(projectRoot))
     }
 
@@ -265,7 +187,7 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
 }
 
 export function registerProjectExplorer(context: vscode.ExtensionContext): void {
-  const provider = new ProjectExplorerProvider(context)
+  const provider = new ProjectExplorerProvider()
   const refresh = () => provider.refresh()
 
   let watcher: vscode.FileSystemWatcher | undefined
@@ -281,7 +203,7 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
     watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(
         workspaceFolder,
-        '{module.json,.vscode/settings.json,translation-overrides.json,images/**,assets/**,items/*.json,spells/*.json,tables/*.json,monsters/*.json}',
+        '{module.json,.vscode/settings.json,images/**,assets/**,items/*.json,spells/*.json,tables/*.json,monsters/*.json}',
       ),
     )
     watcher.onDidCreate(refresh)
@@ -292,7 +214,7 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
   rebuildWatcher()
 
   context.subscriptions.push(
-    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider, showCollapseAll: true }),
+    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       rebuildWatcher()
       refresh()

@@ -40,16 +40,15 @@ An override entry can be a plain string, or (for a pluralized key like `Unit.Hou
 
 ### Getting started with overrides
 
-Three ways to create/discover the file, all equivalent:
-- **`MPX: Create Translation Overrides File`** (command palette) — creates it (a `{ "en": {}, "fr": {} }` skeleton) if it doesn't exist yet, and opens it either way.
-- The **Project panel**'s **Translation Overrides** line — shows the current override count once the file exists, or "Create…" beforehand; clicking does the same thing as the command above (see [Project Panel](Project-Panel-Section)).
+Two ways to create/discover the file, equivalent either way:
+- **`MPX: Create Translation Overrides File`** (command palette, or its icon button in the [Project panel](Project-Panel-Section)'s title bar) — creates it (a `{ "en": {}, "fr": {} }` skeleton) if it doesn't exist yet, and opens it either way.
 - Editing the file directly also gets **autocomplete and hover documentation** for all ~550 known catalog keys, each showing its current official value — powered by `extension/resources/schemas/translation-overrides.schema.json`, matched to the file by name via the extension's `jsonValidation` contribution (same mechanism `module.json`/`spells/*.json`/etc. already use). An override key that isn't in the schema yet (e.g. one EncounterPlus added since the schema was last generated) is still accepted at build/preview time — the schema only affects editor autocomplete, not validation.
 
 A malformed entry (wrong type, unrecognized language) is skipped with a warning notification rather than discarding the whole file — one typo doesn't cost you every other override you've already set up.
 
 ### Resetting
 
-Right-click the **Translation Overrides** line in the Project panel and choose **Delete** (moves the file to the OS trash) — the same generic delete action every other Project-panel entry has. No separate "reset" command or extra tree row: deleting the file is the reset, and the panel falls back to its "Create…" state on its own once the file watcher notices it's gone.
+Delete `translation-overrides.json` from VSCode's Explorer (or any other file manager) — no separate "reset" command, deleting the file is the reset. There's no Project-panel row for it anymore to right-click a Delete action from (see [Project Panel](Project-Panel-Section)) — its title bar button only creates/opens, it doesn't delete.
 
 ## Measurement stays a separate setting
 
