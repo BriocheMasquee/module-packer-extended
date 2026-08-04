@@ -33,6 +33,8 @@ A theme picker prompts for which one to use — but only when there's an actual 
 
 The choice is recorded in `mpx.projectTheme` (`.vscode/settings.json`) and can be changed afterward — see the [Project panel](Project-Panel)'s Theme entry, or run `MPX: Select Project Theme`. Re-selecting the *current* theme still does something useful: it resyncs `assets/` from the extension's own bundled copy, which is how a project picks up a theme fix or improvement shipped in a later extension update (a project's `assets/` is copied once at creation time, never automatically kept in sync otherwise). `assets/css/custom.css` and `assets/js/custom.js` are never touched by a resync once they exist — that's the project's own customization layer, only ever seeded from the theme's template the first time.
 
+See [Themes](Themes) for what each bundled theme actually looks like, and its fonts' licensing.
+
 ## Not included (yet)
 
 - Only one real theme ships today (`5.5e`) — porting old MPX's "legacy" theme (the classic Module Packer appearance) needs real CSS compatibility work first, since its markup conventions predate the Compendium block system (`.compendium-block`, `.statblock-*`, `.table-title`) entirely.

@@ -13,4 +13,4 @@ Not yet on the VSCode Marketplace or packaged as a release — build from source
 
 Documentation: see the [Wiki](../../wiki).
 
-License: [CC0-1.0](LICENSE.md).
+License: [CC0-1.0](LICENSE.md) for this project's own code and content; bundled theme fonts are third-party work under their own license — see [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
