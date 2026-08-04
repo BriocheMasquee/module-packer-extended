@@ -1,5 +1,5 @@
 {
-  "name": "mpx",
+  "name": "module-packer-extended",
   "displayName": "Module Packer Extended",
   "description": "Build EncounterPlus V5 modules from Markdown projects.",
   "version": "1.0.0",
