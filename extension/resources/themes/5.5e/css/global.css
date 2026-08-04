@@ -443,8 +443,23 @@ blockquote.flowchart-with-link::before {
   left: 50%;
   margin-top: -8rem;
   height: 10rem;
-  border-left: 0.3rem solid var(--color-signature);
+  border-left: 0.3rem solid var(--blockquote-accent, var(--color-signature));
 }
+
+/* The border is a 9-sliced raster (flowchart.webp has no color to swap via a
+ * CSS variable), so a color class needs its own pre-tinted copy — one image
+ * per accent, reused by both .flowchart and .flowchart-with-link since the
+ * border art itself is identical between them. No .signature variant: it's
+ * already flowchart.webp's own default color, nothing to swap to. */
+blockquote.flowchart.blue,    blockquote.flowchart-with-link.blue    { border-image-source: url('../img/flowchart-blue.webp'); }
+blockquote.flowchart.green,   blockquote.flowchart-with-link.green   { border-image-source: url('../img/flowchart-green.webp'); }
+blockquote.flowchart.red,     blockquote.flowchart-with-link.red     { border-image-source: url('../img/flowchart-red.webp'); }
+blockquote.flowchart.orange,  blockquote.flowchart-with-link.orange  { border-image-source: url('../img/flowchart-orange.webp'); }
+blockquote.flowchart.yellow,  blockquote.flowchart-with-link.yellow  { border-image-source: url('../img/flowchart-yellow.webp'); }
+blockquote.flowchart.gray,    blockquote.flowchart-with-link.gray    { border-image-source: url('../img/flowchart-gray.webp'); }
+blockquote.flowchart.purple,  blockquote.flowchart-with-link.purple  { border-image-source: url('../img/flowchart-purple.webp'); }
+blockquote.flowchart.teal,    blockquote.flowchart-with-link.teal    { border-image-source: url('../img/flowchart-teal.webp'); }
+blockquote.flowchart.magenta, blockquote.flowchart-with-link.magenta { border-image-source: url('../img/flowchart-magenta.webp'); }
 
 /* ------------------------------------------------------------------------
    BLOCKQUOTE — paper
