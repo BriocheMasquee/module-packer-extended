@@ -548,9 +548,12 @@ export function renderMonsterBlockHtml(
   const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Monster'
   const monsterData = isPlainObject(data.data) ? data.data : {}
 
-  // `.statblock-description` is positioned by the theme's own CSS as a
-  // caption floating just above the card (bottom: 100%), not inline body
-  // text — same purpose as a spell/item's descr, just rendered differently.
+  // `.statblock-description` renders as a normal-flow caption right above
+  // the card (not inside its border), matching a real stat block's italic
+  // intro line — same purpose as a spell/item's descr, just rendered
+  // differently. It used to be absolutely positioned over the card's own
+  // top margin instead, which overlapped whatever text preceded the block
+  // once `descr` ran past a single line.
   const descriptionHtml = isNonEmptyString(data.descr)
     ? `<div class="statblock-description">${markdown.render(data.descr)}</div>`
     : ''
@@ -643,9 +646,9 @@ export function renderMonsterBlockHtml(
   const footerHtml = footerLines ? `<div class="compendium-block-details compendium-block-details-footer">${footerLines}</div>` : ''
 
   return [
+    descriptionHtml,
     `<div class="statblock${colorClass}${twoColumn}${languageClass}">`,
     tokenHtml,
-    descriptionHtml,
     `<div class="statblock-title">${escapeHtml(name)}</div>`,
     '<hr class="statblock-tapered-rule">',
     subtitle ? `<div class="statblock-subtitle">${escapeHtml(subtitle)}</div>` : '',
