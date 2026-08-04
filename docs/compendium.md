@@ -321,7 +321,7 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 
 ## Roll table auto-detection
 
-A page's Markdown table becomes a roll table at build time on its own — no fenced block, no snippet, no separate `tables/<slug>.json` file needed — reimplementing what the original Module Packer and old MPX both supported. Detection heuristic: the header's first cell links to `/roll/...` (the dice notation, e.g. `[2d6](/roll/2d6)` — the destination itself is never followed, only its `/roll/` prefix matters):
+A page's Markdown table becomes a roll table at build time on its own — no fenced block, no separate `tables/<slug>.json` file needed — reimplementing what the original Module Packer and old MPX both supported. The `mpx-roll-table` [snippet](Snippets) scaffolds the syntax below, but nothing about detection itself requires it — a table written entirely by hand works the same way. Detection heuristic: the header's first cell links to `/roll/...` (the dice notation, e.g. `[2d6](/roll/2d6)` — the destination itself is never followed, only its `/roll/` prefix matters):
 
 ```
 ## Encounter Table {.table-title}
