@@ -261,7 +261,7 @@ h1 {
   text-align: center;
   letter-spacing: 0.1rem;
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--color-black) 0%, var(--color-signature) 100%);
+  background-image: linear-gradient(to bottom, var(--color-black) 0%, var(--color-signature-dark) 100%);
   background-size: 100% 1em;
   -webkit-background-clip: text;
   background-clip: text;
@@ -277,17 +277,17 @@ h1[data-chapter]::before {
   margin-right: auto;
   font-family: var(--font-heading);
   text-transform: uppercase;
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: normal;
   letter-spacing: 0.15rem;
   line-height: 1em;
   margin-bottom: 0;
-  padding: 0 4rem;
+  padding: 0 5.5rem;
   color: var(--color-signature);
   -webkit-text-stroke: 0.012rem var(--color-black);
   background-repeat: no-repeat, no-repeat;
   background-position: left center, right center;
-  background-size: 3.2rem 1.05rem, 3.2rem 1.05rem;
+  background-size: 4.8rem 1.5rem, 4.8rem 1.5rem;
   background-image:
     url('../img/chapter-label-flourish-left.webp'),
     url('../img/chapter-label-flourish-right.webp');
