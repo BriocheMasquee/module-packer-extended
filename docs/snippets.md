@@ -48,6 +48,7 @@ These aren't tied to the project's theme (`mpx.projectTheme`) — the extension 
   > Flowchart text.
   {.flowchart}
   ```
+  Add a color class on the same line (`{.flowchart .green}`) to recolor the border and, for `.flowchart-with-link`, the connector line too — not just the title.
 - **`mpx-image`** — an image, a dropdown picks `.size-cover`, `.float-left`, `.float-right`, `.center`, `.caption`, or none:
   ```
   ![Description](images/image.png){.caption}
@@ -73,6 +74,17 @@ These aren't tied to the project's theme (`mpx.projectTheme`) — the extension 
   | 3-4 | Result B |
   ```
 
+## Text color
+
+Coloring a single word or phrase, not a whole block — no snippet for this yet, but the underlying classes exist: `.text-blue`/`.text-green`/`.text-red`/`.text-orange`/`.text-yellow`/`.text-gray`/`.text-purple`/`.text-teal`/`.text-magenta`/`.text-signature`/`.text-black`, on whichever inline Markdown element wraps the text:
+
+- `==text=={.text-red}` → coloring only, no other emphasis (`<mark>` carries no highlight background here, it's purely a color carrier).
+- `**text**{.text-red}` → colored and bold.
+- `*text*{.text-red}` → colored and italic.
+
+A bare word with no `==...==`/`**...**`/`*...*` around it (`text{.text-red}`) doesn't work — `{.class}` only attaches to a Markdown element that has its own opening/closing marker, not to plain text.
+
 ## Not included (yet)
 
 - No `.shop` table snippet — its markup needs a `{.shopH1}`/`{.shopH2}` class on individual rows, not just the table as a whole, a different (more involved) shape than every other table variant here. Left out of this first pass.
+- No text color snippet yet (see above) — the classes exist, but nothing scaffolds the `==...=={.text-red}` syntax.
