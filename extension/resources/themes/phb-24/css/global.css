@@ -346,9 +346,7 @@ h1 + p:not(.no-fancy)::first-letter {
   font-weight: normal;
   line-height: 1;
   margin-top: -0.3rem;
-  margin-bottom: -0.6rem;
   padding-right: 0.8rem;
-  padding-bottom: 0.1rem;
   float: left;
   color: transparent;
   background-image: linear-gradient(#b89956, #d8cdb6);
