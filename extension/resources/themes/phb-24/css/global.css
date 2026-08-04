@@ -637,7 +637,7 @@ table {
   margin-bottom: 3rem;
   page-break-inside: avoid;
   overflow-wrap: break-word;
-  border-bottom: 0.1rem solid var(--table-border, #7c9eba);
+  border-bottom: 0.1rem solid var(--table-border, transparent);
 }
 
 table.center {
@@ -652,7 +652,7 @@ thead {
   font-weight: bold;
   font-size: 1.15rem;
   color: var(--table-accent, inherit);
-  border-bottom: 0.1rem solid var(--table-border, #7c9eba);
+  border-bottom: 0.1rem solid var(--table-border, transparent);
 }
 
 tbody tr:nth-child(odd) {
