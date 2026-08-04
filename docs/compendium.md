@@ -318,6 +318,7 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 - **No auto-generated "Legendary Action Uses: N..." intro paragraph** before the Legendary Actions list — the real books insert this boilerplate automatically (referencing the monster's own name and a legendary-action-count field EncounterPlus's schema doesn't have), so it isn't generated. Add it yourself as free text in `descr`, or as the first `legendaryActions` entry, if wanted.
 - **`languages` always joins with `, `** — the official books sometimes separate a trailing "telepathy N ft." note with a semicolon instead. Minor cosmetic difference, not worth a special case for one entry format.
 - **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS regardless of `mpx.contentLanguage` — corrected to always show "SAVE", with a `.statblock.lang-fr` CSS override switching it back to "JdS" only when the monster block is actually rendered in French (see [Localization](Localization)).
+- **A found-and-fixed layout bug**: `descr`'s caption above the card (`.statblock-description`) used to be absolutely positioned over a fixed-height reserved margin on `.statblock` itself — any `descr` longer than about one line overflowed that margin and overlapped whatever content preceded the block. It now renders as a normal in-flow paragraph immediately before the card, so it pushes content down instead of overlapping it, regardless of length.
 
 ## Roll table auto-detection
 
