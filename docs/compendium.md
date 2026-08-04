@@ -55,7 +55,7 @@ A spell's `rangeType` and `range` are mutually exclusive, confirmed against real
 
 ## Fields that accept a custom value alongside a standard list
 
-A monster's `data.languages` and `data.environments` aren't strictly validated against their standard list — the real EncounterPlus form lets you type a custom entry alongside the usual options (e.g. a homebrew language or a setting-specific environment), so any string is accepted for both.
+A monster's `data.languages` and `data.environments` aren't strictly validated against their standard list — the real EncounterPlus form lets you type a custom entry alongside the usual options (e.g. a homebrew language or a setting-specific environment), so any string is accepted for both. `data.environments` isn't rendered on the card at all (matching real books — it's app-only metadata, not printed stat block content). `data.languages` **is** rendered, and each entry is translated against the catalog's `Language.*` namespace when `mpx.contentLanguage` is `"fr"` (e.g. `Common` → `Commun`) — a value with no matching catalog entry (a homebrew language, or "All") renders exactly as typed, untranslated.
 
 `data.cr` (challenge rating), on the other hand, **is** a closed list — confirmed against EncounterPlus's own challenge-rating-to-XP table: `0`, the three sub-1 fractions (`1/8`, `1/4`, `1/2`), then every integer from `1` to `30`.
 

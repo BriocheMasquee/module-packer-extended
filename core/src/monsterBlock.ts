@@ -359,6 +359,29 @@ function formatStringList(values: unknown): string | undefined {
   return entries.length > 0 ? entries.join(', ') : undefined
 }
 
+/** `languages` is free text (not enum-validated, see MONSTER_TYPE_FEMININE's
+ * neighbors in the docs — a homebrew/setting-specific language must stay
+ * typeable), but the catalog does have a `Language.*` entry for every
+ * standard D&D language. Translated only when an exact match exists
+ * (`translate()` returns the key itself when it doesn't — the signal a
+ * custom value was typed); left exactly as authored otherwise. */
+function formatLanguageList(values: unknown, locale: RenderLocale): string | undefined {
+  if (!Array.isArray(values)) {
+    return undefined
+  }
+  const entries = values.filter((entry): entry is string => typeof entry === 'string')
+  if (entries.length === 0) {
+    return undefined
+  }
+  return entries
+    .map((entry) => {
+      const key = `Language.${entry}`
+      const translated = translate(key, locale.language, locale.overrides)
+      return translated === key ? entry : translated
+    })
+    .join(', ')
+}
+
 const SENSE_FIELDS = ['blindsight', 'darkvision', 'tremorsense', 'truesight'] as const
 
 function formatSenses(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
@@ -579,7 +602,7 @@ export function renderMonsterBlockHtml(
     propertyLine(translate('Monster.Immunities', locale.language, locale.overrides), formatDamageList(monsterData.damageImmunities, locale)),
     propertyLine(translate('Monster.ConditionImmunities', locale.language, locale.overrides), formatStringList(monsterData.conditionImmunities)),
     propertyLine(translate('Monster.Senses', locale.language, locale.overrides), formatSenses(monsterData, locale)),
-    propertyLine(translate('Monster.Languages', locale.language, locale.overrides), formatStringList(monsterData.languages)),
+    propertyLine(translate('Monster.Languages', locale.language, locale.overrides), formatLanguageList(monsterData.languages, locale)),
     propertyLine(translate('Monster.Challenge', locale.language, locale.overrides), formatChallenge(monsterData, locale)),
   ].join('')
 

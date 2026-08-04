@@ -55,6 +55,10 @@ Right-click the **Translation Overrides** line in the Project panel and choose *
 
 `mpx.defaultMeasurement`/`mpx.contentLanguage` already interact for unit *conversion* (feet → meters) — see [Compendium](Compendium#measurement). That link is unrelated to label translation: switching `mpx.contentLanguage` changes both the catalog labels *and* (via the existing `"auto"` fallback) the default measurement system, but you can still pick French labels with imperial units, or English labels with metric, by setting `mpx.defaultMeasurement` explicitly.
 
+## Best-effort translation for a nominally free-text field
+
+A monster's `data.languages` is free text, not a closed enum (see [Compendium](Compendium#fields-that-accept-a-custom-value-alongside-a-standard-list)) — a homebrew or setting-specific language must stay typeable. It's still translated on a best-effort basis: each entry is looked up against the catalog's `Language.*` namespace (`Common`, `Draconic`, `Elvish`, ...), and only replaced if an exact match exists — `translate()` returns the key itself when there isn't one, which is exactly the signal used to leave a custom value untouched. `data.environments` has its own `Environment.*` catalog namespace too, but isn't rendered on the card at all (matches real books — it's app-only metadata), so there's nothing to translate there yet.
+
 ## MPX-authored words (not from the EncounterPlus catalog)
 
 A few labels aren't in EncounterPlus's own catalog at all, so they're handled directly in code rather than through `catalogEn.ts`/`catalogFr.ts` — meaning `scripts/sync-catalogs.mjs` never touches them:

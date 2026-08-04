@@ -285,6 +285,17 @@ test('renders labels in French when language is "fr"', () => {
   assert.match(html, /<div class="statblock-subtitle">Fée de taille G<\/div>/)
 })
 
+test('translates known languages against the catalog when language is "fr", leaving a custom/unknown one as-is', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```monster\nname: Test\nlanguages: [Common, Draconic, Zorbaxian]\n```\n')
+  assert.match(html, /Langues: <\/span>Commun, Draconique, Zorbaxian/)
+})
+
+test('leaves languages in English as-authored when language is "en" (already matches the catalog value)', () => {
+  const html = renderMonster('name: Test\nlanguages: [Common, Draconic]')
+  assert.match(html, /Languages: <\/span>Common, Draconic/)
+})
+
 test('reorders the French subtitle (type before size) and gender-agrees the alignment with the monster type', () => {
   const markdown = createMarkdownRenderer({ language: 'fr' })
   const feminineHtml = markdown.render('```monster\nname: Test\nsize: M\ntype: monstrosity\nalignment: CE\n```\n')
