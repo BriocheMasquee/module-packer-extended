@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <title>MPX</title>
+  <rect x="0" y="0" width="160" height="160" rx="30" fill="#24262A"/>
+  <polygon points="80,26 33,53 33,107 80,134 127,107 127,53" fill="#F5F1E8"/>
+  <path d="M55 58 L80 84 L105 58" fill="none" stroke="#24262A" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="52" y="96" width="56" height="13" rx="3" fill="#E0A93B"/>
+</svg>
