@@ -50,7 +50,4 @@ Unlike maps/encounters, these are authored directly as standalone JSON files —
 - An item's, spell's, or monster's `image` (if set to a real file, not just the `items/`/`spells/`/`monsters/` placeholder) must exist in the project and is copied into the archive. A monster's `token` (its separate map-token image) is validated and copied the same way.
 - A roll table's `rolls` field (an EncounterPlus-internal roll history, never authored by hand) is always dropped, and `rollMode` is omitted when it's `"normal"` (the default).
 - `items.json`/`spells.json`/`tables.json`/`monsters.json` are only written to the archive when there's at least one entry.
-
-## Not included (yet)
-
-- No inline content blocks in Markdown pages (items/spells/monsters/tables defined directly inside a page, or roll tables auto-detected from a Markdown table) — a separate, not-yet-scoped extension of Compendium support.
+- Items, spells, and monsters can also be authored directly inside a page's Markdown as a fenced ` ```item `/` ```spell `/` ```monster ` block, and a roll table gets auto-detected straight from a plain Markdown table (no fenced block) — every inline entry merges into the same output as the standalone files above, validated the same way. See [Compendium](Compendium) for the authoring side.

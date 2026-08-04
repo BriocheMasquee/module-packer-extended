@@ -233,11 +233,13 @@ async function readPages(
   spellDisplayDefaults: SpellDisplayDefaults | undefined,
   itemDisplayDefaults: ItemDisplayDefaults | undefined,
   monsterDisplayDefaults: MonsterDisplayDefaults | undefined,
+  autoDetectRollTables: boolean,
 ): Promise<{
   entries: ResolvedEntry[]
   inlineSpells: PageInlineEntrySource[]
   inlineItems: PageInlineEntrySource[]
   inlineMonsters: PageInlineEntrySource[]
+  inlineRollTables: PageInlineEntrySource[]
 }> {
   const markdown = createMarkdownRenderer({
     measurement,
@@ -246,11 +248,13 @@ async function readPages(
     spellDisplayDefaults,
     itemDisplayDefaults,
     monsterDisplayDefaults,
+    autoDetectRollTables,
   })
   const entries: ResolvedEntry[] = []
   const inlineSpells: PageInlineEntrySource[] = []
   const inlineItems: PageInlineEntrySource[] = []
   const inlineMonsters: PageInlineEntrySource[] = []
+  const inlineRollTables: PageInlineEntrySource[] = []
 
   for (const filePath of await listFilesRecursively(join(moduleRoot, 'pages'), '.md')) {
     const relativePath = toPortablePath(moduleRoot, filePath)
@@ -281,7 +285,7 @@ async function readPages(
       continue
     }
 
-    const env: MpxMarkdownEnvironment = {}
+    const env: MpxMarkdownEnvironment = { pageName: data.name, pageSlug: data.slug.trim() }
     const content = markdown.render(parsed.content, env).trimEnd()
     for (const block of env.inlineSpells ?? []) {
       inlineSpells.push({ pageRelativePath: relativePath, data: block.data })
@@ -291,6 +295,9 @@ async function readPages(
     }
     for (const block of env.inlineMonsters ?? []) {
       inlineMonsters.push({ pageRelativePath: relativePath, data: block.data })
+    }
+    for (const block of env.inlineRollTables ?? []) {
+      inlineRollTables.push({ pageRelativePath: relativePath, data: block.data })
     }
 
     entries.push({
@@ -307,7 +314,7 @@ async function readPages(
     })
   }
 
-  return { entries, inlineSpells, inlineItems, inlineMonsters }
+  return { entries, inlineSpells, inlineItems, inlineMonsters, inlineRollTables }
 }
 
 async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<ResolvedEntry[]> {
@@ -759,6 +766,43 @@ function readMonsters(
 const ROLL_TABLE_ROLL_MODES = ['normal', 'noRepeat', 'eachRow']
 const ROLL_TABLE_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
 
+/** Shared by readRollTables (standalone tables/*.json) and
+ * buildInlineRollTableRecord (auto-detected from a page's Markdown table) —
+ * same columns/rows/rollMode/sources/tags shape either way. */
+function validateRollTableShape(relativePath: string, data: Record<string, unknown>, issues: BuildIssue[]): void {
+  const columnCount = Array.isArray(data.columns) ? data.columns.length : undefined
+  if (
+    !Array.isArray(data.columns) ||
+    data.columns.length < 2 ||
+    data.columns.some((column) => !isPlainObject(column) || !isNonEmptyString(column.name))
+  ) {
+    issues.push({
+      file: relativePath,
+      message: 'columns must contain at least two entries, each with a non-empty name.',
+    })
+  }
+  if (
+    !Array.isArray(data.rows) ||
+    data.rows.some(
+      (row) => !Array.isArray(row) || row.length !== columnCount || row.some((cell) => typeof cell !== 'string'),
+    )
+  ) {
+    issues.push({ file: relativePath, message: 'rows must be arrays of strings matching the number of columns.' })
+  }
+  if (data.rollMode !== undefined && !ROLL_TABLE_ROLL_MODES.includes(data.rollMode as string)) {
+    issues.push({
+      file: relativePath,
+      message: `rollMode must be one of ${ROLL_TABLE_ROLL_MODES.map((mode) => `"${mode}"`).join(', ')}.`,
+    })
+  }
+  if (data.sources !== undefined && !Array.isArray(data.sources)) {
+    issues.push({ file: relativePath, message: 'sources must be an array when provided.' })
+  }
+  if (data.tags !== undefined && (!Array.isArray(data.tags) || !data.tags.every((tag) => typeof tag === 'string'))) {
+    issues.push({ file: relativePath, message: 'tags must be an array of strings when provided.' })
+  }
+}
+
 /** Reads tables/**\/*.json. Unlike items/spells, roll tables have no
  * attributes/data/image envelope — just columns/rows and a few optional
  * fields. `rolls` is an EncounterPlus-internal runtime field (roll history)
@@ -789,38 +833,7 @@ async function readRollTables(moduleRoot: string, issues: BuildIssue[]): Promise
       issues.push({ file: relativePath, message: 'Must contain a non-empty slug.' })
     }
     validateSlugFormat(relativePath, data.slug, issues)
-
-    const columnCount = Array.isArray(data.columns) ? data.columns.length : undefined
-    if (
-      !Array.isArray(data.columns) ||
-      data.columns.length < 2 ||
-      data.columns.some((column) => !isPlainObject(column) || !isNonEmptyString(column.name))
-    ) {
-      issues.push({
-        file: relativePath,
-        message: 'columns must contain at least two entries, each with a non-empty name.',
-      })
-    }
-    if (
-      !Array.isArray(data.rows) ||
-      data.rows.some(
-        (row) => !Array.isArray(row) || row.length !== columnCount || row.some((cell) => typeof cell !== 'string'),
-      )
-    ) {
-      issues.push({ file: relativePath, message: 'rows must be arrays of strings matching the number of columns.' })
-    }
-    if (data.rollMode !== undefined && !ROLL_TABLE_ROLL_MODES.includes(data.rollMode as string)) {
-      issues.push({
-        file: relativePath,
-        message: `rollMode must be one of ${ROLL_TABLE_ROLL_MODES.map((mode) => `"${mode}"`).join(', ')}.`,
-      })
-    }
-    if (data.sources !== undefined && !Array.isArray(data.sources)) {
-      issues.push({ file: relativePath, message: 'sources must be an array when provided.' })
-    }
-    if (data.tags !== undefined && (!Array.isArray(data.tags) || !data.tags.every((tag) => typeof tag === 'string'))) {
-      issues.push({ file: relativePath, message: 'tags must be an array of strings when provided.' })
-    }
+    validateRollTableShape(relativePath, data, issues)
 
     if (!isUuid(data.id) || !isNonEmptyString(data.slug)) {
       continue
@@ -856,6 +869,57 @@ async function readRollTables(moduleRoot: string, issues: BuildIssue[]): Promise
   }
 
   return tables.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+}
+
+/** Normalizes one roll table auto-detected from a page's Markdown table
+ * (installRollTableDetection in markdownRenderer.ts) into the same record
+ * shape a standalone tables/*.json file produces — same mechanism as
+ * buildInlineSpellRecord, but simpler: no attributes/data/image envelope,
+ * and the id is always derived (an inline table is never authored with an
+ * explicit UUID, unlike a standalone file). `pathById`/`pathBySlug` are
+ * seeded with the standalone tables first, so a collision against either
+ * source is caught the same way a collision between two standalone files
+ * already is. */
+function buildInlineRollTableRecord(
+  source: PageInlineEntrySource,
+  moduleId: string,
+  issues: BuildIssue[],
+  pathById: Map<string, string>,
+  pathBySlug: Map<string, string>,
+): Record<string, unknown> | undefined {
+  const { pageRelativePath, data: raw } = source
+  const name = raw.name as string
+  const label = `${pageRelativePath} (inline roll table "${name}")`
+
+  const slug = isNonEmptyString(raw.slug) ? raw.slug.trim() : slugify(name)
+  validateSlugFormat(label, slug, issues)
+  validateRollTableShape(label, raw, issues)
+
+  if (!isValidSlug(slug)) {
+    return undefined
+  }
+
+  const id = createUuidV5(slug, moduleId)
+
+  const existingSlugPath = pathBySlug.get(slug)
+  if (existingSlugPath) {
+    issues.push({ file: label, message: `Duplicate roll table slug "${slug}" in ${existingSlugPath} and ${label}.` })
+  } else {
+    pathBySlug.set(slug, label)
+  }
+  const existingIdPath = pathById.get(id)
+  if (existingIdPath) {
+    issues.push({ file: label, message: `Duplicate roll table id "${id}" in ${existingIdPath} and ${label}.` })
+  } else {
+    pathById.set(id, label)
+  }
+
+  const cleaned = stripEmptyValues({ ...raw, id, slug }, ROLL_TABLE_OPTIONAL_FIELDS)
+  delete cleaned.rolls
+  if (cleaned.rollMode === 'normal') {
+    delete cleaned.rollMode
+  }
+  return cleaned
 }
 
 function isResourceNameReserved(name: string): boolean {
@@ -1092,6 +1156,11 @@ export interface BuildOptions {
   /** Same as `spellDisplayDefaults`, for an inline monster's `show*` toggles
    * (mpx.defaultShowMonster* settings). */
   monsterDisplayDefaults?: MonsterDisplayDefaults
+  /** Resolved from the project's `mpx.autoDetectRollTables` setting — when
+   * `false`, a page's Markdown tables are never auto-detected as roll
+   * tables, even one whose header links to `/roll/...`. Defaults to `true`
+   * if not provided. */
+  autoDetectRollTables?: boolean
 }
 
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
@@ -1123,6 +1192,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       options.spellDisplayDefaults,
       options.itemDisplayDefaults,
       options.monsterDisplayDefaults,
+      options.autoDetectRollTables ?? true,
     ),
     readGroups(moduleRoot, issues),
     readMapOrEncounterEntries(moduleRoot, 'map', issues, exportedResources),
@@ -1137,6 +1207,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     inlineSpells: inlineSpellSources,
     inlineItems: inlineItemSources,
     inlineMonsters: inlineMonsterSources,
+    inlineRollTables: inlineRollTableSources,
   } = pageResult
   const entries = [...pages, ...groups, ...maps, ...encounters]
 
@@ -1200,6 +1271,16 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     }
   }
   monsters.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+
+  const tablePathById = new Map(tables.map((table) => [table.id as string, 'a standalone roll table file']))
+  const tablePathBySlug = new Map(tables.map((table) => [table.slug as string, 'a standalone roll table file']))
+  for (const source of inlineRollTableSources) {
+    const record = buildInlineRollTableRecord(source, moduleId, issues, tablePathById, tablePathBySlug)
+    if (record) {
+      tables.push(record)
+    }
+  }
+  tables.sort((a, b) => String(a.name).localeCompare(String(b.name)))
 
   if (issues.length > 0) {
     throw new ModuleBuildError(issues)

@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { findInlineSpells, findInlineItems, findInlineMonsters } from 'mpx-core'
+import { findInlineSpells, findInlineItems, findInlineMonsters, findInlineRollTables } from 'mpx-core'
 
 const VIEW_ID = 'mpx.compendiumExplorer'
 const REVEAL_INLINE_ENTRY_COMMAND = 'mpx.revealInlineEntry'
@@ -13,11 +13,22 @@ interface InlineEntrySummary {
   line: number
 }
 
+/** mpx.autoDetectRollTables off means nothing will actually build from a
+ * page's Markdown tables — mirror that in the panel by reporting no inline
+ * entries at all, rather than listing tables a build would just ignore. */
+async function findInlineRollTablesIfEnabled(moduleRoot: string): Promise<InlineEntrySummary[]> {
+  const config = vscode.workspace.getConfiguration('mpx', vscode.Uri.file(moduleRoot))
+  if (!config.get<boolean>('autoDetectRollTables', true)) {
+    return []
+  }
+  return findInlineRollTables(moduleRoot)
+}
+
 const CATEGORIES = [
   { label: 'Monsters', folder: 'monsters', icon: 'snake', findInline: findInlineMonsters },
   { label: 'Spells', folder: 'spells', icon: 'wand', findInline: findInlineSpells },
   { label: 'Items', folder: 'items', icon: 'archive', findInline: findInlineItems },
-  { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', findInline: undefined },
+  { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', findInline: findInlineRollTablesIfEnabled },
 ] satisfies readonly {
   label: string
   folder: string
@@ -202,6 +213,16 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       rebuildWatchers()
       refresh()
+    }),
+    // Unlike the other mpx.default* settings (which only change how an
+    // already-listed entry renders), this one changes whether a page's
+    // tables are listed here at all — a plain file/page-content watcher
+    // never fires for a settings.json edit, so a config-change listener is
+    // needed for the panel to reflect the toggle without a manual refresh.
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('mpx.autoDetectRollTables')) {
+        refresh()
+      }
     }),
     new vscode.Disposable(() => watchers.forEach((watcher) => watcher.dispose())),
   )

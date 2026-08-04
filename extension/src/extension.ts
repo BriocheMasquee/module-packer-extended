@@ -252,6 +252,11 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
           showTags: config.get<boolean>('defaultShowMonsterTags', true),
         }
       }
+      const resolveAutoDetectRollTables = (): boolean => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
+        return config.get<boolean>('autoDetectRollTables', true)
+      }
       return createMarkdownRenderer({
         preview: true,
         measurement: resolveMeasurement,
@@ -260,6 +265,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
         spellDisplayDefaults: resolveSpellDisplayDefaults,
         itemDisplayDefaults: resolveItemDisplayDefaults,
         monsterDisplayDefaults: resolveMonsterDisplayDefaults,
+        autoDetectRollTables: resolveAutoDetectRollTables,
       })
     },
   }

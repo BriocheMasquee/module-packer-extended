@@ -31,6 +31,7 @@ export type {
   InlineSpellBlock,
   InlineItemBlock,
   InlineMonsterBlock,
+  InlineRollTableBlock,
 } from './markdownRenderer.js'
 export type { SpellDisplayDefaults } from './spellBlock.js'
 export type { ItemDisplayDefaults } from './itemBlock.js'
@@ -41,6 +42,8 @@ export { findInlineItems } from './inlineItemScan.js'
 export type { InlineItemSummary } from './inlineItemScan.js'
 export { findInlineMonsters } from './inlineMonsterScan.js'
 export type { InlineMonsterSummary } from './inlineMonsterScan.js'
+export { findInlineRollTables } from './inlineRollTableScan.js'
+export type { InlineRollTableSummary } from './inlineRollTableScan.js'
 
 // Inline ```spell/item/monster block editing assistance (completion +
 // diagnostics, see extension/src/compendiumBlockAssistance.ts): parsers,

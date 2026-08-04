@@ -109,6 +109,7 @@ export function registerPreviewConfiguration(context: vscode.ExtensionContext): 
         'mpx.defaultShowMonsterToken',
         'mpx.defaultShowMonsterSources',
         'mpx.defaultShowMonsterTags',
+        'mpx.autoDetectRollTables',
       ]
       if (watchedSettings.some((setting) => event.affectsConfiguration(setting))) {
         void vscode.commands.executeCommand('markdown.preview.refresh')
