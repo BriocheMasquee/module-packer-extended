@@ -373,6 +373,16 @@ blockquote.signature { --blockquote-bg: var(--color-signature-light); --blockquo
    BLOCKQUOTE — read
    ------------------------------------------------------------------------ */
 
+.blockquote-read-wrap {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
+  margin: 0;
+  overflow: hidden;
+  page-break-inside: avoid;
+}
+
 blockquote.read {
   border-top: none;
   border-bottom: none;

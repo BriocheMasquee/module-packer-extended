@@ -38,6 +38,12 @@ test('createMarkdownRenderer wraps a "flavortext" blockquote in its dedicated wr
   assert.match(html, /<div class="blockquote-flavortext-wrap">/)
 })
 
+test('createMarkdownRenderer wraps a "read" blockquote in its own dedicated wrap div, not the generic one', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('> Text to read aloud.\n{.read}\n')
+  assert.match(html, /<div class="blockquote-read-wrap"><blockquote class="read">/)
+})
+
 test('createMarkdownRenderer does not hide front matter or wrap #page by default (build mode)', () => {
   const markdown = createMarkdownRenderer()
   const html = markdown.render('---\nname: Test\nslug: test\n---\n\n# Hello\n')
