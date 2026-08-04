@@ -41,3 +41,36 @@ export { findInlineItems } from './inlineItemScan.js'
 export type { InlineItemSummary } from './inlineItemScan.js'
 export { findInlineMonsters } from './inlineMonsterScan.js'
 export type { InlineMonsterSummary } from './inlineMonsterScan.js'
+
+// Inline ```spell/item/monster block editing assistance (completion +
+// diagnostics, see extension/src/compendiumBlockAssistance.ts): parsers,
+// field-name lists, and enum value lists, all reused as-is from the
+// renderer/validator so the editor never drifts from what actually builds.
+export { parseSpellBlock, SPELL_META_FIELDS, SPELL_DATA_FIELDS } from './spellBlock.js'
+export type { ParsedSpellBlock } from './spellBlock.js'
+export { parseItemBlock, ITEM_META_FIELDS, ITEM_DATA_FIELDS } from './itemBlock.js'
+export type { ParsedItemBlock } from './itemBlock.js'
+export { parseMonsterBlock, MONSTER_META_FIELDS, MONSTER_DATA_FIELDS } from './monsterBlock.js'
+export type { ParsedMonsterBlock } from './monsterBlock.js'
+export {
+  SPELL_SCHOOLS,
+  SPELL_ACTIVATION_UNITS,
+  SPELL_RANGE_TYPES,
+  SPELL_AREA_EFFECT_SHAPES,
+  SPELL_COMPONENTS,
+  SPELL_DURATION_TYPES,
+  SPELL_DURATION_UNITS,
+} from './spellCompendium.js'
+export { ITEM_TYPES, ITEM_RARITIES, ITEM_PROPERTIES, ITEM_MASTERIES, ITEM_DAMAGE_TYPES } from './itemCompendium.js'
+export {
+  MONSTER_SIZES,
+  MONSTER_TYPES,
+  MONSTER_ALIGNMENTS,
+  MONSTER_DAMAGE_TYPES,
+  MONSTER_CHALLENGE_RATINGS,
+  MONSTER_ABILITY_KEYS,
+  MONSTER_SKILLS,
+  MONSTER_LANGUAGES,
+  MONSTER_ENVIRONMENTS,
+} from './monsterCompendium.js'
+export type { ValidationIssue } from './compendiumShared.js'

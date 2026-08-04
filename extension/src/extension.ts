@@ -18,6 +18,7 @@ import { registerBuildModuleCommand } from './buildModuleCommand.js'
 import { registerPreviewConfiguration } from './previewConfiguration.js'
 import { registerLocalizationCommands } from './localizationCommands.js'
 import { registerDeleteEntryCommand } from './deleteEntryCommand.js'
+import { registerCompendiumBlockAssistance } from './compendiumBlockAssistance.js'
 
 interface MarkdownItExtensionApi {
   extendMarkdownIt: (markdownIt: unknown) => unknown
@@ -188,6 +189,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
   registerPreviewConfiguration(context)
   registerLocalizationCommands(context)
   registerDeleteEntryCommand(context)
+  registerCompendiumBlockAssistance(context)
 
   void updateWorkspaceKindContext()
   void openPendingModuleConfiguration(context)

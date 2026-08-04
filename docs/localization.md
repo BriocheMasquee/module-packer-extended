@@ -55,12 +55,17 @@ Right-click the **Translation Overrides** line in the Project panel and choose *
 
 `mpx.defaultMeasurement`/`mpx.contentLanguage` already interact for unit *conversion* (feet → meters) — see [Compendium](Compendium#measurement). That link is unrelated to label translation: switching `mpx.contentLanguage` changes both the catalog labels *and* (via the existing `"auto"` fallback) the default measurement system, but you can still pick French labels with imperial units, or English labels with metric, by setting `mpx.defaultMeasurement` explicitly.
 
+## Best-effort translation for a nominally free-text field
+
+A monster's `data.languages` is free text, not a closed enum (see [Compendium](Compendium#fields-that-accept-a-custom-value-alongside-a-standard-list)) — a homebrew or setting-specific language must stay typeable. It's still translated on a best-effort basis: each entry is looked up against the catalog's `Language.*` namespace (`Common`, `Draconic`, `Elvish`, ...), and only replaced if an exact match exists — `translate()` returns the key itself when there isn't one, which is exactly the signal used to leave a custom value untouched. `data.environments` has its own `Environment.*` catalog namespace too, but isn't rendered on the card at all (matches real books — it's app-only metadata), so there's nothing to translate there yet.
+
 ## MPX-authored words (not from the EncounterPlus catalog)
 
 A few labels aren't in EncounterPlus's own catalog at all, so they're handled directly in code rather than through `catalogEn.ts`/`catalogFr.ts` — meaning `scripts/sync-catalogs.mjs` never touches them:
 
 - **A spell's `range` unit word** — `core/src/compendiumBlock.ts`'s `distanceUnitWord()` shows "mètre" when both the measurement is metric and the language is French, "meters"/"feet" otherwise. Only the metric+French word is translated (French projects default to metric — see [Compendium](Compendium#measurement)); the imperial word stays "feet" even when `mpx.contentLanguage` is `"fr"`, since that combination requires overriding `mpx.defaultMeasurement` explicitly and no French word has been set for it. A monster's speed/senses use the shorter "ft"/"m" abbreviations instead (unaffected — "m" already reads the same in both languages).
 - **The ability table's floating "SAVE" column header** (5.5e theme CSS) — a static `content:` property, so it can't read `mpx.contentLanguage` directly. `renderMonsterBlockHtml` adds a `lang-fr` class to `.statblock` when the language is French, and `.statblock.lang-fr ... ::before { content: 'JdS'; }` in `global.css` overrides it — casing matched exactly ("JdS", not "JDS"/"jds").
+- **The space before a "Label:" colon** — `core/src/compendiumBlock.ts`'s `labelSeparator()` returns `": "` in English, `"&nbsp;: "` in French (a non-breaking space before the colon, standard French typography — e.g. "Compétences : Perception +5", not "Compétences: Perception +5"). Shared by every "Label: value" detail/property line across all three block renderers.
 - **Weight units ("lb"/"kg")** need no such handling — they're already tied purely to the measurement system, not the language, so "kg" already shows whenever the project is metric, in either language.
 
 ## French word order and grammatical gender

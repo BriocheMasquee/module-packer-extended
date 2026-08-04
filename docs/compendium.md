@@ -55,7 +55,7 @@ A spell's `rangeType` and `range` are mutually exclusive, confirmed against real
 
 ## Fields that accept a custom value alongside a standard list
 
-A monster's `data.languages` and `data.environments` aren't strictly validated against their standard list — the real EncounterPlus form lets you type a custom entry alongside the usual options (e.g. a homebrew language or a setting-specific environment), so any string is accepted for both.
+A monster's `data.languages` and `data.environments` aren't strictly validated against their standard list — the real EncounterPlus form lets you type a custom entry alongside the usual options (e.g. a homebrew language or a setting-specific environment), so any string is accepted for both. `data.environments` isn't rendered on the card at all (matching real books — it's app-only metadata, not printed stat block content). `data.languages` **is** rendered, and each entry is translated against the catalog's `Language.*` namespace when `mpx.contentLanguage` is `"fr"` (e.g. `Common` → `Commun`) — a value with no matching catalog entry (a homebrew language, or "All") renders exactly as typed, untranslated.
 
 `data.cr` (challenge rating), on the other hand, **is** a closed list — confirmed against EncounterPlus's own challenge-rating-to-XP table: `0`, the three sub-1 fractions (`1/8`, `1/4`, `1/2`), then every integer from `1` to `30`.
 
@@ -252,11 +252,21 @@ cr: ""
 initiativeBonus: 0
 proficiencyBonus: 2
 environments: []
-traits: []
-actions: []
-bonusActions: []
-reactions: []
-legendaryActions: []
+traits:
+  - name: ""
+    text: ""
+actions:
+  - name: ""
+    text: ""
+bonusActions:
+  - name: ""
+    text: ""
+reactions:
+  - name: ""
+    text: ""
+legendaryActions:
+  - name: ""
+    text: ""
 descr: ""
 sources:
   - name: ""
@@ -309,9 +319,32 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 - **`languages` always joins with `, `** — the official books sometimes separate a trailing "telepathy N ft." note with a semicolon instead. Minor cosmetic difference, not worth a special case for one entry format.
 - **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS regardless of `mpx.contentLanguage` — corrected to always show "SAVE", with a `.statblock.lang-fr` CSS override switching it back to "JdS" only when the monster block is actually rendered in French (see [Localization](Localization)).
 
+## Editing assistance for inline blocks
+
+While editing a ```spell/```item/```monster block, VSCode's Markdown editor provides:
+- **Field-name completion** — on a blank line, or a line where a key name is only partially typed (e.g. `sa` while typing `savingThrows`), suggests every valid top-level YAML key for that block type. Nested under a known container field, suggests only *that* field's own children instead of the block's top-level fields — authored either as indented multi-line YAML (`attributes:` on its own line, children indented below) or as a single-line `{ ... }` (e.g. the snippet's own `skills: {}`/`savingThrows: {}` defaults — completion works inside the still-open brace the same way, one `{ }` level deep):
+  - `attributes:` → `measurement`/`ruleset` (spell, item, monster)
+  - a spell's `activation:` → `unit`/`time`
+  - a monster's `abilities:`/`savingThrows:` → the six ability keys (`str`/`dex`/`con`/`int`/`wis`/`cha`)
+  - a monster's `skills:` → every skill name (`perception`, `stealth`, ...)
+
+  A monster's `speed:`/`senses:` aren't covered yet — nested under either one, completion abstains rather than falling back to the top-level list.
+- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field, plus the nested fields above that have their own value list (`attributes.measurement` is `imperial`/`metric` — never `auto`, which is only a valid *setting* value, not something an individual entry ever stores; `attributes.ruleset` is always `5.5e`; a spell's `activation.unit` gets the activation-unit list). Ability/skill values are plain numbers, so only their key names are completed, not a value list. `languages`/`environments` also suggest a list now (EncounterPlus's own internal enum-to-catalog-key map confirms both are backed by a real standard list, always alongside a custom/homebrew value) — see [Fields that accept a custom value alongside a standard list](#fields-that-accept-a-custom-value-alongside-a-standard-list).
+- **Live diagnostics** — the same validation `Build Module` and the rendered preview's error message already run (`validateSpellData`/`validateItemData`/`validateMonsterData`) also shows up as an editor warning on the block's opening fence line, without needing the preview open. Only checked once the block has its closing ` ``` ` — a block still being typed isn't flagged as broken mid-edit.
+
+Completion only re-triggers on `:` (right after a field name) and `[` (entering an inline array) — not on every space — so it stays out of the way while composing free text like `descr`.
+
+The extension also ships two markdown-scoped editor defaults (`configurationDefaults` in `package.json`, each overridable by an explicit user/workspace setting):
+- `editor.wordBasedSuggestions: "off"` — VSCode's own built-in word-based suggestions (any word already typed elsewhere in the document, offered as a completion regardless of context) run independently of the completion described above and can't be selectively suppressed inside just a Compendium block, so free-text fields like `descr`/`typeDetail` were getting an irrelevant word list on every keystroke.
+- `editor.quickSuggestions: { other: true, comments: true, strings: true }` — a generic fenced code block's content is classified as a "string" scope by VSCode's markdown grammar, where `strings` quick-suggestions are off by default; without this, field-name completion on a blank line (e.g. picking which ability key to type under `savingThrows:`) never opens automatically — only the `:`/`[`-triggered enum-value completion does, since registered trigger characters bypass this scope restriction on their own.
+
+Both reuse the exact same field-name/enum-value lists and validators the renderer and `Build Module` already use (`core/src/spellCompendium.ts`/`itemCompendium.ts`/`monsterCompendium.ts`, `parseSpellBlock`/`parseItemBlock`/`parseMonsterBlock`), so this can't drift out of sync with what actually builds.
+
 ## Not included (yet)
 
 - **No inline authoring for roll tables** auto-detected from a Markdown table (as the original Module Packer and old MPX both supported) — deliberately out of scope for now (tracked in [issue #26](https://github.com/BriocheMasquee/mpx-bis/issues/26)); standalone JSON files only. Spells, items, and monsters all support inline authoring — see above.
 - **No "virtual entry" edit/delete from the Compendium panel** — an inline spell/item/monster's entry reveals its location in the page; renaming or removing it means editing the page's Markdown directly, not a panel action.
 - **No on/off toggle for roll table auto-detection** — becomes relevant once inline authoring exists for tables too (tracked in [issue #22](https://github.com/BriocheMasquee/mpx-bis/issues/22), which specifically calls out that the old MPX had this always on with no way to disable it).
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)), so both fields just accept free-form strings for now.
+- **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — out of scope for now (tracked in [issue #1](https://github.com/BriocheMasquee/mpx-bis/issues/1), which originally covered both surfaces); front-matter mistakes are still caught at `Build Module` time.
+- **No completion for a monster's `speed`/`senses`** nested fields — every other nested object field (`attributes`, a spell's `activation`, a monster's `abilities`/`savingThrows`/`skills`) is covered, see [Editing assistance for inline blocks](#editing-assistance-for-inline-blocks).

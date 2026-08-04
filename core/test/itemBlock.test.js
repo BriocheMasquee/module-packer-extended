@@ -204,6 +204,12 @@ test('gender-agrees French "peu courant" to "peu courante" for a feminine item t
   assert.match(html, /<div class="compendium-block-heading">Arme de corps à corps, Peu courante<\/div>/)
 })
 
+test('uses a non-breaking space before the colon in French detail labels', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```item\nname: Test\nweight: 2\n```\n')
+  assert.match(html, /Poids&nbsp;: /)
+})
+
 test('leaves French rarity masculine for a masculine item type (e.g. ring)', () => {
   const markdown = createMarkdownRenderer({ language: 'fr' })
   const html = markdown.render('```item\nname: Test\ntype: ring\nrarity: common\n```\n')

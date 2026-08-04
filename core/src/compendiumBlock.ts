@@ -54,6 +54,16 @@ export function distanceUnitWord(measurement: MeasurementSystem, language: Conte
   return 'feet'
 }
 
+/** "Label: value" in English, "Label : value" in French (a non-breaking
+ * space before the colon is standard French typography, unlike English)
+ * — MPX-authored, not from the EncounterPlus catalog (its labels are the
+ * words themselves; the surrounding punctuation is this renderer's own).
+ * Shared by every "Label: value" detail/property line across the spell/
+ * item/monster block renderers. */
+export function labelSeparator(language: ContentLanguage): string {
+  return language === 'fr' ? '&nbsp;: ' : ': '
+}
+
 export function formatSources(sources: unknown): string | undefined {
   if (!Array.isArray(sources)) {
     return undefined

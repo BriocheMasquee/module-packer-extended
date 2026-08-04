@@ -3,10 +3,10 @@ import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateItemData } from './itemCompendium.js'
 import { translate, type RenderLocale, type CatalogOverrides } from './catalog.js'
-import { escapeHtml, resourceImagePath, formatSources, formatTags } from './compendiumBlock.js'
+import { escapeHtml, resourceImagePath, formatSources, formatTags, labelSeparator } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
-const ITEM_META_FIELDS = [
+export const ITEM_META_FIELDS = [
   'id',
   'name',
   'slug',
@@ -19,7 +19,7 @@ const ITEM_META_FIELDS = [
   'tags',
   'showTags',
 ] as const
-const ITEM_DATA_FIELDS = [
+export const ITEM_DATA_FIELDS = [
   'type',
   'typeDetail',
   'rarity',
@@ -276,7 +276,7 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
     if (!value) {
       return ''
     }
-    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}: </span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
+    return `<p class="compendium-block-detail"><span class="compendium-block-detail-label">${escapeHtml(label)}${labelSeparator(locale.language)}</span><span class="compendium-block-detail-value">${escapeHtml(value)}</span></p>`
   }
 
   const subtitle = formatSubtitle(itemData, locale)
