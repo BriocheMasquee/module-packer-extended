@@ -335,6 +335,9 @@ h6 {
   line-height: 2.1rem;
 }
 
+/* Drop cap + small-caps opening line for the paragraph right after a
+ * chapter H1 — ported from the PHB-2024 mock-up (its own gold two-tone
+ * drop cap and always-small-caps first line). */
 h1 + p:not(.no-fancy)::first-letter {
   font-family: var(--font-dropcap) !important;
   font-size: 9.3rem;
@@ -345,6 +348,16 @@ h1 + p:not(.no-fancy)::first-letter {
   margin-top: -0.3rem;
   padding-right: 0.8rem;
   float: left;
+  color: transparent;
+  background-image: linear-gradient(#b89956, #d8cdb6);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+h1 + p::first-line {
+  font-size: 116%;
+  font-variant: small-caps;
+  letter-spacing: 0.02rem;
 }
 
 /* ------------------------------------------------------------------------
