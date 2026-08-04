@@ -41,15 +41,15 @@ An override entry can be a plain string, or (for a pluralized key like `Unit.Hou
 ### Getting started with overrides
 
 Three ways to create/discover the file, all equivalent:
-- **`MPX: Create Translation Overrides File`** (command palette) — creates it (a `{ "en": {}, "fr": {} }` skeleton) if it doesn't exist yet, and opens it either way.
-- The **Project panel**'s **Translation Overrides** line — shows the current override count once the file exists, or "Create…" beforehand; clicking does the same thing as the command above (see [Project Panel](Project-Panel-Section)).
+- **`MPX: Create Translation Overrides File`** (command palette, or its icon button in the [Project panel](Project-Panel-Section)'s title bar) — creates it (a `{ "en": {}, "fr": {} }` skeleton) if it doesn't exist yet, and opens it either way.
+- The **Project panel**'s **Translation Overrides** line — only appears once the file exists (before that, use the title bar button above — no "Create…" row duplicating it), shows the current override count, and opens it; see [Project Panel](Project-Panel-Section).
 - Editing the file directly also gets **autocomplete and hover documentation** for all ~550 known catalog keys, each showing its current official value — powered by `extension/resources/schemas/translation-overrides.schema.json`, matched to the file by name via the extension's `jsonValidation` contribution (same mechanism `module.json`/`spells/*.json`/etc. already use). An override key that isn't in the schema yet (e.g. one EncounterPlus added since the schema was last generated) is still accepted at build/preview time — the schema only affects editor autocomplete, not validation.
 
 A malformed entry (wrong type, unrecognized language) is skipped with a warning notification rather than discarding the whole file — one typo doesn't cost you every other override you've already set up.
 
 ### Resetting
 
-Right-click the **Translation Overrides** line in the Project panel and choose **Delete** (moves the file to the OS trash) — the same generic delete action every other Project-panel entry has. No separate "reset" command or extra tree row: deleting the file is the reset, and the panel falls back to its "Create…" state on its own once the file watcher notices it's gone.
+Right-click the **Translation Overrides** line in the Project panel and choose **Delete** (moves the file to the OS trash) — the same generic delete action every other Project-panel entry has. No separate "reset" command: deleting the file is the reset, and the row disappears on its own once the file watcher notices it's gone (falling back to the title bar's "Create Translation Overrides File" button).
 
 ## Measurement stays a separate setting
 

@@ -11,10 +11,14 @@ async function makeTempDir() {
 }
 
 async function makeThemeFixture() {
-  const theme = await makeTempDir()
-  await mkdir(join(theme, 'css'))
-  await writeFile(join(theme, 'css', 'global.css'), 'body {}')
-  return theme
+  const themeDirectory = await makeTempDir()
+  await mkdir(join(themeDirectory, 'css'))
+  await writeFile(join(themeDirectory, 'css', 'global.css'), 'body {}')
+  await writeFile(
+    join(themeDirectory, 'theme.json'),
+    JSON.stringify({ id: 'test-theme', name: 'Test Theme', description: 'A fixture theme.' }),
+  )
+  return { id: 'test-theme', name: 'Test Theme', description: 'A fixture theme.', themeDirectory }
 }
 
 test('detectWorkspaceKind returns empty for an empty folder', async () => {
@@ -58,6 +62,7 @@ test('createModuleProject writes .vscode/settings.json with auto-increment and l
 
   const settings = JSON.parse(await readFile(join(folder, '.vscode', 'settings.json'), 'utf8'))
   assert.deepEqual(settings, {
+    'mpx.projectTheme': 'test-theme',
     'mpx.autoIncrementVersion': true,
     'mpx.contentLanguage': 'en',
     'mpx.defaultMeasurement': 'auto',

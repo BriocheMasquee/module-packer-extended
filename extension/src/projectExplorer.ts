@@ -1,7 +1,7 @@
 import { access, readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { loadCatalogOverrides } from 'mpx-core'
+import { normalizeContentLanguage, loadCatalogOverrides } from 'mpx-core'
 
 const VIEW_ID = 'mpx.projectExplorer'
 
@@ -42,6 +42,9 @@ class CompendiumSummaryItem extends vscode.TreeItem {
   }
 }
 
+/** Only shown once translation-overrides.json exists — before that, the
+ * title bar's "Create Translation Overrides File" button is the only way to
+ * get one, no "Create…" row duplicating it. */
 class TranslationOverridesItem extends vscode.TreeItem {
   constructor(readonly filePath: string, overrideCount: number) {
     super('Translation Overrides', vscode.TreeItemCollapsibleState.None)
@@ -54,22 +57,9 @@ class TranslationOverridesItem extends vscode.TreeItem {
     }
     // Reuses the same generic "Delete" context-menu action every other
     // deletable tree item has (see deleteEntryCommand.ts) — deleting the
-    // file is the reset: no separate command/tree row needed, and the
-    // panel falls back to CreateTranslationOverridesItem on its own once
-    // the file watcher notices it's gone.
+    // file is the reset: no separate command needed, and this row simply
+    // stops appearing on its own once the file watcher notices it's gone.
     this.contextValue = 'mpxDeletableEntry'
-  }
-}
-
-class CreateTranslationOverridesItem extends vscode.TreeItem {
-  constructor() {
-    super('Translation Overrides', vscode.TreeItemCollapsibleState.None)
-    this.description = 'Create…'
-    this.iconPath = new vscode.ThemeIcon('globe')
-    this.command = {
-      command: 'mpx.createTranslationOverrides',
-      title: 'Create Translation Overrides File',
-    }
   }
 }
 
@@ -112,7 +102,6 @@ type ProjectItem =
   | CompendiumSummaryItem
   | ProjectSettingsItem
   | TranslationOverridesItem
-  | CreateTranslationOverridesItem
   | ImageResourceItem
   | ProjectFolderItem
   | ProjectFileItem
@@ -182,10 +171,13 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
       .then((source) => JSON.parse(source) as Record<string, unknown>)
       .catch(() => undefined)
     if (moduleJson) {
+      const config = vscode.workspace.getConfiguration('mpx', workspaceFolder)
       const name = typeof moduleJson.name === 'string' && moduleJson.name.trim() ? moduleJson.name : 'Module'
       const version = typeof moduleJson.version === 'string' ? moduleJson.version : undefined
       const system = typeof moduleJson.system === 'string' ? moduleJson.system : undefined
-      const description = [version ? `v${version}` : undefined, system].filter(Boolean).join(' · ')
+      const contentLanguage = normalizeContentLanguage(config.get<string>('contentLanguage', 'en'))
+      const systemAndLanguage = system ? `${system} - ${contentLanguage}` : undefined
+      const description = [version ? `v${version}` : undefined, systemAndLanguage].filter(Boolean).join(' · ')
       items.push(new SummaryItem(name, description || undefined, moduleJsonPath))
 
       for (const [field, label] of [
@@ -211,8 +203,6 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
         const { overrides } = await loadCatalogOverrides(projectRoot)
         const overrideCount = Object.values(overrides).reduce((sum, entries) => sum + Object.keys(entries ?? {}).length, 0)
         items.push(new TranslationOverridesItem(overridesPath, overrideCount))
-      } else {
-        items.push(new CreateTranslationOverridesItem())
       }
 
       items.push(await buildCompendiumSummary(projectRoot))
@@ -253,7 +243,7 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
   rebuildWatcher()
 
   context.subscriptions.push(
-    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider, showCollapseAll: true }),
+    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       rebuildWatcher()
       refresh()

@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { cp, mkdir, readdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { copyFile, mkdir, readdir, writeFile } from 'node:fs/promises'
+import { dirname, join, relative } from 'node:path'
 import { slugify } from './slug.js'
+import type { ProjectTheme } from './themeCatalog.js'
+import { listFilesRecursively } from './fileScan.js'
 
 export const MODULE_CATEGORIES = ['', 'adventure', 'pack', 'rules', 'compendium', 'other'] as const
 export type ModuleCategory = (typeof MODULE_CATEGORIES)[number]
@@ -40,7 +42,7 @@ export async function detectWorkspaceKind(folder: string): Promise<WorkspaceKind
 
 export async function createModuleProject(
   targetFolder: string,
-  themeSourceFolder: string,
+  theme: ProjectTheme,
 ): Promise<void> {
   const entries = await readdir(targetFolder).catch(() => [] as string[])
   if (entries.length > 0) {
@@ -72,9 +74,20 @@ export async function createModuleProject(
 
   const assetsFolder = join(targetFolder, 'assets')
   await mkdir(assetsFolder)
-  await cp(themeSourceFolder, assetsFolder, { recursive: true })
+  // theme.json is metadata for the extension's own theme catalog, not
+  // something that belongs inside a project's assets/ folder.
+  for (const filePath of await listFilesRecursively(theme.themeDirectory)) {
+    const relativePath = relative(theme.themeDirectory, filePath)
+    if (relativePath === 'theme.json') {
+      continue
+    }
+    const targetPath = join(assetsFolder, relativePath)
+    await mkdir(dirname(targetPath), { recursive: true })
+    await copyFile(filePath, targetPath)
+  }
 
   const settingsJson = {
+    'mpx.projectTheme': theme.id,
     'mpx.autoIncrementVersion': true,
     'mpx.contentLanguage': 'en',
     'mpx.defaultMeasurement': 'auto',

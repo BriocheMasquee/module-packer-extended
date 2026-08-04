@@ -7,7 +7,11 @@ import {
   resolveMeasurementSystem,
   normalizeContentLanguage,
   loadCatalogOverrides,
+  discoverProjectThemes,
+  resolveProjectTheme,
+  DEFAULT_PROJECT_THEME_ID,
   type CatalogOverrides,
+  type ProjectTheme,
 } from 'mpx-core'
 import { registerModuleExplorer } from './moduleExplorer.js'
 import { registerProjectExplorer } from './projectExplorer.js'
@@ -19,6 +23,7 @@ import { registerPreviewConfiguration } from './previewConfiguration.js'
 import { registerLocalizationCommands } from './localizationCommands.js'
 import { registerDeleteEntryCommand } from './deleteEntryCommand.js'
 import { registerCompendiumBlockAssistance } from './compendiumBlockAssistance.js'
+import { registerThemeCommands } from './themeCommands.js'
 
 interface MarkdownItExtensionApi {
   extendMarkdownIt: (markdownIt: unknown) => unknown
@@ -27,8 +32,8 @@ interface MarkdownItExtensionApi {
 const CREATE_PROJECT_COMMAND = 'mpx.createModuleProject'
 const PENDING_MODULE_CONFIGURATION_KEY = 'mpx.pendingModuleConfiguration'
 
-function themeSourceFolder(context: vscode.ExtensionContext): string {
-  return join(context.extensionPath, 'resources', 'themes', '5.5e')
+export function themesRootDirectory(context: vscode.ExtensionContext): string {
+  return join(context.extensionPath, 'resources', 'themes')
 }
 
 async function selectWorkspaceFolder(
@@ -70,6 +75,28 @@ async function resolveTargetFolder(): Promise<string | undefined> {
   )
 }
 
+/** Only prompts when there's an actual choice to make — a single-theme
+ * QuickPick would just be friction. Once a second theme exists (issue #6's
+ * "legacy"), this starts showing one on its own, no call-site change
+ * needed. */
+async function selectProjectThemeForCreation(context: vscode.ExtensionContext): Promise<ProjectTheme | undefined> {
+  const themes = await discoverProjectThemes(themesRootDirectory(context))
+  const defaultTheme = resolveProjectTheme(themes, DEFAULT_PROJECT_THEME_ID) ?? themes[0]
+  if (themes.length <= 1) {
+    return defaultTheme
+  }
+
+  const selection = await vscode.window.showQuickPick(
+    themes.map((theme) => ({
+      label: theme.name,
+      description: theme.id === defaultTheme?.id ? `${theme.description} (default)` : theme.description,
+      theme,
+    })),
+    { placeHolder: 'Select a theme for the new project' },
+  )
+  return selection?.theme ?? defaultTheme
+}
+
 async function executeCreateModuleProject(context: vscode.ExtensionContext): Promise<void> {
   const projectDirectory = await resolveTargetFolder()
   if (!projectDirectory) {
@@ -81,7 +108,13 @@ async function executeCreateModuleProject(context: vscode.ExtensionContext): Pro
     return
   }
 
-  await createModuleProject(projectDirectory, themeSourceFolder(context))
+  const theme = await selectProjectThemeForCreation(context)
+  if (!theme) {
+    await vscode.window.showErrorMessage('MPX has no bundled theme to create a project with.')
+    return
+  }
+
+  await createModuleProject(projectDirectory, theme)
 
   const isAlreadyOpen = (vscode.workspace.workspaceFolders ?? []).some(
     (workspaceFolder) => workspaceFolder.uri.fsPath === projectDirectory,
@@ -188,6 +221,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
   registerBuildModuleCommand(context)
   registerPreviewConfiguration(context)
   registerLocalizationCommands(context)
+  registerThemeCommands(context)
   registerDeleteEntryCommand(context)
   registerCompendiumBlockAssistance(context)
 
