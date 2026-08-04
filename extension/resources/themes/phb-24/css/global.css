@@ -261,7 +261,7 @@ h1 {
   text-align: center;
   letter-spacing: 0.1rem;
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--color-black) 0%, var(--color-signature-dark) 100%);
+  background-image: linear-gradient(to bottom, var(--color-signature) 0%, var(--color-signature-light) 100%);
   background-size: 100% 1em;
   -webkit-background-clip: text;
   background-clip: text;
