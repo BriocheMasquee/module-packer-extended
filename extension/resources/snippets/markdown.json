@@ -194,7 +194,9 @@
   "MPX Blockquote": {
     "prefix": "mpx-blockquote",
     "body": [
-      "> ${1:Quotation text.}",
+      "> **${1:Title}**",
+      ">",
+      "> ${2:Quotation text.}",
       "$0"
     ],
     "description": "Insert a plain Markdown blockquote"
@@ -204,7 +206,8 @@
     "body": [
       "> **${2:Title}** {.text-center}",
       ">",
-      "> ${3:Flowchart text.} {.${1|flowchart,flowchart-with-link|}}",
+      "> ${3:Flowchart text.}",
+      "{.${1|flowchart,flowchart-with-link|}}",
       "$0"
     ],
     "description": "Insert a flowchart step, with or without a connector"
@@ -241,10 +244,10 @@
     "body": [
       "${1:Roll Table Title} {.table-title}",
       "",
-      "|[${2:2d6}](/roll/${2:2d6})|${3:Result}|",
+      "| [${2:2d6}](/roll/${2:2d6}) | ${3:Result} |",
       "|:---:|:---|",
-      "|${4:2}|${5:Result A}|",
-      "|${6:3-4}|${7:Result B}|",
+      "| ${4:2} | ${5:Result A} |",
+      "| ${6:3-4} | ${7:Result B} |",
       "$0"
     ],
     "description": "Insert a Markdown table auto-detected as a roll table at build time"

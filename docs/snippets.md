@@ -32,18 +32,21 @@ These aren't tied to the project's theme (`mpx.projectTheme`) — the extension 
   > Quotation text.
   {.large-quote}
   ```
-- **`mpx-blockquote`** — a plain blockquote, no class:
+- **`mpx-blockquote`** — a plain blockquote with a bold title, no class:
   ```
+  > **Title**
+  >
   > Quotation text.
   ```
 
 ## Layout and formatting
 
-- **`mpx-flowchart`** — a flowchart step, a dropdown picks `.flowchart` or `.flowchart-with-link`:
+- **`mpx-flowchart`** — a flowchart step, a dropdown picks `.flowchart` or `.flowchart-with-link` — the class goes on its own line after the quote since the theme CSS targets `blockquote.flowchart` itself, not a paragraph inside it:
   ```
   > **Title** {.text-center}
   >
-  > Flowchart text. {.flowchart}
+  > Flowchart text.
+  {.flowchart}
   ```
 - **`mpx-image`** — an image, a dropdown picks `.size-cover`, `.float-left`, `.float-right`, `.center`, `.caption`, or none:
   ```
@@ -64,10 +67,10 @@ These aren't tied to the project's theme (`mpx.projectTheme`) — the extension 
   ```
   Roll Table Title {.table-title}
 
-  |[2d6](/roll/2d6)|Result|
+  | [2d6](/roll/2d6) | Result |
   |:---:|:---|
-  |2|Result A|
-  |3-4|Result B|
+  | 2 | Result A |
+  | 3-4 | Result B |
   ```
 
 ## Not included (yet)
