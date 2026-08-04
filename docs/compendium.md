@@ -312,7 +312,7 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 ## Editing assistance for inline blocks
 
 While editing a ```spell/```item/```monster block, VSCode's Markdown editor provides:
-- **Field-name completion** — on a blank line inside the block, suggests every valid top-level YAML key for that block type. On a blank line nested under a known container field, suggests only *that* field's own children instead of the block's top-level fields:
+- **Field-name completion** — on a blank line, or a line where a key name is only partially typed (e.g. `sa` while typing `savingThrows`), suggests every valid top-level YAML key for that block type. On such a line nested under a known container field, suggests only *that* field's own children instead of the block's top-level fields:
   - `attributes:` → `measurement`/`ruleset` (spell, item, monster)
   - a spell's `activation:` → `unit`/`time`
   - a monster's `abilities:`/`savingThrows:` → the six ability keys (`str`/`dex`/`con`/`int`/`wis`/`cha`)

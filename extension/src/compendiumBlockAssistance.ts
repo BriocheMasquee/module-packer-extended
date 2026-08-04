@@ -240,7 +240,12 @@ class CompendiumBlockCompletionProvider implements vscode.CompletionItemProvider
       return values?.map((value) => new vscode.CompletionItem(value, vscode.CompletionItemKind.EnumMember))
     }
 
-    if (/^\s*$/.test(beforeCursor)) {
+    // Not just a fully blank line: also matches once the user has started
+    // typing the key itself (e.g. "sa" while typing "savingThrows") — VSCode
+    // filters this list client-side against what's typed so far, but only
+    // if the provider still returns it instead of bailing out the moment
+    // any character exists on the line.
+    if (/^\s*[A-Za-z0-9]*$/.test(beforeCursor)) {
       const fields = container ? Object.keys(container) : FIELD_NAMES[region.kind]
       return fields.map((field) => {
         const item = new vscode.CompletionItem(field, vscode.CompletionItemKind.Field)
