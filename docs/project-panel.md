@@ -18,9 +18,13 @@ A "Collapse All" button (VSCode's built-in tree action) sits at the end of the t
 
 Before a project exists (empty folder, no folder open, or an unrecognized folder), this section shows the welcome message and the "Create Module Project" button — creation is a project-level action, not a module-content one.
 
-## Where "Build Module" lives
+## Title bar buttons
 
-The "Build Module" button is in this section's title bar, not "Module" — building produces the whole module, it's not a content-creation action.
+Three icon buttons sit in this section's title bar, not "Module" — none of them are module-content actions:
+
+- **Build Module** — builds the whole module.
+- **Select Project Theme** — same command as clicking the Theme line.
+- **Create Translation Overrides File** — same command as the Translation Overrides line's "Create…" state; still useful once `translation-overrides.json` already exists too, since the command opens it either way — a quicker path than scrolling to find the tree line.
 
 ## Not included (yet)
 

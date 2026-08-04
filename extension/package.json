@@ -388,6 +388,16 @@
           "group": "navigation@1"
         },
         {
+          "command": "mpx.selectProjectTheme",
+          "when": "view == mpx.projectExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "mpx.createTranslationOverrides",
+          "when": "view == mpx.projectExplorer",
+          "group": "navigation@3"
+        },
+        {
           "command": "mpx.createMonster",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@1"
