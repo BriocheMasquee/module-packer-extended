@@ -349,10 +349,10 @@ h1 + p:not(.no-fancy) {
 h1 + p:not(.no-fancy)::before {
   content: '';
   position: absolute;
-  top: 0.2rem;
-  left: -2.2rem;
-  width: 3.4rem;
-  height: 3.6rem;
+  top: 0.1rem;
+  left: -1.6rem;
+  width: 4.2rem;
+  height: 4.4rem;
   background-image: url('../img/chapter-dropcap-flourish.webp');
   background-size: 100% 100%;
   background-repeat: no-repeat;
@@ -365,10 +365,10 @@ h1 + p:not(.no-fancy)::first-letter {
   font-size: 6.2rem;
   text-decoration: none;
   font-style: normal;
-  font-weight: normal;
+  font-weight: bold;
   line-height: 1;
   margin-top: -0.2rem;
-  padding-right: 1.5rem;
+  padding-right: 1rem;
   float: left;
   color: transparent;
   background-image: linear-gradient(#b89956, #d8cdb6);
@@ -376,6 +376,7 @@ h1 + p:not(.no-fancy)::first-letter {
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-stroke: 0.025rem #7a5c2e;
 }
 
 h1 + p::first-line {
