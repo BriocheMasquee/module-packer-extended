@@ -349,10 +349,10 @@ h1 + p:not(.no-fancy) {
 h1 + p:not(.no-fancy)::before {
   content: '';
   position: absolute;
-  top: 0.5rem;
-  left: -1.6rem;
-  width: 3.2rem;
-  height: 3.3rem;
+  top: 0.3rem;
+  left: -2.8rem;
+  width: 4.4rem;
+  height: 4.55rem;
   background-image: url('../img/chapter-dropcap-flourish.webp');
   background-size: 100% 100%;
   background-repeat: no-repeat;
@@ -362,13 +362,13 @@ h1 + p:not(.no-fancy)::before {
 
 h1 + p:not(.no-fancy)::first-letter {
   font-family: var(--font-heading) !important;
-  font-size: 9.3rem;
+  font-size: 6.2rem;
   text-decoration: none;
   font-style: normal;
   font-weight: normal;
   line-height: 1;
-  margin-top: -0.3rem;
-  padding-right: 0.8rem;
+  margin-top: -0.2rem;
+  padding-right: 0.6rem;
   float: left;
   color: transparent;
   background-image: linear-gradient(#b89956, #d8cdb6);
