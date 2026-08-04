@@ -7,6 +7,7 @@ A "Project" section in the MPX sidebar, above "Module", for everything about the
 In this order:
 
 - A **summary** line (module name, version, system) — clicking it opens `module.json`.
+- A **Theme** line, showing the current theme's name (e.g. "5.5e") — clicking it runs `MPX: Select Project Theme` (see [Create Module Project](Create-Module-Project#theme-selection)). Re-selecting the current theme resyncs `assets/` from the extension's bundled copy.
 - **Cover Image** / **Banner** entries, if `module.json`'s `image`/`banner` fields are set and the file exists — labeled by role, with the actual file name shown next to it. Clicking opens the image.
 - **Project Settings**, if `.vscode/settings.json` exists — opens it directly. This is where `mpx.autoIncrementVersion` lives (see [Build Module](Build-Module)).
 - A **Translation Overrides** line — if `translation-overrides.json` exists at the project root, shows the number of overrides it defines (e.g. "2 overrides") and opens it. Otherwise shows "Create…" and runs the same command as **MPX: Create Translation Overrides File** — see [Localization](Localization).
@@ -24,4 +25,3 @@ The "Build Module" button is in this section's title bar, not "Module" — build
 ## Not included (yet)
 
 - No image thumbnail/preview for the cover — VSCode's tree view only supports small icon-sized images, which didn't look good here, so Cover Image/Banner use a plain icon; click still opens the actual image full-size in an editor tab. A real centered preview would need a custom webview, not implemented.
-- Theme selector — tracked in [issue #4](https://github.com/BriocheMasquee/mpx-bis/issues/4).

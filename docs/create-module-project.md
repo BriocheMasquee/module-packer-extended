@@ -22,12 +22,18 @@ The target folder must be empty. If it already contains files (including an exis
   - `system`: `dnd5e`.
   - `acronym`, `category`, `author`, `shortDescr`, `descr`, `tags` (`[]`), `image`, `banner`, `website`, `repository`, `package`: empty, to be filled in as needed.
 - `images/`: empty folder for the project's images.
-- `assets/`: populated with the default MPX theme (`css/`, `font/`, `img/`, `js/`).
-- `.vscode/settings.json`: `{ "mpx.autoIncrementVersion": true, "mpx.contentLanguage": "en", "mpx.defaultMeasurement": "auto" }` — see [Build Module](Build-Module) for the first, and [Compendium](Compendium) for the other two.
+- `assets/`: populated with the selected theme's assets (`css/`, `font/`, `img/`, `js/`) — see [Theme selection](#theme-selection) below.
+- `.vscode/settings.json`: `{ "mpx.projectTheme": "5.5e", "mpx.autoIncrementVersion": true, "mpx.contentLanguage": "en", "mpx.defaultMeasurement": "auto" }` — see [Theme selection](#theme-selection) below, [Build Module](Build-Module) for `autoIncrementVersion`, and [Compendium](Compendium) for the other two.
 
 After creation, VSCode opens the project's folder as the workspace and opens `module.json` in the editor so you can fill in the metadata. While editing `module.json`, VSCode validates it against the EncounterPlus schema — missing required fields and invalid values are underlined, and field descriptions show on hover.
 
+## Theme selection
+
+A theme picker prompts for which one to use — but only when there's an actual choice: today the extension bundles a single real theme (`5.5e`), so creation applies it automatically without asking. The picker starts showing on its own the moment a second theme exists, no code change needed at the call site.
+
+The choice is recorded in `mpx.projectTheme` (`.vscode/settings.json`) and can be changed afterward — see the [Project panel](Project-Panel)'s Theme entry, or run `MPX: Select Project Theme`. Re-selecting the *current* theme still does something useful: it resyncs `assets/` from the extension's own bundled copy, which is how a project picks up a theme fix or improvement shipped in a later extension update (a project's `assets/` is copied once at creation time, never automatically kept in sync otherwise). `assets/css/custom.css` and `assets/js/custom.js` are never touched by a resync once they exist — that's the project's own customization layer, only ever seeded from the theme's template the first time.
+
 ## Not included (yet)
 
-- No theme picker — the default theme is applied automatically. Theme selection will come back as a later feature.
+- Only one real theme ships today (`5.5e`) — porting old MPX's "legacy" theme (the classic Module Packer appearance) needs real CSS compatibility work first, since its markup conventions predate the Compendium block system (`.compendium-block`, `.statblock-*`, `.table-title`) entirely.
 - No conversion from legacy Module Packer / EncounterPlus V4 projects — out of scope for now, see the project's overall creation-first scope.
