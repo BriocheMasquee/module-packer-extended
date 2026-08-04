@@ -1,7 +1,13 @@
 import { access, readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { loadCatalogOverrides, discoverProjectThemes, resolveProjectTheme, DEFAULT_PROJECT_THEME_ID } from 'mpx-core'
+import {
+  loadCatalogOverrides,
+  discoverProjectThemes,
+  resolveProjectTheme,
+  DEFAULT_PROJECT_THEME_ID,
+  normalizeContentLanguage,
+} from 'mpx-core'
 
 const VIEW_ID = 'mpx.projectExplorer'
 
@@ -205,15 +211,17 @@ class ProjectExplorerProvider implements vscode.TreeDataProvider<ProjectItem> {
       .then((source) => JSON.parse(source) as Record<string, unknown>)
       .catch(() => undefined)
     if (moduleJson) {
+      const config = vscode.workspace.getConfiguration('mpx', workspaceFolder)
       const name = typeof moduleJson.name === 'string' && moduleJson.name.trim() ? moduleJson.name : 'Module'
       const version = typeof moduleJson.version === 'string' ? moduleJson.version : undefined
       const system = typeof moduleJson.system === 'string' ? moduleJson.system : undefined
-      const description = [version ? `v${version}` : undefined, system].filter(Boolean).join(' · ')
+      const contentLanguage = normalizeContentLanguage(config.get<string>('contentLanguage', 'en'))
+      const systemAndLanguage = system ? `${system} - ${contentLanguage}` : undefined
+      const description = [version ? `v${version}` : undefined, systemAndLanguage].filter(Boolean).join(' · ')
       items.push(new SummaryItem(name, description || undefined, moduleJsonPath))
 
       const themes = await discoverProjectThemes(themesRootDirectory(this.context))
       if (themes.length > 0) {
-        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder)
         const currentThemeId = config.get<string>('projectTheme', DEFAULT_PROJECT_THEME_ID)
         const currentTheme = resolveProjectTheme(themes, currentThemeId) ?? themes[0]
         items.push(new ThemeItem(currentTheme.name))

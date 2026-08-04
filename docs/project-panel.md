@@ -6,7 +6,7 @@ A "Project" section in the MPX sidebar, above "Module", for everything about the
 
 In this order:
 
-- A **summary** line (module name, version, system) — clicking it opens `module.json`.
+- A **summary** line (module name, version, system, and `mpx.contentLanguage` — e.g. "v1.0.0 · dnd5e - fr") — clicking it opens `module.json`.
 - A **Theme** line, showing the current theme's name (e.g. "5.5e") — clicking it runs `MPX: Select Project Theme` (see [Create Module Project](Create-Module-Project#theme-selection)). Re-selecting the current theme resyncs `assets/` from the extension's bundled copy.
 - **Cover Image** / **Banner** entries, if `module.json`'s `image`/`banner` fields are set and the file exists — labeled by role, with the actual file name shown next to it. Clicking opens the image.
 - **Project Settings**, if `.vscode/settings.json` exists — opens it directly. This is where `mpx.autoIncrementVersion` lives (see [Build Module](Build-Module)).
