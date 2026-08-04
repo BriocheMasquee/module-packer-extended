@@ -347,7 +347,8 @@ h1 + p:not(.no-fancy)::first-letter {
   font-style: normal;
   font-weight: bold;
   line-height: 1;
-  margin-top: -0.5rem;
+  margin-top: -0.8rem;
+  margin-bottom: -0.6rem;
   padding-right: 1rem;
   float: left;
   color: transparent;
