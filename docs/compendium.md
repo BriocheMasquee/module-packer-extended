@@ -252,11 +252,21 @@ cr: ""
 initiativeBonus: 0
 proficiencyBonus: 2
 environments: []
-traits: []
-actions: []
-bonusActions: []
-reactions: []
-legendaryActions: []
+traits:
+  - name: ""
+    text: ""
+actions:
+  - name: ""
+    text: ""
+bonusActions:
+  - name: ""
+    text: ""
+reactions:
+  - name: ""
+    text: ""
+legendaryActions:
+  - name: ""
+    text: ""
 descr: ""
 sources:
   - name: ""
@@ -312,14 +322,14 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 ## Editing assistance for inline blocks
 
 While editing a ```spell/```item/```monster block, VSCode's Markdown editor provides:
-- **Field-name completion** — on a blank line, or a line where a key name is only partially typed (e.g. `sa` while typing `savingThrows`), suggests every valid top-level YAML key for that block type. On such a line nested under a known container field, suggests only *that* field's own children instead of the block's top-level fields:
+- **Field-name completion** — on a blank line, or a line where a key name is only partially typed (e.g. `sa` while typing `savingThrows`), suggests every valid top-level YAML key for that block type. Nested under a known container field, suggests only *that* field's own children instead of the block's top-level fields — authored either as indented multi-line YAML (`attributes:` on its own line, children indented below) or as a single-line `{ ... }` (e.g. the snippet's own `skills: {}`/`savingThrows: {}` defaults — completion works inside the still-open brace the same way, one `{ }` level deep):
   - `attributes:` → `measurement`/`ruleset` (spell, item, monster)
   - a spell's `activation:` → `unit`/`time`
   - a monster's `abilities:`/`savingThrows:` → the six ability keys (`str`/`dex`/`con`/`int`/`wis`/`cha`)
   - a monster's `skills:` → every skill name (`perception`, `stealth`, ...)
 
   A monster's `speed:`/`senses:` aren't covered yet — nested under either one, completion abstains rather than falling back to the top-level list.
-- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field, plus the nested fields above that have their own value list (`attributes.measurement` is `imperial`/`metric` — never `auto`, which is only a valid *setting* value, not something an individual entry ever stores; `attributes.ruleset` is always `5.5e`; a spell's `activation.unit` gets the activation-unit list). Ability/skill values are plain numbers, so only their key names are completed, not a value list. `languages`/`environments` still accept free-form values with no suggested list (same gap as their build-time validation — see [Fields that accept a custom value alongside a standard list](#fields-that-accept-a-custom-value-alongside-a-standard-list) — tracked in [issue #3](https://github.com/BriocheMasquee/mpx-bis/issues/3)).
+- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field, plus the nested fields above that have their own value list (`attributes.measurement` is `imperial`/`metric` — never `auto`, which is only a valid *setting* value, not something an individual entry ever stores; `attributes.ruleset` is always `5.5e`; a spell's `activation.unit` gets the activation-unit list). Ability/skill values are plain numbers, so only their key names are completed, not a value list. `languages`/`environments` also suggest a list now (EncounterPlus's own internal enum-to-catalog-key map confirms both are backed by a real standard list, always alongside a custom/homebrew value) — see [Fields that accept a custom value alongside a standard list](#fields-that-accept-a-custom-value-alongside-a-standard-list).
 - **Live diagnostics** — the same validation `Build Module` and the rendered preview's error message already run (`validateSpellData`/`validateItemData`/`validateMonsterData`) also shows up as an editor warning on the block's opening fence line, without needing the preview open. Only checked once the block has its closing ` ``` ` — a block still being typed isn't flagged as broken mid-edit.
 
 Completion only re-triggers on `:` (right after a field name) and `[` (entering an inline array) — not on every space — so it stays out of the way while composing free text like `descr`.

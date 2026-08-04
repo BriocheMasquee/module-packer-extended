@@ -28,6 +28,8 @@ import {
   MONSTER_CHALLENGE_RATINGS,
   MONSTER_ABILITY_KEYS,
   MONSTER_SKILLS,
+  MONSTER_LANGUAGES,
+  MONSTER_ENVIRONMENTS,
   COMPENDIUM_RULESET,
 } from 'mpx-core'
 
@@ -88,6 +90,12 @@ const ENUM_VALUES: Record<BlockKind, Record<string, readonly string[]>> = {
     damageResistances: MONSTER_DAMAGE_TYPES,
     damageVulnerabilities: MONSTER_DAMAGE_TYPES,
     cr: withoutBlank(MONSTER_CHALLENGE_RATINGS),
+    // Suggestions only, not a closed enum: EncounterPlus's own real data
+    // model (confirmed by the user against its internal types.json) backs
+    // both with a standard list but always allows a custom value alongside
+    // it (a homebrew language, a setting-specific environment).
+    languages: MONSTER_LANGUAGES,
+    environments: MONSTER_ENVIRONMENTS,
   },
 }
 
@@ -213,10 +221,42 @@ function findRegionAtLine(document: vscode.TextDocument, targetLine: number): Bl
   return undefined
 }
 
-/** Field-name completion (nothing typed yet on the line) and enum-value
- * completion (cursor right after a known field's `:`) for
+/** A container field opened inline on the same line, e.g. `skills: { |` —
+ * the snippet's own default for `savingThrows`/`skills` (`{}`), and the
+ * established compact style used throughout this project's real examples
+ * (`abilities: { str: 24, dex: 15, ... }`). Only handles a *still-open*
+ * brace (no matching `}` yet before the cursor) on the current line —
+ * multi-line `{ ... }` isn't covered, same as multi-line object nesting
+ * generally isn't beyond one level (see findParentField). */
+const INLINE_CONTAINER_OPEN = /^\s*([A-Za-z][A-Za-z0-9]*)\s*:\s*\{([^}]*)$/
+
+/** Text since the last comma (or since the opening `{`/line start if
+ * there isn't one yet) — the part of an inline `{ a: 1, b: 2, |` that's
+ * still being typed, equivalent to `beforeCursor` for a single nested key. */
+function currentSegment(text: string): string {
+  const lastComma = text.lastIndexOf(',')
+  return lastComma === -1 ? text : text.slice(lastComma + 1)
+}
+
+function fieldCompletions(fields: readonly string[]): vscode.CompletionItem[] {
+  return fields.map((field) => {
+    const item = new vscode.CompletionItem(field, vscode.CompletionItemKind.Field)
+    item.insertText = `${field}: `
+    return item
+  })
+}
+
+function enumCompletions(values: readonly string[]): vscode.CompletionItem[] {
+  return values.map((value) => new vscode.CompletionItem(value, vscode.CompletionItemKind.EnumMember))
+}
+
+/** Field-name completion (nothing typed yet, or a key partially typed) and
+ * enum-value completion (cursor right after a known field's `:`) for
  * ```spell/item/monster blocks — reuses the exact same field-name and
- * enum-value lists the validators/renderer already use. */
+ * enum-value lists the validators/renderer already use. Shared between a
+ * block's own top-level fields and a known container field's own children
+ * (`attributes:`, `savingThrows: { ... }`, ...), authored either as
+ * multi-line indentation or a single-line `{ ... }`. */
 class CompendiumBlockCompletionProvider implements vscode.CompletionItemProvider {
   provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] | undefined {
     const region = findRegionAtLine(document, position.line)
@@ -225,33 +265,45 @@ class CompendiumBlockCompletionProvider implements vscode.CompletionItemProvider
     }
 
     const beforeCursor = document.lineAt(position.line).text.slice(0, position.character)
+
+    const inlineMatch = INLINE_CONTAINER_OPEN.exec(beforeCursor)
+    if (inlineMatch) {
+      const container = CONTAINER_FIELDS[region.kind][inlineMatch[1]]
+      // An inline-opened container that isn't a known one (e.g. a monster's
+      // `speed: { ` isn't covered) — abstain rather than fall back to the
+      // block's own top-level fields, which would be wrong here.
+      return container ? this.completionsFor(currentSegment(inlineMatch[2]), container) : undefined
+    }
+
     const parentField = findParentField(document, region, position.line)
     const container = parentField ? CONTAINER_FIELDS[region.kind][parentField] : undefined
-    // A nested line under an unlisted container (e.g. a monster's `skills:`)
-    // isn't covered yet — abstain entirely rather than fall back to the
-    // block's own top-level fields/enums, which would be wrong here.
     if (parentField && !container) {
       return undefined
     }
 
-    const fieldMatch = FIELD_LINE.exec(beforeCursor)
+    return this.completionsFor(beforeCursor, container, FIELD_NAMES[region.kind], ENUM_VALUES[region.kind])
+  }
+
+  private completionsFor(
+    segment: string,
+    container: Record<string, readonly string[]> | undefined,
+    topLevelFields?: readonly string[],
+    topLevelEnums?: Record<string, readonly string[]>,
+  ): vscode.CompletionItem[] | undefined {
+    const fieldMatch = FIELD_LINE.exec(segment)
     if (fieldMatch) {
-      const values = container ? container[fieldMatch[1]] : ENUM_VALUES[region.kind][fieldMatch[1]]
-      return values?.map((value) => new vscode.CompletionItem(value, vscode.CompletionItemKind.EnumMember))
+      const values = container ? container[fieldMatch[1]] : topLevelEnums?.[fieldMatch[1]]
+      return values && enumCompletions(values)
     }
 
-    // Not just a fully blank line: also matches once the user has started
-    // typing the key itself (e.g. "sa" while typing "savingThrows") — VSCode
-    // filters this list client-side against what's typed so far, but only
-    // if the provider still returns it instead of bailing out the moment
-    // any character exists on the line.
-    if (/^\s*[A-Za-z0-9]*$/.test(beforeCursor)) {
-      const fields = container ? Object.keys(container) : FIELD_NAMES[region.kind]
-      return fields.map((field) => {
-        const item = new vscode.CompletionItem(field, vscode.CompletionItemKind.Field)
-        item.insertText = `${field}: `
-        return item
-      })
+    // Not just a fully blank segment: also matches once the user has
+    // started typing the key itself (e.g. "sa" while typing "savingThrows")
+    // — VSCode filters this list client-side against what's typed so far,
+    // but only if the provider still returns it instead of bailing out the
+    // moment any character exists.
+    if (/^\s*[A-Za-z0-9]*$/.test(segment)) {
+      const fields = container ? Object.keys(container) : (topLevelFields ?? [])
+      return fieldCompletions(fields)
     }
 
     return undefined

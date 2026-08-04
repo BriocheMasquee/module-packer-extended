@@ -70,5 +70,7 @@ export {
   MONSTER_CHALLENGE_RATINGS,
   MONSTER_ABILITY_KEYS,
   MONSTER_SKILLS,
+  MONSTER_LANGUAGES,
+  MONSTER_ENVIRONMENTS,
 } from './monsterCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'

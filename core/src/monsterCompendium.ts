@@ -58,6 +58,47 @@ export const MONSTER_CHALLENGE_RATINGS = [
   '1/2',
   ...Array.from({ length: 30 }, (_, index) => String(index + 1)),
 ]
+/** `languages`/`environments` are free text (not enum-validated — a
+ * homebrew language or setting-specific environment must stay typeable,
+ * see docs), but EncounterPlus's own `types.json` (its internal enum-key ->
+ * catalog-key map, shared directly by the user) confirms both are backed
+ * by a real standard list underneath, with a custom value always allowed
+ * alongside it. Listed here as the catalog's own English display word
+ * (e.g. "Common", not the internal camelCase code "common") to match how
+ * every other free-text-with-suggestions list in this project is authored
+ * (compare `conditionImmunities: [Charmed, Exhaustion, Frightened]`) —
+ * these are suggestions for authoring, not a validated enum. */
+export const MONSTER_LANGUAGES = [
+  'Common',
+  'Dwarvish',
+  'Elvish',
+  'Giant',
+  'Gnomish',
+  'Goblin',
+  'Halfling',
+  'Orc',
+  'Abyssal',
+  'Celestial',
+  'DeepSpeech',
+  'Draconic',
+  'Infernal',
+  'Primordial',
+  'Sylvan',
+  'Undercommon',
+]
+export const MONSTER_ENVIRONMENTS = [
+  'Arctic',
+  'Coastal',
+  'Desert',
+  'Forest',
+  'Grassland',
+  'Hill',
+  'Mountain',
+  'Swamp',
+  'Underdark',
+  'Underwater',
+  'Urban',
+]
 export const MONSTER_FEATURE_LIST_FIELDS = ['traits', 'actions', 'bonusActions', 'reactions', 'legendaryActions']
 export const MONSTER_IMAGE_PATTERN = /^monsters\/[^/\\]+$/
 
