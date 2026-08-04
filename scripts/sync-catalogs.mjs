@@ -1,9 +1,9 @@
 // Regenerates core/src/catalogEn.ts and core/src/catalogFr.ts from
-// EncounterPlus's own MIT-licensed localization files
-// (github.com/encounterplus/dnd5e/tree/main/lang). Run manually, or by the
-// bi-weekly .github/workflows/sync-catalogs.yml (which opens a PR with
-// whatever this script changes — it never commits or merges anything
-// itself).
+// EncounterPlus's own localization files
+// (github.com/encounterplus/dnd5e/tree/main/lang) — see THIRD-PARTY-LICENSES.md
+// for the license basis. Run manually, or by the bi-weekly
+// .github/workflows/sync-catalogs.yml (which opens a PR with whatever this
+// script changes — it never commits or merges anything itself).
 import { writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -85,10 +85,12 @@ async function main() {
     'CATALOG_EN',
     [
       "// English label catalog, sourced from EncounterPlus's own localization file",
-      '// (lang/en.json in encounterplus/dnd5e), released under the MIT license.',
-      '// Regenerated periodically from upstream by .github/workflows/sync-catalogs.yml',
-      "// (opens a PR, never auto-merges) — see catalog.ts for translate()/pluralize()",
-      '// and the language/override resolution logic that consumes this data.',
+      '// (lang/en.json in encounterplus/dnd5e) — see THIRD-PARTY-LICENSES.md for the',
+      '// license basis (that repo has no LICENSE file of its own; usage was granted',
+      '// directly by the EncounterPlus developer). Regenerated periodically from',
+      '// upstream by .github/workflows/sync-catalogs.yml (opens a PR, never',
+      '// auto-merges) — see catalog.ts for translate()/pluralize() and the',
+      '// language/override resolution logic that consumes this data.',
     ],
     enKeys,
     en,
@@ -97,10 +99,12 @@ async function main() {
     'CATALOG_FR',
     [
       "// French label catalog, sourced from EncounterPlus's own localization file",
-      '// (lang/fr.json in encounterplus/dnd5e), released under the MIT license.',
-      '// Regenerated periodically from upstream by .github/workflows/sync-catalogs.yml',
-      "// (opens a PR, never auto-merges) — see catalog.ts for translate()/pluralize()",
-      '// and the language/override resolution logic that consumes this data.',
+      '// (lang/fr.json in encounterplus/dnd5e) — see THIRD-PARTY-LICENSES.md for the',
+      '// license basis (that repo has no LICENSE file of its own; usage was granted',
+      '// directly by the EncounterPlus developer). Regenerated periodically from',
+      '// upstream by .github/workflows/sync-catalogs.yml (opens a PR, never',
+      '// auto-merges) — see catalog.ts for translate()/pluralize() and the',
+      '// language/override resolution logic that consumes this data.',
       '// One upstream key mismatch corrected on ingestion:',
       '// Item.ContainerCapacityWithUnit -> Item.ContainerCapacity, to match the English',
       '// catalog key. EncounterPlus\'s own untranslated "(à traduire)" placeholders are',

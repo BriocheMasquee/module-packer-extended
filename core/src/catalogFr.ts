@@ -1,8 +1,10 @@
 // French label catalog, sourced from EncounterPlus's own localization file
-// (lang/fr.json in encounterplus/dnd5e), released under the MIT license.
-// Regenerated periodically from upstream by .github/workflows/sync-catalogs.yml
-// (opens a PR, never auto-merges) — see catalog.ts for translate()/pluralize()
-// and the language/override resolution logic that consumes this data.
+// (lang/fr.json in encounterplus/dnd5e) — see THIRD-PARTY-LICENSES.md for the
+// license basis (that repo has no LICENSE file of its own; usage was granted
+// directly by the EncounterPlus developer). Regenerated periodically from
+// upstream by .github/workflows/sync-catalogs.yml (opens a PR, never
+// auto-merges) — see catalog.ts for translate()/pluralize() and the
+// language/override resolution logic that consumes this data.
 // One upstream key mismatch corrected on ingestion:
 // Item.ContainerCapacityWithUnit -> Item.ContainerCapacity, to match the English
 // catalog key. EncounterPlus's own untranslated "(à traduire)" placeholders are

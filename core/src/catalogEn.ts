@@ -1,8 +1,10 @@
 // English label catalog, sourced from EncounterPlus's own localization file
-// (lang/en.json in encounterplus/dnd5e), released under the MIT license.
-// Regenerated periodically from upstream by .github/workflows/sync-catalogs.yml
-// (opens a PR, never auto-merges) — see catalog.ts for translate()/pluralize()
-// and the language/override resolution logic that consumes this data.
+// (lang/en.json in encounterplus/dnd5e) — see THIRD-PARTY-LICENSES.md for the
+// license basis (that repo has no LICENSE file of its own; usage was granted
+// directly by the EncounterPlus developer). Regenerated periodically from
+// upstream by .github/workflows/sync-catalogs.yml (opens a PR, never
+// auto-merges) — see catalog.ts for translate()/pluralize() and the
+// language/override resolution logic that consumes this data.
 export const CATALOG_EN: Record<string, string | { one: string; many: string }> = {
   'Ability.CHA': 'CHA',
   'Ability.CON': 'CON',

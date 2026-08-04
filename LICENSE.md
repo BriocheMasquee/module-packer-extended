@@ -1,6 +1,8 @@
 CC0 1.0 Universal
 ==================
 
+This CC0 dedication applies to `mpx-bis`'s own code and content. It does not and cannot extend to third-party work bundled with it that this project doesn't hold the rights to — see `THIRD-PARTY-LICENSES.md` for the bundled theme fonts, each under its own license.
+
 Statement of Purpose
 ---------------------
 
