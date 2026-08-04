@@ -339,9 +339,9 @@ h6 {
  * chapter H1 — ported from the PHB-2024 mock-up (its own gold two-tone
  * drop cap and always-small-caps first line). Set in --font-heading
  * (matches the H1 above it) rather than --font-dropcap's blackletter,
- * which read too far from the mock-up's reference. The flourish beside
- * it is a placeholder third-party asset (not yet licensed for this
- * theme — audit before this branch merges, see THIRD-PARTY-LICENSES.md). */
+ * which read too far from the mock-up's reference. The flourish beside it
+ * (chapter-dropcap-flourish.webp) is original artwork — procedurally drawn
+ * curves, not traced from any reference — so no license to track. */
 h1 + p:not(.no-fancy) {
   position: relative;
 }
@@ -605,6 +605,26 @@ figcaption {
   font-family: var(--font-caption);
   color: var(--color-black);
   font-size: 1.15rem;
+}
+
+/* {.caption-over}: the caption sits on the image itself (bottom edge)
+ * instead of below it — same font as .caption, in pale gray-white with a
+ * dark shadow for legibility over whatever the image looks like. */
+figure:has(> img.caption-over) {
+  position: relative;
+}
+
+figure:has(> img.caption-over) figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.6rem 1.2rem;
+  color: #e9e6e0;
+  text-shadow:
+    0 0 0.5rem rgba(0, 0, 0, 0.9),
+    0 0 0.2rem rgba(0, 0, 0, 0.9),
+    0 0.1rem 0.2rem rgba(0, 0, 0, 0.7);
 }
 
 figure.size-full,

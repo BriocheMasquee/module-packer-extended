@@ -328,7 +328,11 @@ function installImageRendering(markdown: MarkdownItInstance, options: MarkdownRe
 
     const classValue = token.attrGet('class')
     const classes: string[] = typeof classValue === 'string' ? classValue.split(/\s+/).filter(Boolean) : []
-    const hasCaption = classes.includes('caption')
+    // "caption-over" (a theme's overlay-styled caption, e.g. PHB-24's) also
+    // triggers the figure/figcaption wrap on its own — unlike "caption" it
+    // isn't stripped, since a theme needs it to stay on the <img> to hook
+    // its CSS off (:has(> img.caption-over)).
+    const hasCaption = classes.includes('caption') || classes.includes('caption-over')
     const altText = token.children ? self.renderInlineAsText(token.children, opts, env) : ''
 
     if (!hasCaption || !altText) {
