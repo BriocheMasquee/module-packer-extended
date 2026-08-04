@@ -337,9 +337,31 @@ h6 {
 
 /* Drop cap + small-caps opening line for the paragraph right after a
  * chapter H1 — ported from the PHB-2024 mock-up (its own gold two-tone
- * drop cap and always-small-caps first line). */
+ * drop cap and always-small-caps first line). Set in --font-heading
+ * (matches the H1 above it) rather than --font-dropcap's blackletter,
+ * which read too far from the mock-up's reference. The flourish beside
+ * it is a placeholder third-party asset (not yet licensed for this
+ * theme — audit before this branch merges, see THIRD-PARTY-LICENSES.md). */
+h1 + p:not(.no-fancy) {
+  position: relative;
+}
+
+h1 + p:not(.no-fancy)::before {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  left: -1.6rem;
+  width: 3.2rem;
+  height: 3.3rem;
+  background-image: url('../img/chapter-dropcap-flourish.webp');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.75;
+  z-index: -1;
+}
+
 h1 + p:not(.no-fancy)::first-letter {
-  font-family: var(--font-dropcap) !important;
+  font-family: var(--font-heading) !important;
   font-size: 9.3rem;
   text-decoration: none;
   font-style: normal;
