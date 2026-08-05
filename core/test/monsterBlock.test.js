@@ -257,10 +257,19 @@ test('renders speed with multiple movement modes and hover', () => {
   assert.match(html, /Speed<\/span> 10 ft\., Fly 60 ft\. \(Hover\)/)
 })
 
-test('converts speed and senses from feet to meters (x0.3) when measurement is metric', () => {
+test('shows speed and senses as-authored (in meters, no feet conversion) when measurement is metric', () => {
   const markdown = createMarkdownRenderer({ measurement: 'metric' })
   const html = markdown.render('```monster\nname: Test\nspeed:\n  walk: 40\n  fly: 80\nsenses:\n  darkvision: 120\n```\n')
-  assert.match(html, /Speed<\/span> 12 m\., Fly 24 m\./)
+  assert.match(html, /Speed<\/span> 40 m\., Fly 80 m\./)
+  assert.match(html, /Senses: <\/span>Darkvision 120 m\./)
+})
+
+test('converts speed/senses from feet to meters when the monster was authored imperial but the project is metric', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric' })
+  const html = markdown.render(
+    '```monster\nname: Test\nattributes:\n  measurement: imperial\nspeed:\n  walk: 40\nsenses:\n  darkvision: 120\n```\n',
+  )
+  assert.match(html, /Speed<\/span> 12 m\./)
   assert.match(html, /Senses: <\/span>Darkvision 36 m\./)
 })
 

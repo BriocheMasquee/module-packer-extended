@@ -27,15 +27,58 @@ export function resourceImagePath(resourcePath: string, preview: boolean | undef
   return preview ? `../${resourcePath}` : resourcePath
 }
 
-/** Values are always authored in feet (matching D&D's own rules) — metric
- * display converts using the same simplified factor as WotC's own licensed
- * French translations (feet × 0.3, rounded to the nearest half-unit), not
- * the precise 0.3048 metric conversion. Shared by every distance shown in a
- * spell/monster block (a spell's range/area, a monster's speed/senses). */
+/** Distance and weight values are authored in whichever unit an entry's own
+ * `attributes.measurement` says (imperial: feet/pounds, metric:
+ * meters/kilograms) — shown as-is when that matches the project's active
+ * measurement, or converted when it doesn't. Distance uses the same
+ * simplified ×0.3 factor as WotC's own licensed French translations for
+ * feet -> meters. Weight uses the common tabletop rule-of-thumb factor of
+ * ×0.5 (1 lb ≈ 0.5 kg — a rounder, faster-to-eyeball simplification than
+ * the real-world 0.4536, in the same spirit as the distance factor). Both
+ * reverse directions (meters -> feet, kg -> lb) are the plain inverse (no
+ * official reference exists for those, D&D's own rules are always
+ * feet/pounds-first). When an entry has no explicit `attributes.measurement`
+ * (the common case for freshly-authored content), its numbers are treated
+ * as already being in the project's *current* active unit — no conversion,
+ * i.e. authored natively. Shared by every distance shown in a spell/
+ * monster block (a spell's range/area, a monster's speed/senses) and an
+ * item's weight/capacity. */
 const FEET_TO_METERS_FACTOR = 0.3
+const LB_TO_KG_FACTOR = 0.5
 
-export function feetToDisplayValue(feet: number, measurement: MeasurementSystem): number {
-  return measurement === 'metric' ? Math.round(feet * FEET_TO_METERS_FACTOR * 2) / 2 : feet
+export function resolveAuthoredMeasurement(attributes: unknown): MeasurementSystem | undefined {
+  if (!isPlainObject(attributes)) {
+    return undefined
+  }
+  return attributes.measurement === 'imperial' || attributes.measurement === 'metric' ? attributes.measurement : undefined
+}
+
+function convert(
+  value: number,
+  authoredMeasurement: MeasurementSystem | undefined,
+  displayMeasurement: MeasurementSystem,
+  factor: number,
+): number {
+  if (!authoredMeasurement || authoredMeasurement === displayMeasurement) {
+    return value
+  }
+  return authoredMeasurement === 'imperial' ? Math.round(value * factor * 2) / 2 : Math.round(value / factor)
+}
+
+export function resolveDistanceValue(
+  value: number,
+  authoredMeasurement: MeasurementSystem | undefined,
+  displayMeasurement: MeasurementSystem,
+): number {
+  return convert(value, authoredMeasurement, displayMeasurement, FEET_TO_METERS_FACTOR)
+}
+
+export function resolveWeightValue(
+  value: number,
+  authoredMeasurement: MeasurementSystem | undefined,
+  displayMeasurement: MeasurementSystem,
+): number {
+  return convert(value, authoredMeasurement, displayMeasurement, LB_TO_KG_FACTOR)
 }
 
 export function formatDistanceNumber(value: number): string {
@@ -43,13 +86,17 @@ export function formatDistanceNumber(value: number): string {
 }
 
 /** The plain unit word appended after a spell range's number (e.g. "9
- * meters"/"9 mètres") — MPX-authored, not sourced from the upstream
- * EncounterPlus catalog (it has no key for this), so untouched by
- * scripts/sync-catalogs.mjs. No French word is given for imperial ("feet")
- * since French projects default to metric — see resolveMeasurementSystem. */
-export function distanceUnitWord(measurement: MeasurementSystem, language: ContentLanguage): string {
+ * meters"/"9 mètres", "1 meter"/"1 mètre") — MPX-authored, not sourced from
+ * the upstream EncounterPlus catalog (it has no key for this), so untouched
+ * by scripts/sync-catalogs.mjs. No French word is given for imperial
+ * ("feet") since French projects default to metric — see
+ * resolveMeasurementSystem. */
+export function distanceUnitWord(measurement: MeasurementSystem, language: ContentLanguage, count: number): string {
   if (measurement === 'metric') {
-    return language === 'fr' ? 'mètre' : 'meters'
+    if (language === 'fr') {
+      return count === 1 ? 'mètre' : 'mètres'
+    }
+    return count === 1 ? 'meter' : 'meters'
   }
   return 'feet'
 }

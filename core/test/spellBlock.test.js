@@ -186,22 +186,42 @@ test('records the parsed spell on env.inlineSpells for later build merging', () 
   assert.equal(env.inlineSpells[0].data.data.level, 3)
 })
 
-test('converts range from feet to meters (x0.3) when measurement is metric', () => {
+test('shows a metric range as-authored, with no feet-to-meters conversion', () => {
   const markdown = createMarkdownRenderer({ measurement: 'metric' })
   const html = markdown.render('```spell\nname: Test\nrange: 30\n```\n')
+  assert.match(html, /30 meters/)
+})
+
+test('converts range from feet to meters when the spell was authored imperial but the project is metric', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric' })
+  const html = markdown.render('```spell\nname: Test\nattributes:\n  measurement: imperial\nrange: 30\n```\n')
   assert.match(html, /9 meters/)
 })
 
-test('rounds a metric range conversion to the nearest half-meter', () => {
-  const markdown = createMarkdownRenderer({ measurement: 'metric' })
-  const html = markdown.render('```spell\nname: Test\nrange: 25\n```\n')
-  assert.match(html, /7\.5 meters/)
+test('converts range from meters to feet when the spell was authored metric but the project is imperial', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'imperial' })
+  const html = markdown.render('```spell\nname: Test\nattributes:\n  measurement: metric\nrange: 9\n```\n')
+  assert.match(html, /30 feet/)
 })
 
-test('shows the French unit word "mètre" for a metric range when language is "fr"', () => {
+test('uses the singular unit word for a range of exactly 1', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric' })
+  const html = markdown.render('```spell\nname: Test\nrange: 1\n```\n')
+  assert.match(html, /1 meter\b/)
+  assert.doesNotMatch(html, /1 meters/)
+})
+
+test('shows the French unit word "mètres" (plural) for a metric range when language is "fr"', () => {
   const markdown = createMarkdownRenderer({ measurement: 'metric', language: 'fr' })
   const html = markdown.render('```spell\nname: Test\nrange: 30\n```\n')
-  assert.match(html, /9 mètre/)
+  assert.match(html, /30 mètres/)
+})
+
+test('uses the singular French unit word "mètre" for a range of exactly 1', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric', language: 'fr' })
+  const html = markdown.render('```spell\nname: Test\nrange: 1\n```\n')
+  assert.match(html, /1 mètre\b/)
+  assert.doesNotMatch(html, /1 mètres/)
 })
 
 test('uses a non-breaking space before the colon in French detail labels', () => {
@@ -242,13 +262,13 @@ test('accepts a measurement getter re-read on every render, not resolved once', 
 
   current = 'metric'
   const secondHtml = markdown.render('```spell\nname: Test\nrange: 30\n```\n')
-  assert.match(secondHtml, /9 meters/)
+  assert.match(secondHtml, /30 meters/)
 })
 
-test('converts area effect size from feet to meters when measurement is metric', () => {
+test('shows a metric area effect size as-authored, with no feet-to-meters conversion', () => {
   const markdown = createMarkdownRenderer({ measurement: 'metric' })
   const html = markdown.render('```spell\nname: Test\nrangeType: self\nareaEffectShape: sphere\nareaEffectSize: 20\n```\n')
-  assert.match(html, /\(6 m <img/)
+  assert.match(html, /\(20 m <img/)
 })
 
 test('a normal fenced code block (non-spell) still renders as a regular code block', () => {

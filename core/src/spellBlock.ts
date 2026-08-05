@@ -7,9 +7,10 @@ import {
   escapeHtml,
   themeAssetPath,
   resourceImagePath,
-  feetToDisplayValue,
   formatDistanceNumber,
   distanceUnitWord,
+  resolveAuthoredMeasurement,
+  resolveDistanceValue,
   formatSources,
   formatTags,
   labelSeparator,
@@ -202,8 +203,8 @@ function formatRange(data: Record<string, unknown>, locale: RenderLocale): strin
   // 0 is never a real spell range in D&D's rules — treated as "not set"
   // (matching the snippet's own placeholder default), not a literal 0 feet.
   if (typeof data.range === 'number' && data.range > 0) {
-    const value = formatDistanceNumber(feetToDisplayValue(data.range, locale.measurement))
-    return `${value} ${distanceUnitWord(locale.measurement, locale.language)}`
+    const resolved = resolveDistanceValue(data.range, locale.authoredMeasurement, locale.measurement)
+    return `${formatDistanceNumber(resolved)} ${distanceUnitWord(locale.measurement, locale.language, resolved)}`
   }
   return undefined
 }
@@ -270,7 +271,7 @@ function buildRangeDetailHtml(
   if (hasArea) {
     const sizeText =
       areaSize !== undefined
-        ? `${formatDistanceNumber(feetToDisplayValue(areaSize, locale.measurement))} ${locale.measurement === 'metric' ? 'm' : 'ft'} `
+        ? `${formatDistanceNumber(resolveDistanceValue(areaSize, locale.authoredMeasurement, locale.measurement))} ${locale.measurement === 'metric' ? 'm' : 'ft'} `
         : ''
     value += ` (${escapeHtml(sizeText)}${formatAreaEffectShapeHtml(areaShape, showAreaEffectIcon, preview, locale)})`
   }
@@ -340,7 +341,12 @@ export function renderSpellBlockHtml(
   markdown: MarkdownIt,
   options: SpellBlockRenderOptions,
 ): string {
-  const locale: RenderLocale = { measurement: options.measurement, language: options.language ?? 'en', overrides: options.overrides }
+  const locale: RenderLocale = {
+    measurement: options.measurement,
+    language: options.language ?? 'en',
+    overrides: options.overrides,
+    authoredMeasurement: resolveAuthoredMeasurement(data.attributes),
+  }
   const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Spell'
   const spellData = isPlainObject(data.data) ? data.data : {}
 

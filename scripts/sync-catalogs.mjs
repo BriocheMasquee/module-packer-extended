@@ -69,6 +69,22 @@ async function main() {
     delete fr['Item.ContainerCapacityWithUnit']
   }
 
+  // Upstream capitalizes these ("Minute", "Jours") as if standalone labels,
+  // but every MPX call site only ever uses them inline after a number (e.g.
+  // "3 minutes") — French grammar doesn't capitalize a common noun there, so
+  // lowercase the first letter on ingestion. A no-op once/if EncounterPlus
+  // lowercases these on their end.
+  function lowercaseFirst(value) {
+    return value.charAt(0).toLowerCase() + value.slice(1)
+  }
+  for (const key of ['Unit.Day', 'Unit.Hour', 'Unit.Minute', 'Unit.Round']) {
+    const entry = fr[key]
+    if (entry && typeof entry === 'object') {
+      entry.one = lowercaseFirst(entry.one)
+      entry.many = lowercaseFirst(entry.many)
+    }
+  }
+
   const enKeys = Object.keys(en).sort()
   const frOnlyKeys = Object.keys(fr)
     .filter((key) => !enKeys.includes(key))
@@ -108,7 +124,9 @@ async function main() {
       '// One upstream key mismatch corrected on ingestion:',
       '// Item.ContainerCapacityWithUnit -> Item.ContainerCapacity, to match the English',
       '// catalog key. EncounterPlus\'s own untranslated "(à traduire)" placeholders are',
-      '// kept as-is, not translated by this script.',
+      '// kept as-is, not translated by this script. Unit.Day/Hour/Minute/Round are',
+      '// lowercased on ingestion (upstream capitalizes them; every MPX call site uses',
+      '// them inline after a number, e.g. "3 minutes", where French doesn\'t capitalize).',
     ],
     enKeys,
     fr,
