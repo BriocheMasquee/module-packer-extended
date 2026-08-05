@@ -69,13 +69,13 @@ test('converts weight/capacity from lb to kg when the item was authored imperial
   const html = markdown.render(
     '```item\nname: Test\nattributes:\n  measurement: imperial\nweight: 10\ncontainer: true\ncapacity: 20\n```\n',
   )
-  assert.match(html, /Weight: <\/span><span class="compendium-block-detail-value">4\.5 kg</)
-  assert.match(html, /Container Capacity: <\/span><span class="compendium-block-detail-value">9 kg</)
+  assert.match(html, /Weight: <\/span><span class="compendium-block-detail-value">5 kg</)
+  assert.match(html, /Container Capacity: <\/span><span class="compendium-block-detail-value">10 kg</)
 })
 
 test('converts weight from kg to lb when the item was authored metric but the project is imperial', () => {
   const html = renderItem('name: Test\nattributes:\n  measurement: metric\nweight: 9')
-  assert.match(html, /Weight: <\/span><span class="compendium-block-detail-value">20 lb</)
+  assert.match(html, /Weight: <\/span><span class="compendium-block-detail-value">18 lb</)
 })
 
 test('treats weight: 0 and value: 0 as not set', () => {

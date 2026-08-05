@@ -32,16 +32,19 @@ export function resourceImagePath(resourcePath: string, preview: boolean | undef
  * meters/kilograms) — shown as-is when that matches the project's active
  * measurement, or converted when it doesn't. Distance uses the same
  * simplified ×0.3 factor as WotC's own licensed French translations for
- * feet -> meters; the reverse direction, and both weight directions, are
- * the plain inverse (no official reference exists for those, D&D's own
- * rules are always feet/pounds-first). When an entry has no explicit
- * `attributes.measurement` (the common case for freshly-authored content),
- * its numbers are treated as already being in the project's *current*
- * active unit — no conversion, i.e. authored natively. Shared by every
- * distance shown in a spell/monster block (a spell's range/area, a
- * monster's speed/senses) and an item's weight/capacity. */
+ * feet -> meters. Weight uses the common tabletop rule-of-thumb factor of
+ * ×0.5 (1 lb ≈ 0.5 kg — a rounder, faster-to-eyeball simplification than
+ * the real-world 0.4536, in the same spirit as the distance factor). Both
+ * reverse directions (meters -> feet, kg -> lb) are the plain inverse (no
+ * official reference exists for those, D&D's own rules are always
+ * feet/pounds-first). When an entry has no explicit `attributes.measurement`
+ * (the common case for freshly-authored content), its numbers are treated
+ * as already being in the project's *current* active unit — no conversion,
+ * i.e. authored natively. Shared by every distance shown in a spell/
+ * monster block (a spell's range/area, a monster's speed/senses) and an
+ * item's weight/capacity. */
 const FEET_TO_METERS_FACTOR = 0.3
-const LB_TO_KG_FACTOR = 0.45
+const LB_TO_KG_FACTOR = 0.5
 
 export function resolveAuthoredMeasurement(attributes: unknown): MeasurementSystem | undefined {
   if (!isPlainObject(attributes)) {
