@@ -7,7 +7,7 @@
 
   ![License: CC0-1.0](https://img.shields.io/badge/license-CC0--1.0-blue)
   ![Status: beta](https://img.shields.io/badge/status-beta-orange)
-  [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/BriocheMasquee.module-packer-extended?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=BriocheMasquee.module-packer-extended)
+  [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code%20Marketplace-v1.0.1-blue)](https://marketplace.visualstudio.com/items?itemName=BriocheMasquee.module-packer-extended)
 </div>
 
 > [!WARNING]
