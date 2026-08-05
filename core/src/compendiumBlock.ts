@@ -27,13 +27,57 @@ export function resourceImagePath(resourcePath: string, preview: boolean | undef
   return preview ? `../${resourcePath}` : resourcePath
 }
 
-/** Distance values are authored directly in the project's active measurement
- * unit — feet when imperial, meters when metric — and shown as-is, no
- * conversion. Same "no single canonical unit to convert from" reasoning as
- * item weight/capacity (see formatWeight below); a project switching
- * measurement mid-way re-interprets its existing numbers in the new unit
- * rather than converting them. Shared by every distance shown in a spell/
- * monster block (a spell's range/area, a monster's speed/senses). */
+/** Distance and weight values are authored in whichever unit an entry's own
+ * `attributes.measurement` says (imperial: feet/pounds, metric:
+ * meters/kilograms) — shown as-is when that matches the project's active
+ * measurement, or converted when it doesn't. Distance uses the same
+ * simplified ×0.3 factor as WotC's own licensed French translations for
+ * feet -> meters; the reverse direction, and both weight directions, are
+ * the plain inverse (no official reference exists for those, D&D's own
+ * rules are always feet/pounds-first). When an entry has no explicit
+ * `attributes.measurement` (the common case for freshly-authored content),
+ * its numbers are treated as already being in the project's *current*
+ * active unit — no conversion, i.e. authored natively. Shared by every
+ * distance shown in a spell/monster block (a spell's range/area, a
+ * monster's speed/senses) and an item's weight/capacity. */
+const FEET_TO_METERS_FACTOR = 0.3
+const LB_TO_KG_FACTOR = 0.45
+
+export function resolveAuthoredMeasurement(attributes: unknown): MeasurementSystem | undefined {
+  if (!isPlainObject(attributes)) {
+    return undefined
+  }
+  return attributes.measurement === 'imperial' || attributes.measurement === 'metric' ? attributes.measurement : undefined
+}
+
+function convert(
+  value: number,
+  authoredMeasurement: MeasurementSystem | undefined,
+  displayMeasurement: MeasurementSystem,
+  factor: number,
+): number {
+  if (!authoredMeasurement || authoredMeasurement === displayMeasurement) {
+    return value
+  }
+  return authoredMeasurement === 'imperial' ? Math.round(value * factor * 2) / 2 : Math.round(value / factor)
+}
+
+export function resolveDistanceValue(
+  value: number,
+  authoredMeasurement: MeasurementSystem | undefined,
+  displayMeasurement: MeasurementSystem,
+): number {
+  return convert(value, authoredMeasurement, displayMeasurement, FEET_TO_METERS_FACTOR)
+}
+
+export function resolveWeightValue(
+  value: number,
+  authoredMeasurement: MeasurementSystem | undefined,
+  displayMeasurement: MeasurementSystem,
+): number {
+  return convert(value, authoredMeasurement, displayMeasurement, LB_TO_KG_FACTOR)
+}
+
 export function formatDistanceNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }

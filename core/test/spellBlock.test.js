@@ -192,6 +192,18 @@ test('shows a metric range as-authored, with no feet-to-meters conversion', () =
   assert.match(html, /30 meters/)
 })
 
+test('converts range from feet to meters when the spell was authored imperial but the project is metric', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric' })
+  const html = markdown.render('```spell\nname: Test\nattributes:\n  measurement: imperial\nrange: 30\n```\n')
+  assert.match(html, /9 meters/)
+})
+
+test('converts range from meters to feet when the spell was authored metric but the project is imperial', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'imperial' })
+  const html = markdown.render('```spell\nname: Test\nattributes:\n  measurement: metric\nrange: 9\n```\n')
+  assert.match(html, /30 feet/)
+})
+
 test('uses the singular unit word for a range of exactly 1', () => {
   const markdown = createMarkdownRenderer({ measurement: 'metric' })
   const html = markdown.render('```spell\nname: Test\nrange: 1\n```\n')

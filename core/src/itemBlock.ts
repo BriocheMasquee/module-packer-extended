@@ -3,7 +3,15 @@ import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
 import { validateItemData } from './itemCompendium.js'
 import { translate, type RenderLocale, type CatalogOverrides } from './catalog.js'
-import { escapeHtml, resourceImagePath, formatSources, formatTags, labelSeparator } from './compendiumBlock.js'
+import {
+  escapeHtml,
+  resourceImagePath,
+  resolveAuthoredMeasurement,
+  resolveWeightValue,
+  formatSources,
+  formatTags,
+  labelSeparator,
+} from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
 export const ITEM_META_FIELDS = [
@@ -160,16 +168,20 @@ function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): st
   return parts.length > 0 ? parts.join(', ') : undefined
 }
 
-/** Weight/capacity are authored directly in the project's active measurement
- * unit (kg when metric, lb when imperial) — unlike a spell's range/area,
- * there's no single canonical unit to convert from, so the number is shown
- * as-is with just the matching unit word. */
+/** Weight/capacity are authored in whichever unit the item's own
+ * `attributes.measurement` says, converted to the project's active unit
+ * when it differs — same mechanism as a spell's range/area, see
+ * resolveWeightValue. */
 function measurementWeightUnit(measurement: MeasurementSystem): string {
   return measurement === 'metric' ? 'kg' : 'lb'
 }
 
-function formatWeight(value: unknown, measurement: MeasurementSystem): string | undefined {
-  return typeof value === 'number' && value > 0 ? `${value} ${measurementWeightUnit(measurement)}` : undefined
+function formatWeight(value: unknown, locale: RenderLocale): string | undefined {
+  if (typeof value !== 'number' || value <= 0) {
+    return undefined
+  }
+  const resolved = resolveWeightValue(value, locale.authoredMeasurement, locale.measurement)
+  return `${resolved} ${measurementWeightUnit(locale.measurement)}`
 }
 
 function formatValue(data: Record<string, unknown>): string | undefined {
@@ -231,8 +243,8 @@ function formatStrRequirement(data: Record<string, unknown>): string | undefined
   return typeof data.str === 'number' && data.str > 0 ? String(data.str) : undefined
 }
 
-function formatContainerCapacity(data: Record<string, unknown>, measurement: MeasurementSystem): string | undefined {
-  return data.container === true ? formatWeight(data.capacity, measurement) : undefined
+function formatContainerCapacity(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
+  return data.container === true ? formatWeight(data.capacity, locale) : undefined
 }
 
 /** Project-level fallback for each `show*` toggle, used only when an item's
@@ -268,7 +280,12 @@ export interface ItemBlockRenderOptions {
  * (after Source/Tags) rather than at the top — an explicit request, since
  * an item's image is a "nice to have" extra rather than its focal point. */
 export function renderItemBlockHtml(data: Record<string, unknown>, markdown: MarkdownIt, options: ItemBlockRenderOptions): string {
-  const locale: RenderLocale = { measurement: options.measurement, language: options.language ?? 'en', overrides: options.overrides }
+  const locale: RenderLocale = {
+    measurement: options.measurement,
+    language: options.language ?? 'en',
+    overrides: options.overrides,
+    authoredMeasurement: resolveAuthoredMeasurement(data.attributes),
+  }
   const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Item'
   const itemData = isPlainObject(data.data) ? data.data : {}
 
@@ -315,7 +332,7 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
     subtitle ? `<div class="compendium-block-heading">${escapeHtml(subtitle)}</div>` : '',
     '<div class="compendium-block-body">',
     '<div class="compendium-block-details">',
-    detailLine(translate('Common.Weight', locale.language, locale.overrides), formatWeight(itemData.weight, options.measurement)),
+    detailLine(translate('Common.Weight', locale.language, locale.overrides), formatWeight(itemData.weight, locale)),
     detailLine(translate('Common.Value', locale.language, locale.overrides), formatValue(itemData)),
     detailLine(translate('Common.Damage', locale.language, locale.overrides), formatDamage(itemData, locale)),
     detailLine(translate('Item.Mastery', locale.language, locale.overrides), formatMastery(itemData, locale)),
@@ -325,7 +342,7 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
     detailLine(translate('Item.STRRequirement', locale.language, locale.overrides), formatStrRequirement(itemData)),
     flagLineHtml(formatStealthFlag(itemData, locale)),
     flagLineHtml(formatAttunementFlag(itemData, locale)),
-    detailLine(translate('Item.ContainerCapacity', locale.language, locale.overrides), formatContainerCapacity(itemData, options.measurement)),
+    detailLine(translate('Item.ContainerCapacity', locale.language, locale.overrides), formatContainerCapacity(itemData, locale)),
     '</div>',
     descriptionHtml,
     footerHtml,

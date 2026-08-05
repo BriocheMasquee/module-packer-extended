@@ -264,6 +264,15 @@ test('shows speed and senses as-authored (in meters, no feet conversion) when me
   assert.match(html, /Senses: <\/span>Darkvision 120 m\./)
 })
 
+test('converts speed/senses from feet to meters when the monster was authored imperial but the project is metric', () => {
+  const markdown = createMarkdownRenderer({ measurement: 'metric' })
+  const html = markdown.render(
+    '```monster\nname: Test\nattributes:\n  measurement: imperial\nspeed:\n  walk: 40\nsenses:\n  darkvision: 120\n```\n',
+  )
+  assert.match(html, /Speed<\/span> 12 m\./)
+  assert.match(html, /Senses: <\/span>Darkvision 36 m\./)
+})
+
 test('shows speed/senses in feet when measurement is imperial (the default)', () => {
   const html = renderMonster('name: Test\nspeed:\n  walk: 40\nsenses:\n  darkvision: 120')
   assert.match(html, /Speed<\/span> 40 ft\./)

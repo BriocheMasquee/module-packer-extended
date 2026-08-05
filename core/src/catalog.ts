@@ -19,6 +19,12 @@ export interface RenderLocale {
   measurement: MeasurementSystem
   language: ContentLanguage
   overrides?: CatalogOverrides
+  /** The entry's own `attributes.measurement`, when explicitly set — the
+   * unit its distance values are authored in, converted to `measurement`
+   * (the project's active one) if they differ. Absent means "authored
+   * natively in whatever `measurement` currently is", see
+   * resolveDistanceValue. */
+  authoredMeasurement?: MeasurementSystem
 }
 
 function catalogFor(language: ContentLanguage): Record<string, CatalogEntry> {

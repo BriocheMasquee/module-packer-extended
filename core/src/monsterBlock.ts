@@ -7,6 +7,8 @@ import {
   escapeHtml,
   resourceImagePath,
   formatDistanceNumber,
+  resolveAuthoredMeasurement,
+  resolveDistanceValue,
   formatSources,
   formatTags,
   labelSeparator,
@@ -238,8 +240,9 @@ function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): st
 
 const SPEED_FIELDS = ['walk', 'burrow', 'climb', 'fly', 'swim'] as const
 
-function formatFeetSuffix(value: number, measurement: MeasurementSystem): string {
-  return `${formatDistanceNumber(value)} ${measurement === 'metric' ? 'm' : 'ft'}.`
+function formatFeetSuffix(value: number, locale: RenderLocale): string {
+  const resolved = resolveDistanceValue(value, locale.authoredMeasurement, locale.measurement)
+  return `${formatDistanceNumber(resolved)} ${locale.measurement === 'metric' ? 'm' : 'ft'}.`
 }
 
 /** "40 ft." or "10 ft., Swim 40 ft." — walk has no label of its own (it's
@@ -256,11 +259,11 @@ function formatSpeed(speed: unknown, locale: RenderLocale): string | undefined {
       continue
     }
     if (field === 'walk') {
-      parts.push(formatFeetSuffix(value, locale.measurement))
+      parts.push(formatFeetSuffix(value, locale))
     } else {
       const label = translateEnum('Movement', field, locale)
       const hover = field === 'fly' && speed.hover === true ? ` (${translate('Movement.Hover', locale.language, locale.overrides)})` : ''
-      parts.push(`${label} ${formatFeetSuffix(value, locale.measurement)}${hover}`)
+      parts.push(`${label} ${formatFeetSuffix(value, locale)}${hover}`)
     }
   }
   if (isNonEmptyString(speed.other)) {
@@ -390,7 +393,7 @@ function formatSenses(data: Record<string, unknown>, locale: RenderLocale): stri
     for (const field of SENSE_FIELDS) {
       const value = senses[field]
       if (typeof value === 'number' && value > 0) {
-        parts.push(`${translateEnum('Sense', field, locale)} ${formatFeetSuffix(value, locale.measurement)}`)
+        parts.push(`${translateEnum('Sense', field, locale)} ${formatFeetSuffix(value, locale)}`)
       }
     }
     if (isNonEmptyString(senses.other)) {
@@ -542,7 +545,12 @@ export function renderMonsterBlockHtml(
   markdown: MarkdownIt,
   options: MonsterBlockRenderOptions,
 ): string {
-  const locale: RenderLocale = { measurement: options.measurement, language: options.language ?? 'en', overrides: options.overrides }
+  const locale: RenderLocale = {
+    measurement: options.measurement,
+    language: options.language ?? 'en',
+    overrides: options.overrides,
+    authoredMeasurement: resolveAuthoredMeasurement(data.attributes),
+  }
   const name = isNonEmptyString(data.name) ? data.name : 'Unnamed Monster'
   const monsterData = isPlainObject(data.data) ? data.data : {}
 
