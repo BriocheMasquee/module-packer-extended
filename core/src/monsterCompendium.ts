@@ -3,6 +3,7 @@ import {
   isPlainObject,
   stripEmptyNestedField,
   stripEmptyValues,
+  stripPlaceholderImageField,
   type ValidationIssue,
 } from './compendiumShared.js'
 import { ITEM_DAMAGE_TYPES } from './itemCompendium.js'
@@ -301,6 +302,8 @@ export function validateMonsterData(relativePath: string, data: unknown, issues:
 
 export function stripEmptyMonsterFields(monster: Record<string, unknown>): Record<string, unknown> {
   const cleaned = stripEmptyValues(monster, MONSTER_TOP_LEVEL_OPTIONAL_FIELDS)
+  stripPlaceholderImageField(cleaned, 'image', 'monsters/')
+  stripPlaceholderImageField(cleaned, 'token', 'monsters/')
   stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
   if (isPlainObject(cleaned.data)) {
     const data = stripEmptyValues(cleaned.data, MONSTER_DATA_OPTIONAL_FIELDS)

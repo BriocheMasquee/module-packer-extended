@@ -3,6 +3,7 @@ import {
   isPlainObject,
   stripEmptyNestedField,
   stripEmptyValues,
+  stripPlaceholderImageField,
   type ValidationIssue,
 } from './compendiumShared.js'
 
@@ -141,6 +142,7 @@ export function validateItemData(relativePath: string, data: unknown, issues: Va
 
 export function stripEmptyItemFields(item: Record<string, unknown>): Record<string, unknown> {
   const cleaned = stripEmptyValues(item, ITEM_TOP_LEVEL_OPTIONAL_FIELDS)
+  stripPlaceholderImageField(cleaned, 'image', 'items/')
   stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
   stripEmptyNestedField(cleaned, 'data', ITEM_DATA_OPTIONAL_FIELDS)
   return cleaned
