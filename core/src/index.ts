@@ -85,3 +85,17 @@ export {
   MONSTER_ENVIRONMENTS,
 } from './monsterCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'
+export { analyzeMpProject, convertMpProject } from './mpConversion.js'
+export type {
+  AnalyzeMpProjectOptions,
+  ConvertMpProjectOptions,
+  ConvertMpProjectResult,
+  MpAnalysisNotice,
+  MpArchiveReference,
+  MpAssetsAnalysis,
+  MpGroupAnalysis,
+  MpImageAnalysis,
+  MpModuleAnalysis,
+  MpPageAnalysis,
+  MpProjectAnalysis,
+} from './mpConversion.js'

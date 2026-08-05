@@ -1,0 +1,954 @@
+import { randomUUID } from 'node:crypto'
+import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
+import matter from 'gray-matter'
+import { parse as parseYaml } from 'yaml'
+import { isPlainObject } from './compendiumShared.js'
+import { listFilesRecursively } from './fileScan.js'
+import { isValidSlug, slugify } from './slug.js'
+import type { ProjectTheme } from './themeCatalog.js'
+import { isUuid } from './uuid.js'
+
+// ---------------------------------------------------------------------------
+// Analysis — a read-only walk of an MP (Module Packer V4) project folder.
+// Ported from the old private MPX repo's v4ProjectAnalyzer.ts, trimmed to
+// this project's own conventions (isNonEmptyString/slugify/etc.) and to the
+// "structural skeleton" scope: module metadata, pages (incl.
+// module-pagebreaks), groups, images, and the assets/ folder. Compendium
+// block reshaping and maps/encounters archive conversion are separate,
+// later phases — this only *notices* their presence.
+// ---------------------------------------------------------------------------
+
+const IMAGE_EXTENSIONS = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.svg', '.webp'])
+const TECHNICAL_DIRECTORIES = new Set(['__macosx', 'assets', 'modulebuild', 'node_modules'])
+
+export interface MpAnalysisNotice {
+  code: string
+  message: string
+  path?: string
+}
+
+export interface MpModuleAnalysis {
+  acronym: string
+  author: string
+  category: string
+  descr: string
+  id?: string
+  image: string
+  name: string
+  slug: string
+  version: string
+}
+
+export interface MpGroupAnalysis {
+  name: string
+  parentSlug?: string
+  rank: number
+  slug: string
+  sourcePath: string
+}
+
+export interface MpPageAnalysis {
+  headingLevel?: number
+  name: string
+  origin: 'file' | 'heading'
+  parentKind?: 'group' | 'page'
+  parentSlug?: string
+  rank: number
+  slug: string
+  sourcePath: string
+}
+
+export interface MpArchiveReference {
+  kind: 'encounter' | 'map'
+  parentSlug?: string
+  rank: number
+  slug?: string
+  sourcePath: string
+}
+
+export interface MpImageAnalysis {
+  path: string
+  referenced: boolean
+  role: 'content' | 'module'
+}
+
+export interface MpAssetsAnalysis {
+  directory?: string
+}
+
+export interface MpProjectAnalysis {
+  archives: MpArchiveReference[]
+  assets: MpAssetsAnalysis
+  compendiumBlockCount: number
+  excludedPageCount: number
+  groups: MpGroupAnalysis[]
+  images: MpImageAnalysis[]
+  module: MpModuleAnalysis
+  modulePath: string
+  notices: MpAnalysisNotice[]
+  pages: MpPageAnalysis[]
+  projectDirectory: string
+}
+
+interface DirectoryContext {
+  includeIn: string
+  parentGroupSlug?: string
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
+}
+
+function numberOrZero(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function portablePath(root: string, filePath: string): string {
+  return relative(root, filePath).split(sep).join('/')
+}
+
+function pathIdentity(value: string): string {
+  return value.normalize('NFC').toLocaleLowerCase('en-US')
+}
+
+async function findFileCaseInsensitive(directory: string, fileName: string): Promise<string | undefined> {
+  const expectedName = fileName.toLowerCase()
+  const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
+  const entry = entries.find((candidate) => candidate.isFile() && candidate.name.toLowerCase() === expectedName)
+  return entry ? join(directory, entry.name) : undefined
+}
+
+async function findDirectoryCaseInsensitive(directory: string, directoryName: string): Promise<string | undefined> {
+  const expectedName = directoryName.toLowerCase()
+  const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
+  const entry = entries.find((candidate) => candidate.isDirectory() && candidate.name.toLowerCase() === expectedName)
+  return entry ? join(directory, entry.name) : undefined
+}
+
+function yamlObject(source: string): Record<string, unknown> {
+  const parsed: unknown = parseYaml(source)
+  if (parsed === null || parsed === undefined) {
+    return {}
+  }
+  if (!isPlainObject(parsed)) {
+    throw new Error('must contain a YAML object')
+  }
+  return parsed
+}
+
+/** MP's own slug rule is looser than ours (no strict single-hyphen-between-
+ * words requirement) — always pass MP-sourced names/slugs through our own
+ * slugify() so the result is guaranteed importable, same as any
+ * MPX-authored content. */
+function mpSlug(value: string): string {
+  return slugify(value)
+}
+
+function stripHeadingMarkdown(value: string): string {
+  return value
+    .replace(/\s+\{[^}]+\}\s*$/, '')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[*_~`]/g, '')
+    .trim()
+}
+
+function markdownHeadings(source: string): Array<{ level: number; name: string }> {
+  const headings: Array<{ level: number; name: string }> = []
+  let fence: string | undefined
+
+  for (const line of source.split(/\r?\n/)) {
+    const fenceMatch = line.match(/^\s*(```+|~~~+)/)
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0]
+      fence = !fence ? marker : fence === marker ? undefined : fence
+      continue
+    }
+    if (fence) {
+      continue
+    }
+    const headingMatch = line.match(/^(#{1,6})\s+(.+?)\s*$/)
+    if (!headingMatch) {
+      continue
+    }
+    const name = stripHeadingMarkdown(headingMatch[2])
+    if (name) {
+      headings.push({ level: headingMatch[1].length, name })
+    }
+  }
+  return headings
+}
+
+function pagebreakLevels(value: unknown): number[] {
+  if (typeof value !== 'string') {
+    return []
+  }
+  const levels: number[] = []
+  for (const entry of value.split(',')) {
+    const match = entry.trim().toLowerCase().match(/^h([1-6])$/)
+    if (match) {
+      const level = Number(match[1])
+      if (!levels.includes(level)) {
+        levels.push(level)
+      }
+    }
+  }
+  return levels
+}
+
+function markdownResourcePaths(source: string): string[] {
+  const paths: string[] = []
+  for (const match of source.matchAll(/!\[[^\]]*\]\(\s*<?([^)\s>]+)>?/g)) {
+    paths.push(match[1])
+  }
+  for (const match of source.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["']/gi)) {
+    paths.push(match[1])
+  }
+  return paths
+}
+
+/** Counts fenced ```Item/```Spell/```Monster blocks — MP's own inline
+ * compendium authoring. Reshaping their fields to MPX's vocabulary is a
+ * separate, later phase; this analysis only flags how many exist so a
+ * conversion's notices can say so. */
+function compendiumBlockCount(source: string): number {
+  let count = 0
+  let fence: string | undefined
+  for (const line of source.split(/\r?\n/)) {
+    const fenceMatch = line.match(/^\s*(```+|~~~+)\s*(\S*)/)
+    if (!fenceMatch) {
+      continue
+    }
+    const marker = fenceMatch[1][0]
+    if (!fence) {
+      fence = marker
+      if (/^(item|spell|monster)(?:\s|$)/i.test(fenceMatch[2])) {
+        count += 1
+      }
+    } else if (fence === marker) {
+      fence = undefined
+    }
+  }
+  return count
+}
+
+export interface AnalyzeMpProjectOptions {
+  allowMissingManifest?: boolean
+}
+
+export async function analyzeMpProject(
+  projectDirectory: string,
+  options: AnalyzeMpProjectOptions = {},
+): Promise<MpProjectAnalysis> {
+  const modulePath = await findFileCaseInsensitive(projectDirectory, 'module.yaml')
+  if (!modulePath && !options.allowMissingManifest) {
+    throw new Error('No Module.yaml file was found at the root of the MP project.')
+  }
+
+  const notices: MpAnalysisNotice[] = []
+  const moduleData = modulePath ? yamlObject(await readFile(modulePath, 'utf8')) : {}
+  if (!modulePath) {
+    notices.push({
+      code: 'missing-module-manifest',
+      message: 'The MP project has no Module.yaml file; module metadata must be completed after conversion.',
+    })
+  }
+
+  const moduleId = nonEmptyString(moduleData.id)
+  if (moduleId && !isUuid(moduleId)) {
+    notices.push({
+      code: 'invalid-module-id',
+      message: 'Module.yaml has an id that is not a valid UUID; a new one will be generated.',
+      path: modulePath ? portablePath(projectDirectory, modulePath) : undefined,
+    })
+  }
+
+  const moduleName = nonEmptyString(moduleData.name) ?? basename(projectDirectory)
+  const moduleImage = nonEmptyString(moduleData.cover) ?? ''
+  const module: MpModuleAnalysis = {
+    acronym: nonEmptyString(moduleData.code) ?? '',
+    author: nonEmptyString(moduleData.author) ?? '',
+    category: nonEmptyString(moduleData.category) ?? '',
+    descr: nonEmptyString(moduleData.description) ?? '',
+    id: moduleId && isUuid(moduleId) ? moduleId : undefined,
+    image: moduleImage,
+    name: moduleName,
+    slug: mpSlug(nonEmptyString(moduleData.slug) ?? moduleName),
+    version:
+      typeof moduleData.version === 'number' || typeof moduleData.version === 'string'
+        ? String(moduleData.version)
+        : '1.0.0',
+  }
+
+  for (const unsupportedKey of [
+    'auto-increment-version',
+    'compress-images',
+    'create-roll-tables',
+    'delete-empty-groups',
+    'print-cover',
+    'print-document-size',
+    'print-link-update',
+  ]) {
+    if (moduleData[unsupportedKey] !== undefined) {
+      notices.push({
+        code: 'unsupported-module-option',
+        message: `The MP option "${unsupportedKey}" has no MPX equivalent and was ignored.`,
+        path: modulePath ? portablePath(projectDirectory, modulePath) : undefined,
+      })
+    }
+  }
+
+  const pages: MpPageAnalysis[] = []
+  let excludedPageCount = 0
+  const groups: MpGroupAnalysis[] = []
+  const archives: MpArchiveReference[] = []
+  const referencedImages = new Map<string, string>()
+  const addReferencedImage = (imagePath: string): void => {
+    const normalizedPath = imagePath.replaceAll('\\', '/')
+    referencedImages.set(pathIdentity(normalizedPath), normalizedPath)
+  }
+  const usedSlugs = new Set<string>()
+  let compendiumBlocksTotal = 0
+
+  const uniqueSlug = (value: string, explicit = false): string => {
+    const baseSlug = mpSlug(value)
+    if (!usedSlugs.has(baseSlug)) {
+      usedSlugs.add(baseSlug)
+      return baseSlug
+    }
+    if (explicit) {
+      notices.push({ code: 'duplicate-explicit-slug', message: `The explicit MP slug "${baseSlug}" is duplicated.` })
+      return baseSlug
+    }
+    let suffix = 1
+    let slug = `${baseSlug}-${suffix}`
+    while (usedSlugs.has(slug)) {
+      suffix += 1
+      slug = `${baseSlug}-${suffix}`
+    }
+    usedSlugs.add(slug)
+    return slug
+  }
+
+  const analyzeMarkdownFile = async (filePath: string, context: DirectoryContext): Promise<void> => {
+    const sourcePath = portablePath(projectDirectory, filePath)
+    const parsed = matter(await readFile(filePath, 'utf8'))
+    compendiumBlocksTotal += compendiumBlockCount(parsed.content)
+
+    for (const printField of [
+      'cover',
+      'footer',
+      'hide-footer',
+      'hide-footer-text',
+      'pdf-page-style',
+      'pdf-pagebreaks',
+      'print-cover-only',
+    ]) {
+      if (parsed.data[printField] !== undefined) {
+        notices.push({
+          code: 'unsupported-page-option',
+          message: `${sourcePath} uses the MP page option "${printField}", which has no MPX equivalent.`,
+          path: sourcePath,
+        })
+      }
+    }
+    if (/\(print-(?:column|page)\)/.test(parsed.content)) {
+      notices.push({
+        code: 'print-marker',
+        message: `${sourcePath} contains PDF-only print markers.`,
+        path: sourcePath,
+      })
+    }
+    if (/<!--\{[^}]+\}-->/.test(parsed.content)) {
+      notices.push({
+        code: 'legacy-decoration',
+        message: `${sourcePath} uses the old blockquote-decoration comment syntax — rewritten to MPX's {.class} syntax.`,
+        path: sourcePath,
+      })
+    }
+
+    for (const resourcePath of markdownResourcePaths(parsed.content)) {
+      let decodedResourcePath = resourcePath
+      try {
+        decodedResourcePath = decodeURIComponent(resourcePath)
+      } catch {
+        // Keep the original path so a malformed encoding remains visible.
+      }
+      if (/^(?:[a-z]+:|\/)/i.test(decodedResourcePath) && !/^\/images\//i.test(decodedResourcePath)) {
+        continue
+      }
+      const normalizedPath = decodedResourcePath.replace(/^\.?\//, '')
+      const resolvedPath = join(dirname(filePath), decodedResourcePath)
+      const projectRelativePath = portablePath(projectDirectory, resolvedPath)
+      addReferencedImage(/^images\//i.test(normalizedPath) ? normalizedPath : projectRelativePath)
+    }
+
+    const pageName = nonEmptyString(parsed.data.name) ?? basename(filePath)
+    const includeIn = (nonEmptyString(parsed.data['include-in']) ?? context.includeIn).toLowerCase()
+    if (includeIn === 'print' || includeIn === 'compendium') {
+      excludedPageCount += 1
+      return
+    }
+
+    const explicitParent = nonEmptyString(parsed.data.parent) ?? nonEmptyString(parsed.data['parent-page'])
+    const inheritedParent = explicitParent ?? context.parentGroupSlug
+    const rank = numberOrZero(parsed.data.order)
+    const levels = pagebreakLevels(parsed.data['module-pagebreaks'] ?? parsed.data['module-pagebreak'])
+
+    if (levels.length > 0) {
+      const headings = markdownHeadings(parsed.content).filter((heading) => levels.includes(heading.level))
+      const hierarchy: Array<{ levelIndex: number; slug: string } | undefined> = []
+      const siblingRanks = new Map<string, number>()
+
+      for (const heading of headings) {
+        const levelIndex = levels.indexOf(heading.level)
+        const slug = uniqueSlug(heading.name)
+        let parentSlug = inheritedParent
+        let parentKind: MpPageAnalysis['parentKind'] =
+          inheritedParent && context.parentGroupSlug === inheritedParent ? 'group' : undefined
+
+        for (let parentIndex = levelIndex - 1; parentIndex >= 0; parentIndex -= 1) {
+          const candidate = hierarchy[parentIndex]
+          if (candidate) {
+            parentSlug = candidate.slug
+            parentKind = 'page'
+            break
+          }
+        }
+        hierarchy[levelIndex] = { levelIndex, slug }
+        hierarchy.length = levelIndex + 1
+        const siblingKey = parentSlug ?? '__root__'
+        const siblingRank = siblingRanks.get(siblingKey) ?? 0
+        siblingRanks.set(siblingKey, siblingRank + 1)
+
+        pages.push({
+          headingLevel: heading.level,
+          name: heading.name,
+          origin: 'heading',
+          parentKind,
+          parentSlug,
+          rank: parentKind === 'page' ? siblingRank : rank + siblingRank,
+          slug,
+          sourcePath,
+        })
+      }
+
+      if (headings.length > 0) {
+        notices.push({
+          code: 'module-pagebreaks',
+          message: `${sourcePath} splits into ${headings.length} MPX pages from its module-pagebreaks headings.`,
+          path: sourcePath,
+        })
+        return
+      }
+    }
+
+    const explicitSlug = nonEmptyString(parsed.data.slug)
+    pages.push({
+      name: pageName,
+      origin: 'file',
+      parentKind: inheritedParent && context.parentGroupSlug === inheritedParent ? 'group' : undefined,
+      parentSlug: inheritedParent,
+      rank,
+      slug: uniqueSlug(explicitSlug ?? pageName, Boolean(explicitSlug)),
+      sourcePath,
+    })
+  }
+
+  const scanDirectory = async (directory: string, context: DirectoryContext): Promise<void> => {
+    const entries = (await readdir(directory, { withFileTypes: true })).sort((left, right) =>
+      left.name.localeCompare(right.name),
+    )
+
+    for (const entry of entries) {
+      if (entry.isFile() && !entry.name.startsWith('.') && entry.name.toLowerCase().endsWith('.md')) {
+        await analyzeMarkdownFile(join(directory, entry.name), context)
+      }
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || TECHNICAL_DIRECTORIES.has(entry.name.toLowerCase())) {
+        continue
+      }
+      const childDirectory = join(directory, entry.name)
+      if (childDirectory !== projectDirectory && (await findFileCaseInsensitive(childDirectory, 'module.yaml'))) {
+        continue
+      }
+
+      const groupPath = await findFileCaseInsensitive(childDirectory, 'group.yaml')
+      const groupData = groupPath ? yamlObject(await readFile(groupPath, 'utf8')) : {}
+      const ignoreGroup = (await findFileCaseInsensitive(childDirectory, '.ignoregroup')) !== undefined
+      const includeIn = (nonEmptyString(groupData['include-in']) ?? 'all').toLowerCase()
+      if (includeIn === 'files' || ignoreGroup) {
+        continue
+      }
+
+      const groupName = nonEmptyString(groupData.name) ?? entry.name
+      const explicitSlug = nonEmptyString(groupData.slug)
+      const groupSlug = uniqueSlug(explicitSlug ?? `group-${mpSlug(groupName)}`, Boolean(explicitSlug))
+      const groupParent = nonEmptyString(groupData.parent) ?? context.parentGroupSlug
+      const includedInModule = includeIn === 'all' || includeIn === 'module'
+      if (includedInModule) {
+        groups.push({
+          name: groupName,
+          parentSlug: groupParent,
+          rank: numberOrZero(groupData.order),
+          slug: groupSlug,
+          sourcePath: portablePath(projectDirectory, childDirectory),
+        })
+      }
+
+      await scanDirectory(childDirectory, {
+        includeIn: includedInModule ? includeIn : 'print',
+        parentGroupSlug: includedInModule ? groupSlug : context.parentGroupSlug,
+      })
+    }
+  }
+
+  await scanDirectory(projectDirectory, { includeIn: 'all' })
+
+  for (const page of pages) {
+    if (!page.parentSlug || page.parentKind) {
+      continue
+    }
+    if (pages.some((candidate) => candidate.slug === page.parentSlug)) {
+      page.parentKind = 'page'
+    } else if (groups.some((candidate) => candidate.slug === page.parentSlug)) {
+      page.parentKind = 'group'
+    } else {
+      notices.push({
+        code: 'unknown-parent',
+        message: `${page.sourcePath} references the unknown parent slug "${page.parentSlug}" — converted with no parent.`,
+        path: page.sourcePath,
+      })
+      page.parentSlug = undefined
+    }
+  }
+
+  const analyzeArchives = async (kind: MpArchiveReference['kind'], value: unknown): Promise<void> => {
+    if (!Array.isArray(value)) {
+      return
+    }
+    for (const entry of value) {
+      if (!isPlainObject(entry)) {
+        notices.push({ code: `invalid-${kind}-reference`, message: `Module.yaml contains an invalid ${kind} reference.` })
+        continue
+      }
+      const referencedPath = nonEmptyString(entry.path)
+      if (!referencedPath) {
+        notices.push({ code: `invalid-${kind}-reference`, message: `A MP ${kind} reference has no path.` })
+        continue
+      }
+      archives.push({
+        kind,
+        parentSlug: nonEmptyString(entry.parent),
+        rank: numberOrZero(entry.order),
+        slug: nonEmptyString(entry.slug),
+        sourcePath: referencedPath.replaceAll('\\', '/'),
+      })
+    }
+  }
+  await analyzeArchives('map', moduleData.maps)
+  await analyzeArchives('encounter', moduleData.encounters)
+  if (archives.length > 0) {
+    notices.push({
+      code: 'deferred-archives',
+      message: `${archives.length} MP map/encounter reference(s) are not converted yet — bring the source .zip files over manually if needed.`,
+    })
+  }
+  if (Array.isArray(moduleData.references) && moduleData.references.length > 0) {
+    notices.push({
+      code: 'deferred-references',
+      message: `${moduleData.references.length} MP reference(s) are not convertible.`,
+      path: modulePath ? portablePath(projectDirectory, modulePath) : undefined,
+    })
+  }
+
+  if (compendiumBlocksTotal > 0) {
+    notices.push({
+      code: 'compendium-blocks-unconverted',
+      message: `${compendiumBlocksTotal} inline Item/Spell/Monster block(s) were carried over as page text, unchanged — MPX's Compendium field format isn't applied to them yet.`,
+    })
+  }
+
+  const assetsDirectory = await findDirectoryCaseInsensitive(projectDirectory, 'assets')
+  const assets: MpAssetsAnalysis = {
+    directory: assetsDirectory ? portablePath(projectDirectory, assetsDirectory) : undefined,
+  }
+
+  const imageFiles: string[] = []
+  const collectImages = async (directory: string): Promise<void> => {
+    const entries = await readdir(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || TECHNICAL_DIRECTORIES.has(entry.name.toLowerCase())) {
+        continue
+      }
+      const entryPath = join(directory, entry.name)
+      if (entry.isDirectory()) {
+        await collectImages(entryPath)
+      } else if (entry.isFile() && IMAGE_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
+        imageFiles.push(portablePath(projectDirectory, entryPath))
+      }
+    }
+  }
+  await collectImages(projectDirectory)
+
+  if (moduleImage) {
+    addReferencedImage(moduleImage.replace(/^\.\//, ''))
+  }
+  const imageFileIdentities = new Set(imageFiles.map(pathIdentity))
+  const images = imageFiles
+    .sort((left, right) => left.localeCompare(right))
+    .map((imagePath) => ({
+      path: imagePath,
+      referenced: referencedImages.has(pathIdentity(imagePath)),
+      role: (moduleImage && pathIdentity(imagePath) === pathIdentity(moduleImage) ? 'module' : 'content') as
+        | 'module'
+        | 'content',
+    }))
+
+  for (const referencedImage of referencedImages.values()) {
+    if (!imageFileIdentities.has(pathIdentity(referencedImage))) {
+      notices.push({
+        code: 'missing-image',
+        message: `A MP page references the missing image "${referencedImage}".`,
+        path: referencedImage,
+      })
+    }
+  }
+
+  return {
+    archives,
+    assets,
+    compendiumBlockCount: compendiumBlocksTotal,
+    excludedPageCount,
+    groups,
+    images,
+    module,
+    modulePath: modulePath ? portablePath(projectDirectory, modulePath) : '',
+    notices,
+    pages,
+    projectDirectory,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Conversion — writes the structural skeleton of an MPX project from an
+// MpProjectAnalysis: module.json, pages, groups, images, a copy of the MP
+// project's own assets/ (kept as-is, per explicit decision: conversion must
+// not replace the original CSS/layout), and a .vscode/settings.json seeded
+// with MPX defaults. Compendium block field reshaping and maps/encounters
+// archive conversion are not part of this pass — inline blocks are copied
+// through as plain text (see compendium-blocks-unconverted notice above).
+// ---------------------------------------------------------------------------
+
+export interface ConvertMpProjectOptions {
+  /** Copied into assets/ only when the MP project has no assets/ folder of
+   * its own — conversion must not overwrite an MP project's real theme. */
+  fallbackTheme?: ProjectTheme
+}
+
+export interface ConvertMpProjectResult {
+  analysis: MpProjectAnalysis
+  destinationDirectory: string
+  groupCount: number
+  imageCount: number
+  moduleId: string
+  modulePath: string
+  notices: MpAnalysisNotice[]
+  pageCount: number
+}
+
+async function requireEmptyDestination(sourceDirectory: string, destinationDirectory: string): Promise<void> {
+  const relativePath = relative(resolve(sourceDirectory), resolve(destinationDirectory))
+  if (relativePath === '' || (!relativePath.startsWith('..') && !relativePath.startsWith(`..${sep}`))) {
+    throw new Error('The MPX destination must be outside the MP source project.')
+  }
+  const entries = await readdir(destinationDirectory).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') {
+      return []
+    }
+    throw error
+  })
+  if (entries.length > 0) {
+    throw new Error('The MPX destination folder must be empty.')
+  }
+}
+
+async function copyDirectory(sourceDirectory: string, targetDirectory: string): Promise<void> {
+  const entries = await readdir(sourceDirectory, { withFileTypes: true })
+  await mkdir(targetDirectory, { recursive: true })
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) {
+      continue
+    }
+    const sourcePath = join(sourceDirectory, entry.name)
+    const targetPath = join(targetDirectory, entry.name)
+    if (entry.isDirectory()) {
+      await copyDirectory(sourcePath, targetPath)
+    } else if (entry.isFile()) {
+      await copyFile(sourcePath, targetPath)
+    }
+  }
+}
+
+/** MP's own `<!--{blockquote:.red.color-links}-->` decoration comment —
+ * MPX dropped the markdown-it-decorate extension that used to render it, so
+ * without this rewrite the decoration would silently stop working, not just
+ * look dated. Rewritten to MPX's own `{.red .color-links}` attribute syntax,
+ * same visual result, still functional. */
+function rewriteLegacyBlockquoteDecorations(content: string): string {
+  let fenceMarker: string | undefined
+  return content
+    .split('\n')
+    .map((rawLine) => {
+      const carriageReturn = rawLine.endsWith('\r') ? '\r' : ''
+      const line = carriageReturn ? rawLine.slice(0, -1) : rawLine
+      const fenceMatch = line.match(/^\s*(```+|~~~+)/)
+      if (fenceMatch) {
+        const marker = fenceMatch[1][0]
+        fenceMarker = !fenceMarker ? marker : fenceMarker === marker ? undefined : fenceMarker
+        return rawLine
+      }
+      if (fenceMarker) {
+        return rawLine
+      }
+      const decorationMatch = line.match(/^(\s*)<!--\{\s*blockquote\s*:\s*((?:\.[A-Za-z_][\w-]*)+)\s*\}-->\s*$/)
+      if (!decorationMatch) {
+        return rawLine
+      }
+      const classes = decorationMatch[2]
+        .split('.')
+        .filter(Boolean)
+        .map((className) => `.${className}`)
+        .join(' ')
+      return `${decorationMatch[1]}{${classes}}${carriageReturn}`
+    })
+    .join('\n')
+}
+
+function rewriteImagePaths(content: string, targetByImageName: ReadonlyMap<string, string>): string {
+  return content.replace(
+    /(!\[[^\]]*\]\(\s*<?)([^)\s>]+)(>?[^)]*\))/g,
+    (match, prefix: string, resourcePath: string, suffix: string) => {
+      const imageName = targetByImageName.get(pathIdentity(basename(resourcePath)))
+      return imageName ? `${prefix}images/${imageName}${suffix}` : match
+    },
+  )
+}
+
+function editablePageSource(page: MpPageAnalysis, content: string): string {
+  const normalizedContent = content.replace(/^\r?\n/, '')
+  return `---
+name: ${JSON.stringify(page.name)}
+slug: ${JSON.stringify(page.slug)}
+rank: ${page.rank}
+parent: ${JSON.stringify(page.parentSlug ?? '')}
+---
+
+${normalizedContent}`
+}
+
+const DEFAULT_SETTINGS_JSON = {
+  'mpx.autoIncrementVersion': true,
+  'mpx.contentLanguage': 'en',
+  'mpx.defaultMeasurement': 'auto',
+  'mpx.defaultShowSpellImage': true,
+  'mpx.defaultShowSpellSchoolIcon': true,
+  'mpx.defaultShowSpellAreaEffectIcon': true,
+  'mpx.defaultShowSpellSources': true,
+  'mpx.defaultShowSpellTags': true,
+  'mpx.defaultShowItemImage': true,
+  'mpx.defaultShowItemSources': true,
+  'mpx.defaultShowItemTags': true,
+  'mpx.defaultShowMonsterImage': true,
+  'mpx.defaultShowMonsterToken': true,
+  'mpx.defaultShowMonsterSources': true,
+  'mpx.defaultShowMonsterTags': true,
+  'mpx.autoDetectRollTables': true,
+}
+
+export async function convertMpProject(
+  sourceDirectory: string,
+  destinationDirectory: string,
+  options: ConvertMpProjectOptions = {},
+): Promise<ConvertMpProjectResult> {
+  const analysis = await analyzeMpProject(sourceDirectory, { allowMissingManifest: true })
+  await requireEmptyDestination(sourceDirectory, destinationDirectory)
+
+  for (const group of analysis.groups) {
+    if (!isValidSlug(group.slug)) {
+      throw new Error(`${group.sourcePath} produced the invalid slug "${group.slug}".`)
+    }
+  }
+  for (const page of analysis.pages) {
+    if (!isValidSlug(page.slug)) {
+      throw new Error(`${page.sourcePath} produced the invalid slug "${page.slug}".`)
+    }
+  }
+
+  const moduleId = (analysis.module.id ?? randomUUID()).toUpperCase()
+  const notices = [...analysis.notices]
+
+  await mkdir(destinationDirectory, { recursive: true })
+
+  // Images: every referenced content image goes into images/. The module
+  // cover is a separate case — module.json's own "image" field is resolved
+  // project-root-relative (matching a native MPX project and how buildModule
+  // itself validates it). A cover already living under images/ is treated
+  // like any other content image (copied there, referenced as
+  // "images/name"); a cover living elsewhere is copied to the destination
+  // root instead, not folded into the images/ count/copy.
+  const moduleImage = analysis.images.find((image) => image.role === 'module' && image.referenced)
+  const moduleImageUnderImages = moduleImage && /^images\//i.test(moduleImage.path) ? moduleImage : undefined
+  const imagesToCopy = [
+    ...analysis.images.filter((image) => image.role === 'content' && image.referenced),
+    ...(moduleImageUnderImages ? [moduleImageUnderImages] : []),
+  ]
+  const targetByImageName = new Map<string, string>()
+  for (const image of imagesToCopy) {
+    const identity = pathIdentity(basename(image.path))
+    if (targetByImageName.has(identity)) {
+      throw new Error(`Multiple referenced MP images resolve to "${basename(image.path)}".`)
+    }
+    targetByImageName.set(identity, basename(image.path))
+  }
+
+  let convertedModuleImage = ''
+  if (moduleImage) {
+    convertedModuleImage = moduleImageUnderImages ? `images/${basename(moduleImage.path)}` : basename(moduleImage.path)
+    if (!moduleImageUnderImages) {
+      await copyFile(join(sourceDirectory, moduleImage.path), join(destinationDirectory, basename(moduleImage.path)))
+    }
+  }
+
+  const moduleJson = {
+    id: moduleId,
+    acronym: analysis.module.acronym,
+    author: analysis.module.author,
+    banner: '',
+    category: analysis.module.category,
+    descr: analysis.module.descr,
+    image: convertedModuleImage,
+    name: analysis.module.name,
+    package: '',
+    repository: '',
+    shortDescr: '',
+    slug: analysis.module.slug,
+    system: 'dnd5e',
+    tags: [] as string[],
+    version: analysis.module.version,
+    website: '',
+  }
+  await writeFile(join(destinationDirectory, 'module.json'), `${JSON.stringify(moduleJson, null, 2)}\n`, 'utf8')
+
+  if (analysis.groups.length > 0) {
+    await mkdir(join(destinationDirectory, 'groups'))
+    for (const group of analysis.groups) {
+      await writeFile(
+        join(destinationDirectory, 'groups', `${group.slug}.json`),
+        `${JSON.stringify({ name: group.name, slug: group.slug, rank: group.rank, parent: group.parentSlug ?? '' }, null, 2)}\n`,
+        'utf8',
+      )
+    }
+  }
+
+  if (analysis.pages.length > 0) {
+    await mkdir(join(destinationDirectory, 'pages'))
+    const pagesBySource = new Map<string, MpPageAnalysis[]>()
+    for (const page of analysis.pages) {
+      const bucket = pagesBySource.get(page.sourcePath) ?? []
+      bucket.push(page)
+      pagesBySource.set(page.sourcePath, bucket)
+    }
+    for (const [sourcePath, pagesForSource] of pagesBySource) {
+      const parsed = matter(await readFile(join(sourceDirectory, sourcePath), 'utf8'))
+      const contents =
+        pagesForSource.length > 1 || pagesForSource[0].origin === 'heading'
+          ? splitMpPagebreakContent(parsed.content, pagesForSource)
+          : [parsed.content]
+      for (const [index, page] of pagesForSource.entries()) {
+        const content = rewriteImagePaths(
+          rewriteLegacyBlockquoteDecorations(contents[index] ?? contents[0]),
+          targetByImageName,
+        )
+        await writeFile(join(destinationDirectory, 'pages', `${page.slug}.md`), editablePageSource(page, content), 'utf8')
+      }
+    }
+  }
+
+  if (imagesToCopy.length > 0) {
+    await mkdir(join(destinationDirectory, 'images'), { recursive: true })
+    for (const image of imagesToCopy) {
+      await copyFile(join(sourceDirectory, image.path), join(destinationDirectory, 'images', basename(image.path)))
+    }
+  }
+
+  if (analysis.assets.directory) {
+    await copyDirectory(join(sourceDirectory, analysis.assets.directory), join(destinationDirectory, 'assets'))
+  } else if (options.fallbackTheme) {
+    notices.push({
+      code: 'fallback-theme',
+      message: 'The MP project had no assets/ folder — seeded the default MPX theme instead of a converted one.',
+    })
+    await mkdir(join(destinationDirectory, 'assets'), { recursive: true })
+    for (const filePath of await listFilesRecursively(options.fallbackTheme.themeDirectory)) {
+      const relativePath = relative(options.fallbackTheme.themeDirectory, filePath)
+      if (relativePath === 'theme.json') {
+        continue
+      }
+      const targetPath = join(destinationDirectory, 'assets', relativePath)
+      await mkdir(dirname(targetPath), { recursive: true })
+      await copyFile(filePath, targetPath)
+    }
+  }
+
+  await mkdir(join(destinationDirectory, '.vscode'), { recursive: true })
+  await writeFile(
+    join(destinationDirectory, '.vscode', 'settings.json'),
+    `${JSON.stringify(DEFAULT_SETTINGS_JSON, null, 2)}\n`,
+    'utf8',
+  )
+
+  return {
+    analysis,
+    destinationDirectory,
+    groupCount: analysis.groups.length,
+    imageCount: imagesToCopy.length,
+    moduleId,
+    modulePath: join(destinationDirectory, 'module.json'),
+    notices,
+    pageCount: analysis.pages.length,
+  }
+}
+
+function splitMpPagebreakContent(content: string, pages: readonly MpPageAnalysis[]): string[] {
+  const headingLevels = new Set(pages.map((page) => page.headingLevel).filter((level): level is number => level !== undefined))
+  const boundaries: number[] = []
+  let offset = 0
+  let fence: string | undefined
+
+  for (const lineWithEnding of content.match(/.*(?:\r?\n|$)/g) ?? []) {
+    if (lineWithEnding.length === 0) {
+      continue
+    }
+    const line = lineWithEnding.replace(/\r?\n$/, '')
+    const fenceMatch = line.match(/^\s*(```+|~~~+)/)
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0]
+      fence = !fence ? marker : fence === marker ? undefined : fence
+    } else if (!fence) {
+      const headingMatch = line.match(/^(#{1,6})\s+(.+?)\s*$/)
+      if (headingMatch && headingLevels.has(headingMatch[1].length)) {
+        boundaries.push(offset)
+      }
+    }
+    offset += lineWithEnding.length
+  }
+
+  if (boundaries.length !== pages.length) {
+    throw new Error(`Could not reproduce the ${pages.length} MP module-pagebreak page boundaries safely.`)
+  }
+  return boundaries.map((start, index) => content.slice(start, boundaries[index + 1] ?? content.length))
+}
