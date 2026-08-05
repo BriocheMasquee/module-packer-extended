@@ -1307,7 +1307,7 @@ test('buildModule renders inline spell range/duration labels in the module\'s re
   const summary = await buildModule(root, { defaultMeasurement: 'metric' })
   const pages = JSON.parse(readZipEntry(summary.outputPath, 'pages.json'))
 
-  assert.match(pages[0].content, /9 meters/)
+  assert.match(pages[0].content, /30 meters/)
 })
 
 test('buildModule applies a project spellDisplayDefaults to an inline spell missing the show* field', async () => {

@@ -27,8 +27,8 @@ test('translate leaves EncounterPlus\'s own untranslated French placeholders as-
 test('pluralize picks "one" or "many" from a {one, many} catalog entry', () => {
   assert.equal(pluralize('Unit.Hour', 1, 'en'), 'Hour')
   assert.equal(pluralize('Unit.Hour', 2, 'en'), 'Hours')
-  assert.equal(pluralize('Unit.Hour', 1, 'fr'), 'Heure')
-  assert.equal(pluralize('Unit.Hour', 2, 'fr'), 'Heures')
+  assert.equal(pluralize('Unit.Hour', 1, 'fr'), 'heure')
+  assert.equal(pluralize('Unit.Hour', 2, 'fr'), 'heures')
 })
 
 test('an override replaces the displayed word for a catalog key, in the language it targets only', () => {

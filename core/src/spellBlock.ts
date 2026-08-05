@@ -7,7 +7,6 @@ import {
   escapeHtml,
   themeAssetPath,
   resourceImagePath,
-  feetToDisplayValue,
   formatDistanceNumber,
   distanceUnitWord,
   formatSources,
@@ -202,8 +201,8 @@ function formatRange(data: Record<string, unknown>, locale: RenderLocale): strin
   // 0 is never a real spell range in D&D's rules — treated as "not set"
   // (matching the snippet's own placeholder default), not a literal 0 feet.
   if (typeof data.range === 'number' && data.range > 0) {
-    const value = formatDistanceNumber(feetToDisplayValue(data.range, locale.measurement))
-    return `${value} ${distanceUnitWord(locale.measurement, locale.language)}`
+    const value = formatDistanceNumber(data.range)
+    return `${value} ${distanceUnitWord(locale.measurement, locale.language, data.range)}`
   }
   return undefined
 }
@@ -270,7 +269,7 @@ function buildRangeDetailHtml(
   if (hasArea) {
     const sizeText =
       areaSize !== undefined
-        ? `${formatDistanceNumber(feetToDisplayValue(areaSize, locale.measurement))} ${locale.measurement === 'metric' ? 'm' : 'ft'} `
+        ? `${formatDistanceNumber(areaSize)} ${locale.measurement === 'metric' ? 'm' : 'ft'} `
         : ''
     value += ` (${escapeHtml(sizeText)}${formatAreaEffectShapeHtml(areaShape, showAreaEffectIcon, preview, locale)})`
   }

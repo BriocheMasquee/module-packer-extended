@@ -8,7 +8,9 @@
 // One upstream key mismatch corrected on ingestion:
 // Item.ContainerCapacityWithUnit -> Item.ContainerCapacity, to match the English
 // catalog key. EncounterPlus's own untranslated "(à traduire)" placeholders are
-// kept as-is, not translated by this script.
+// kept as-is, not translated by this script. Unit.Day/Hour/Minute/Round are
+// lowercased on ingestion (upstream capitalizes them; every MPX call site uses
+// them inline after a number, e.g. "3 minutes", where French doesn't capitalize).
 export const CATALOG_FR: Record<string, string | { one: string; many: string }> = {
   'Ability.CHA': 'CHA',
   'Ability.CON': 'CON',
@@ -525,10 +527,10 @@ export const CATALOG_FR: Record<string, string | { one: string; many: string }> 
   'SpellSchool.Necromancy': 'Nécromancie',
   'SpellSchool.Transmutation': 'Transmutation',
   'Unit.Action': { many: 'Actions', one: 'Action' },
-  'Unit.Day': { many: 'Jours', one: 'Jour' },
-  'Unit.Hour': { many: 'Heures', one: 'Heure' },
-  'Unit.Minute': { many: 'Minutes', one: 'Minute' },
-  'Unit.Round': { many: 'Rounds', one: 'Round' },
+  'Unit.Day': { many: 'jours', one: 'jour' },
+  'Unit.Hour': { many: 'heures', one: 'heure' },
+  'Unit.Minute': { many: 'minutes', one: 'minute' },
+  'Unit.Round': { many: 'rounds', one: 'round' },
   'Unit.Second': { many: 'Secondes', one: 'Seconde' },
   'Unit.Turn': { many: 'Tours', one: 'Tour' },
   'Vehicle.Cargo': 'Cargo',

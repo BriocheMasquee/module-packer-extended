@@ -27,29 +27,29 @@ export function resourceImagePath(resourcePath: string, preview: boolean | undef
   return preview ? `../${resourcePath}` : resourcePath
 }
 
-/** Values are always authored in feet (matching D&D's own rules) — metric
- * display converts using the same simplified factor as WotC's own licensed
- * French translations (feet × 0.3, rounded to the nearest half-unit), not
- * the precise 0.3048 metric conversion. Shared by every distance shown in a
- * spell/monster block (a spell's range/area, a monster's speed/senses). */
-const FEET_TO_METERS_FACTOR = 0.3
-
-export function feetToDisplayValue(feet: number, measurement: MeasurementSystem): number {
-  return measurement === 'metric' ? Math.round(feet * FEET_TO_METERS_FACTOR * 2) / 2 : feet
-}
-
+/** Distance values are authored directly in the project's active measurement
+ * unit — feet when imperial, meters when metric — and shown as-is, no
+ * conversion. Same "no single canonical unit to convert from" reasoning as
+ * item weight/capacity (see formatWeight below); a project switching
+ * measurement mid-way re-interprets its existing numbers in the new unit
+ * rather than converting them. Shared by every distance shown in a spell/
+ * monster block (a spell's range/area, a monster's speed/senses). */
 export function formatDistanceNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 /** The plain unit word appended after a spell range's number (e.g. "9
- * meters"/"9 mètres") — MPX-authored, not sourced from the upstream
- * EncounterPlus catalog (it has no key for this), so untouched by
- * scripts/sync-catalogs.mjs. No French word is given for imperial ("feet")
- * since French projects default to metric — see resolveMeasurementSystem. */
-export function distanceUnitWord(measurement: MeasurementSystem, language: ContentLanguage): string {
+ * meters"/"9 mètres", "1 meter"/"1 mètre") — MPX-authored, not sourced from
+ * the upstream EncounterPlus catalog (it has no key for this), so untouched
+ * by scripts/sync-catalogs.mjs. No French word is given for imperial
+ * ("feet") since French projects default to metric — see
+ * resolveMeasurementSystem. */
+export function distanceUnitWord(measurement: MeasurementSystem, language: ContentLanguage, count: number): string {
   if (measurement === 'metric') {
-    return language === 'fr' ? 'mètre' : 'meters'
+    if (language === 'fr') {
+      return count === 1 ? 'mètre' : 'mètres'
+    }
+    return count === 1 ? 'meter' : 'meters'
   }
   return 'feet'
 }

@@ -6,7 +6,6 @@ import { translate, type RenderLocale, type CatalogOverrides } from './catalog.j
 import {
   escapeHtml,
   resourceImagePath,
-  feetToDisplayValue,
   formatDistanceNumber,
   formatSources,
   formatTags,
@@ -240,8 +239,7 @@ function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): st
 const SPEED_FIELDS = ['walk', 'burrow', 'climb', 'fly', 'swim'] as const
 
 function formatFeetSuffix(value: number, measurement: MeasurementSystem): string {
-  const displayValue = formatDistanceNumber(feetToDisplayValue(value, measurement))
-  return `${displayValue} ${measurement === 'metric' ? 'm' : 'ft'}.`
+  return `${formatDistanceNumber(value)} ${measurement === 'metric' ? 'm' : 'ft'}.`
 }
 
 /** "40 ft." or "10 ft., Swim 40 ft." — walk has no label of its own (it's
