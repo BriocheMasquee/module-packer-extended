@@ -205,6 +205,15 @@ p {
   text-align: left;
 }
 
+/* Hanging indent: the first line starts flush, every line after it is
+ * indented — padding-left indents the whole block, text-indent pulls just
+ * the first line back out by the same amount. */
+.text-data {
+  font-family: var(--font-data);
+  padding-left: 1.5rem;
+  text-indent: -1.5rem;
+}
+
 .center {
   display: block;
   margin-left: auto;
