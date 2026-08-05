@@ -1,7 +1,7 @@
 import { access, readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { normalizeContentLanguage, loadCatalogOverrides } from 'mpx-core'
+import { normalizeContentLanguage, loadCatalogOverrides, countInlinePageCompendiumEntries } from 'mpx-core'
 
 const VIEW_ID = 'mpx.projectExplorer'
 
@@ -121,9 +121,13 @@ async function countJsonFiles(folderPath: string): Promise<number> {
 const COMPENDIUM_FOLDERS = ['monsters', 'spells', 'items', 'tables']
 
 async function buildCompendiumSummary(projectRoot: string): Promise<CompendiumSummaryItem> {
-  const counts = await Promise.all(COMPENDIUM_FOLDERS.map((folder) => countJsonFiles(join(projectRoot, folder))))
-  const total = counts.reduce((sum, count) => sum + count, 0)
-  return new CompendiumSummaryItem(`${total} entries`)
+  const [standaloneCounts, inlineCounts] = await Promise.all([
+    Promise.all(COMPENDIUM_FOLDERS.map((folder) => countJsonFiles(join(projectRoot, folder)))),
+    countInlinePageCompendiumEntries(projectRoot),
+  ])
+  const standaloneTotal = standaloneCounts.reduce((sum, count) => sum + count, 0)
+  const inlineTotal = inlineCounts.spells + inlineCounts.items + inlineCounts.monsters + inlineCounts.rollTables
+  return new CompendiumSummaryItem(`${standaloneTotal + inlineTotal} entries`)
 }
 
 async function listFolderChildren(folderPath: string): Promise<ProjectItem[]> {
@@ -232,7 +236,7 @@ export function registerProjectExplorer(context: vscode.ExtensionContext): void 
     watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(
         workspaceFolder,
-        '{module.json,.vscode/settings.json,translation-overrides.json,images/**,assets/**,items/*.json,spells/*.json,tables/*.json,monsters/*.json}',
+        '{module.json,.vscode/settings.json,translation-overrides.json,images/**,assets/**,items/*.json,spells/*.json,tables/*.json,monsters/*.json,pages/**/*.md}',
       ),
     )
     watcher.onDidCreate(refresh)

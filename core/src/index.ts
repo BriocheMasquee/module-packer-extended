@@ -18,8 +18,8 @@ export {
 } from './contentEntries.js'
 export type { ContentEntryKind, CreatedContentEntry } from './contentEntries.js'
 export { createItem, createSpell, createRollTable, createMonster, COMPENDIUM_RULESET } from './compendiumEntries.js'
-export { buildModule, ModuleBuildError } from './buildModule.js'
-export type { BuildIssue, BuildOptions, BuildSummary } from './buildModule.js'
+export { buildModule, ModuleBuildError, countInlinePageCompendiumEntries } from './buildModule.js'
+export type { BuildIssue, BuildOptions, BuildSummary, InlinePageCompendiumCounts } from './buildModule.js'
 export { incrementPatchVersion } from './version.js'
 export {
   resolveMeasurementSystem,
