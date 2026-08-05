@@ -110,6 +110,19 @@ test('renders traits/actions/legendary actions with name(usage). text, using keb
   assert.match(html, /<span class="statblock-legendary-action-name">Hag's Swipe\.<\/span>/)
 })
 
+test('renders Markdown formatting (bold/italic/links) inside a trait/action/etc. text field', () => {
+  const html = renderMonster(`
+name: Test
+traits:
+  - name: Test Trait
+    text: "*Melee Attack Roll:* your **spell attack modifier**, reach [5 ft.](/rule/reach)."
+`)
+  assert.match(
+    html,
+    /<span class="statblock-trait-description"><em>Melee Attack Roll:<\/em> your <strong>spell attack modifier<\/strong>, reach <a href="\/rule\/reach">5 ft\.<\/a>\.<\/span>/,
+  )
+})
+
 test('omits a property line entirely when its data is absent', () => {
   const html = renderMonster('name: Minimal Monster')
   assert.doesNotMatch(html, /statblock-property-name/)

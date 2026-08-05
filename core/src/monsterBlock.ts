@@ -477,7 +477,7 @@ function kebabCase(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
 }
 
-function featureListHtml(kind: string, entries: unknown, locale: RenderLocale): string {
+function featureListHtml(kind: string, entries: unknown, locale: RenderLocale, markdown: MarkdownIt): string {
   if (!Array.isArray(entries) || entries.length === 0) {
     return ''
   }
@@ -491,7 +491,7 @@ function featureListHtml(kind: string, entries: unknown, locale: RenderLocale): 
       const nameHtml = name
         ? `<span class="statblock-${cssKind}-name">${escapeHtml(name)}${usage ? ` (${escapeHtml(usage)})` : ''}.</span> `
         : ''
-      return `<div class="statblock-${cssKind}"><p>${nameHtml}<span class="statblock-${cssKind}-description">${escapeHtml(text)}</span></p></div>`
+      return `<div class="statblock-${cssKind}"><p>${nameHtml}<span class="statblock-${cssKind}-description">${markdown.renderInline(text)}</span></p></div>`
     })
     .join('')
   const sectionTitle = translateEnum('Monster', kind.charAt(0).toUpperCase() + kind.slice(1) + 's', locale)
@@ -616,9 +616,9 @@ export function renderMonsterBlockHtml(
     propertyLine(translate('Monster.Challenge', locale.language, locale.overrides), formatChallenge(monsterData, locale)),
   ].join('')
 
-  const featureListsHtml = FEATURE_LIST_KINDS.map((kind, index) => featureListHtml(kind, monsterData[FEATURE_LIST_DATA_FIELDS[index]], locale)).join(
-    '',
-  )
+  const featureListsHtml = FEATURE_LIST_KINDS.map((kind, index) =>
+    featureListHtml(kind, monsterData[FEATURE_LIST_DATA_FIELDS[index]], locale, markdown),
+  ).join('')
 
   const showImageDefault = options.displayDefaults?.showImage ?? true
   const showImage = typeof data.showImage === 'boolean' ? data.showImage : showImageDefault
