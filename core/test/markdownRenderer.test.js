@@ -106,6 +106,12 @@ test('createMarkdownRenderer keeps other classes on a "caption" image after remo
   assert.match(html, /<img[^>]*class="center"/)
 })
 
+test('createMarkdownRenderer wraps a "caption-over" image in figure/figcaption and keeps the class on the img', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('![My Image Description](images/banner.png){.caption-over}\n')
+  assert.match(html, /<figure><img[^>]*class="caption-over"[^>]*><figcaption>My Image Description<\/figcaption><\/figure>/)
+})
+
 test('createMarkdownRenderer renders a plain "float-left" image without a figure wrapper', () => {
   const markdown = createMarkdownRenderer()
   const html = markdown.render('![My Image Description](images/banner.png){.float-left}\n')

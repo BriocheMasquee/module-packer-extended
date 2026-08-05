@@ -164,24 +164,6 @@
     ],
     "description": "Insert a read-aloud text blockquote"
   },
-  "MPX Paper Block": {
-    "prefix": "mpx-paper",
-    "body": [
-      "> ${1:Text on parchment.}",
-      "{.paper}",
-      "$0"
-    ],
-    "description": "Insert a parchment-style blockquote"
-  },
-  "MPX Flavor Text Block": {
-    "prefix": "mpx-flavortext",
-    "body": [
-      "> ${1:Flavor text.}",
-      "{.flavortext}",
-      "$0"
-    ],
-    "description": "Insert a flavor text blockquote"
-  },
   "MPX Large Quote": {
     "prefix": "mpx-large-quote",
     "body": [
@@ -215,7 +197,7 @@
   "MPX Image": {
     "prefix": "mpx-image",
     "body": [
-      "![${2:Description}](images/${3:image.png})${1|{.size-cover},{.float-left},{.float-right},{.center},{.caption}, |}",
+      "![${2:Description}](images/${3:image.png})${1| ,{.size-cover},{.float-left},{.float-right},{.center},{.caption}|}",
       "$0"
     ],
     "description": "Insert an image and choose its presentation"
@@ -234,7 +216,7 @@
       "| ${2:Column 1} | ${3:Column 2} |",
       "| --- | --- |",
       "| ${4:Value 1} | ${5:Value 2} |",
-      "${1|{.blue},{.green},{.red},{.orange},{.yellow},{.gray},{.purple},{.teal},{.magenta},{.signature},{.center},{.float-left},{.float-right}, |}",
+      "${1| ,{.blue},{.green},{.red},{.orange},{.yellow},{.gray},{.purple},{.teal},{.magenta},{.signature},{.center},{.float-left},{.float-right}|}",
       "$0"
     ],
     "description": "Insert a table with a color or presentation choice"
