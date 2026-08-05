@@ -867,6 +867,41 @@ test('buildModule allows the "items/" placeholder image with no file', async () 
   assert.equal(summary.itemCount, 1)
 })
 
+test('buildModule strips the "items/"/"spells/"/"monsters/" placeholder image (and monster token) from the built JSON entirely', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'items'), { recursive: true })
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await mkdir(join(root, 'monsters'), { recursive: true })
+  await writeFile(
+    join(root, 'items', 'a.json'),
+    JSON.stringify({ id: '9D36046F-200E-44A4-ADBE-64521193DAFF', name: 'A', slug: 'a', image: 'items/' }),
+  )
+  await writeFile(
+    join(root, 'spells', 'b.json'),
+    JSON.stringify({ id: 'A4E0F4D1-200E-44A4-ADBE-64521193DAFF', name: 'B', slug: 'b', level: 1, image: 'spells/' }),
+  )
+  await writeFile(
+    join(root, 'monsters', 'c.json'),
+    JSON.stringify({
+      id: 'B4E0F4D1-200E-44A4-ADBE-64521193DAFF',
+      name: 'C',
+      slug: 'c',
+      image: 'monsters/',
+      token: 'monsters/',
+    }),
+  )
+
+  const summary = await buildModule(root)
+  const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json'))
+  const spells = JSON.parse(readZipEntry(summary.outputPath, 'spells.json'))
+  const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
+  assert.ok(!('image' in items[0]))
+  assert.ok(!('image' in spells[0]))
+  assert.ok(!('image' in monsters[0]))
+  assert.ok(!('token' in monsters[0]))
+})
+
 test('buildModule strips empty optional item fields but keeps meaningful defaults', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)

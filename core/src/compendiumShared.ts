@@ -25,6 +25,20 @@ export function stripEmptyValues(record: Record<string, unknown>, fields: readon
   return cleaned
 }
 
+/** An untouched image/token field (e.g. "spells/", "items/", "monsters/" —
+ * the folder with no file name) is the snippet's own "no image set"
+ * placeholder, same convention the spell/item/monster block renderers
+ * already exclude with `!== 'spells/'` etc. It's never a real resource
+ * reference, so it must never survive into the built compendium JSON —
+ * EncounterPlus has no notion of this placeholder and treats it as an
+ * actual (broken) image path, which visibly disrupts its own entity
+ * detail view (reported: a large blank gap where the image would go). */
+export function stripPlaceholderImageField(record: Record<string, unknown>, field: string, placeholder: string): void {
+  if (record[field] === placeholder) {
+    delete record[field]
+  }
+}
+
 /** Strips a nested object's own empty optional fields in place, then drops
  * the whole field if nothing meaningful is left in it. */
 export function stripEmptyNestedField(

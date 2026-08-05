@@ -3,6 +3,7 @@ import {
   isPlainObject,
   stripEmptyNestedField,
   stripEmptyValues,
+  stripPlaceholderImageField,
   type ValidationIssue,
 } from './compendiumShared.js'
 
@@ -126,6 +127,7 @@ export function validateSpellData(relativePath: string, data: unknown, issues: V
 
 export function stripEmptySpellFields(spell: Record<string, unknown>): Record<string, unknown> {
   const cleaned = stripEmptyValues(spell, SPELL_TOP_LEVEL_OPTIONAL_FIELDS)
+  stripPlaceholderImageField(cleaned, 'image', 'spells/')
   stripEmptyNestedField(cleaned, 'attributes', COMPENDIUM_ATTRIBUTES_OPTIONAL_FIELDS)
   if (isPlainObject(cleaned.data)) {
     const data = stripEmptyValues(cleaned.data, SPELL_DATA_OPTIONAL_FIELDS)
