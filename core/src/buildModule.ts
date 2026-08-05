@@ -1234,6 +1234,41 @@ function findBrokenLinks(pages: { relativePath: string; slug: string; content: s
   return warnings
 }
 
+export interface InlinePageCompendiumCounts {
+  spells: number
+  items: number
+  monsters: number
+  rollTables: number
+}
+
+/** A lightweight count of every ```spell/```item/```monster/roll-table block
+ * across a project's pages/ — same detection `readPages` (used at build
+ * time) relies on, but skipping all its validation/issue-tracking, since
+ * this is meant for a quick UI count (the project explorer's Compendium
+ * summary line), not a build. Standalone spells/items/monsters/tables
+ * folders are a separate, simpler file count the caller already has. */
+export async function countInlinePageCompendiumEntries(moduleRoot: string): Promise<InlinePageCompendiumCounts> {
+  const markdown = createMarkdownRenderer({ autoDetectRollTables: true })
+  const counts: InlinePageCompendiumCounts = { spells: 0, items: 0, monsters: 0, rollTables: 0 }
+
+  for (const filePath of await listFilesRecursively(join(moduleRoot, 'pages'), '.md')) {
+    let content: string
+    try {
+      content = matter(await readFile(filePath, 'utf8')).content
+    } catch {
+      continue
+    }
+    const env: MpxMarkdownEnvironment = {}
+    markdown.render(content, env)
+    counts.spells += env.inlineSpells?.length ?? 0
+    counts.items += env.inlineItems?.length ?? 0
+    counts.monsters += env.inlineMonsters?.length ?? 0
+    counts.rollTables += env.inlineRollTables?.length ?? 0
+  }
+
+  return counts
+}
+
 export async function buildModule(moduleRoot: string, options: BuildOptions = {}): Promise<BuildSummary> {
   const issues: BuildIssue[] = []
 

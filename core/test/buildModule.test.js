@@ -7,7 +7,7 @@ const { basename, join } = require('node:path')
 const test = require('node:test')
 const { ZipFile } = require('yazl')
 
-const { buildModule, ModuleBuildError } = require('../dist/index.js')
+const { buildModule, ModuleBuildError, countInlinePageCompendiumEntries } = require('../dist/index.js')
 
 async function makeTempModule() {
   return mkdtemp(join(tmpdir(), 'mpx-core-build-test-'))
@@ -1172,6 +1172,58 @@ test('buildModule strips empty optional spell fields but keeps meaningful defaul
     areaEffectSize: 0,
     duration: 0,
   })
+})
+
+test('countInlinePageCompendiumEntries counts inline spell/item/monster/roll-table blocks across all pages', async () => {
+  const root = await makeTempModule()
+  await mkdir(join(root, 'pages'), { recursive: true })
+  await writeFile(
+    join(root, 'pages', 'intro.md'),
+    [
+      '---',
+      'name: Introduction',
+      'slug: intro',
+      'rank: 0',
+      'parent: ""',
+      '---',
+      '',
+      '```spell',
+      'name: Fireball',
+      'level: 3',
+      'school: evocation',
+      '```',
+      '',
+      '```item',
+      'name: Rope',
+      '```',
+      '',
+    ].join('\n'),
+  )
+  await writeFile(
+    join(root, 'pages', 'bestiary.md'),
+    [
+      '---',
+      'name: Bestiary',
+      'slug: bestiary',
+      'rank: 1',
+      'parent: ""',
+      '---',
+      '',
+      '```monster',
+      'name: Goblin',
+      '```',
+      '',
+    ].join('\n'),
+  )
+
+  const counts = await countInlinePageCompendiumEntries(root)
+  assert.deepEqual(counts, { spells: 1, items: 1, monsters: 1, rollTables: 0 })
+})
+
+test('countInlinePageCompendiumEntries returns all zeros when there is no pages/ folder', async () => {
+  const root = await makeTempModule()
+  const counts = await countInlinePageCompendiumEntries(root)
+  assert.deepEqual(counts, { spells: 0, items: 0, monsters: 0, rollTables: 0 })
 })
 
 test('buildModule merges an inline ```spell page block into spells.json alongside standalone files', async () => {
