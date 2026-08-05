@@ -73,6 +73,12 @@ rangeType: unlimited
   assert.match(html, /Casting Time: <\/span><span class="compendium-block-detail-value">Action or Ritual</)
 })
 
+test('appends "ou Rituel" (not the English "or Ritual") to casting time when language is "fr"', () => {
+  const markdown = createMarkdownRenderer({ language: 'fr' })
+  const html = markdown.render('```spell\nname: Test\nritual: true\nactivation:\n  time: 1\n  unit: action\n```\n')
+  assert.match(html, /Temps d.incantation.*Action ou Rituel/)
+})
+
 test('renders a numeric range in feet when rangeType is unset (Animate Objects)', () => {
   const html = renderSpell(`
 name: Animate Objects

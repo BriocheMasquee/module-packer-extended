@@ -190,7 +190,11 @@ function formatCastingTime(data: Record<string, unknown>, locale: RenderLocale):
     text = `${count} ${pluralize(`Unit.${unit === 'hour' ? 'Hour' : 'Minute'}`, count, locale.language, locale.overrides)}`
   }
   if (text && data.ritual === true) {
-    text += ` or ${translate('Spell.Ritual', locale.language, locale.overrides)}`
+    // "or"/"ou" — MPX-authored connector, not sourced from the upstream
+    // EncounterPlus catalog (no key for it there), so untouched by
+    // scripts/sync-catalogs.mjs, same as distanceUnitWord/labelSeparator.
+    const or = locale.language === 'fr' ? 'ou' : 'or'
+    text += ` ${or} ${translate('Spell.Ritual', locale.language, locale.overrides)}`
   }
   return text
 }
