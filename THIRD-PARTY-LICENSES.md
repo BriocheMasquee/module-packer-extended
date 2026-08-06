@@ -26,3 +26,15 @@ One font in this theme is unrelated to the Solbera collection:
 - `Walter-Turncoat.woff2` — a standalone Google Fonts release by Sideshow, **Apache License 2.0** (free for personal and commercial use). <https://fonts.google.com/specimen/Walter+Turncoat>
 
 Every other bundled asset in this theme (CSS, images) is original work created for this project or its upstream (see `docs/themes.md`), covered by the project's own CC0 license.
+
+## MP conversion legacy fallback (`extension/resources/mp-legacy-fallback/`)
+
+Only used by `Convert MP Project` (see `docs/convert-mp-project.md`) when the source Module Packer V4 project has no `assets/` folder of its own — copied verbatim from Module Packer V4's own bundled default theme (`source/assets/base/` in <https://github.com/BriocheMasquee/module-packer-V4>, itself CC0-licensed code, but the fonts inside it carry their own separate terms, checked individually below from each font file's own embedded metadata):
+
+- `Bookinsanity*.ttf`, `Scaly-Sans*.ttf`/`Scaly-Sans-Caps*.ttf`, `Solbera-Imitation.ttf`, `Mr-Eaves-Small-Caps.ttf`, `Nodesto-Caps-Condensed*.ttf`, `Zatanna-Misdirection*.ttf` — same **Solbera's D&D 5th Edition Fonts** collection as the `5.5e` theme above (see that section for authorship/collection details), **CC BY-SA 4.0**. Different underlying files (`.ttf`, not `.woff2`; not all the same variants) — bundled separately here, not shared with `5.5e`'s own copy.
+- `Dungeon-Drop-Case.ttf` — also part of the Solbera collection (credited to Ners), but under **Creative Commons Attribution 4.0 International (CC BY 4.0)** per the font file's own embedded metadata (no "ShareAlike" clause, unlike the rest of the collection) — <https://creativecommons.org/licenses/by/4.0/>.
+- `AndadaSC-*.ttf` — **not** part of the Solbera collection despite living in the same folder. **SIL Open Font License, Version 1.1**, by Carolina Giovagnoli (Huerta Tipográfica) — <https://scripts.sil.org/OFL>.
+
+- `css/fontawesome/` — **Font Awesome Free**, bundled by Module Packer V4 itself for its own `global.css`. Icons: **CC BY 4.0**; fonts: **SIL OFL 1.1**; code: **MIT**. <https://fontawesome.com/license/free>.
+
+The rest of the CSS/images in this fallback are Module Packer V4's own original work, under that project's CC0 license.

@@ -24,7 +24,7 @@ Every notice the conversion produced (see the tables below) is listed in the "MP
 - `groups/*.json` — one per MP subfolder that declares its own `Group.yaml` (see [Groups](#groups) below).
 - `maps/*.json`+`.zip`, `encounters/*.json`+`.zip` — one pair per `Module.yaml` `maps:`/`encounters:` entry (see [Maps and encounters](#maps-and-encounters) below).
 - `images/` — every image actually referenced from a page's Markdown (`![...](...)` or `<img src="...">`), copied in flat (by base file name).
-- `assets/` — MP's own `assets/` folder, copied through verbatim (CSS, fonts, JS — nothing rewritten) if the project has one. If it doesn't, the extension's bundled default theme is seeded instead, with a `fallback-theme` notice.
+- `assets/` — MP's own `assets/` folder, copied through verbatim (CSS, fonts, JS — nothing rewritten) if the project has one. Whatever it doesn't already have `assets/css/global.css` in — whether it has no `assets/` at all, or one that never carried a base theme of its own (just a `custom.css`, say) — is filled in from **Module Packer V4's own bundled default theme** (not MPX's own `5.5e` theme — see `THIRD-PARTY-LICENSES.md` for where it comes from), copied verbatim, additively, never overwriting a file the project's own `assets/` already had (so an existing `custom.css` is untouched). Reported with a `fallback-theme` notice.
 - `.vscode/settings.json` — the same defaults [Create Module Project](Create-Module-Project) writes, except `mpx.contentLanguage` and `mpx.autoDetectRollTables` are derived from the MP project itself (see below) rather than fixed.
 
 ## Module-level detection

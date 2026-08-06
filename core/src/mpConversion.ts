@@ -1322,18 +1322,38 @@ export async function convertMpProject(
 
   if (analysis.assets.directory) {
     await copyDirectory(join(sourceDirectory, analysis.assets.directory), join(destinationDirectory, 'assets'))
-  } else if (options.fallbackTheme) {
+  }
+  // A MP project's own assets/ (if any) is never a real "theme" in MP's own
+  // sense — MP always seeds every project from its own bundled default
+  // theme at build time (source/assets/base/ in the original tool), and a
+  // project only ever *adds to or overrides* individual files on top of it
+  // (typically just css/custom.css) via its own assets/ folder with a
+  // Group.yaml. So a MP project missing css/global.css — whether it has no
+  // assets/ at all, or one that never carried its own copy — never had a
+  // "real" base theme of its own to preserve; MP's own default is exactly
+  // what it always fell back to. Filled in additively (never overwriting a
+  // file the project's own assets/ already provided, e.g. custom.css).
+  const hasGlobalCss = await findFileCaseInsensitive(join(destinationDirectory, 'assets', 'css'), 'global.css').then(
+    (path) => path !== undefined,
+  )
+  if (!hasGlobalCss && options.fallbackTheme) {
     notices.push({
       code: 'fallback-theme',
-      message: 'The MP project had no assets/ folder — seeded the default MPX theme instead of a converted one.',
+      message: "The MP project's own assets/ had no css/global.css — filled in Module Packer V4's own default theme for anything it was missing.",
     })
-    await mkdir(join(destinationDirectory, 'assets'), { recursive: true })
     for (const filePath of await listFilesRecursively(options.fallbackTheme.themeDirectory)) {
       const relativePath = relative(options.fallbackTheme.themeDirectory, filePath)
       if (relativePath === 'theme.json') {
         continue
       }
       const targetPath = join(destinationDirectory, 'assets', relativePath)
+      const alreadyExists = await readFile(targetPath).then(
+        () => true,
+        () => false,
+      )
+      if (alreadyExists) {
+        continue
+      }
       await mkdir(dirname(targetPath), { recursive: true })
       await copyFile(filePath, targetPath)
     }

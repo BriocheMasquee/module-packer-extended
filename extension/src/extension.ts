@@ -38,6 +38,14 @@ export function themesRootDirectory(context: vscode.ExtensionContext): string {
   return join(context.extensionPath, 'resources', 'themes')
 }
 
+/** Module Packer V4's own bundled default theme, copied verbatim — used
+ * only as `Convert MP Project`'s fallback when the source MP project has no
+ * assets/ of its own (never offered as a selectable project theme; see
+ * THIRD-PARTY-LICENSES.md for where it comes from). */
+export function mpLegacyFallbackDirectory(context: vscode.ExtensionContext): string {
+  return join(context.extensionPath, 'resources', 'mp-legacy-fallback')
+}
+
 async function selectWorkspaceFolder(
   workspaceFolders: readonly vscode.WorkspaceFolder[],
   placeHolder: string,

@@ -14,6 +14,19 @@ async function makeTempDirs() {
   return { destinationDirectory, sourceDirectory }
 }
 
+/** A minimal fake fallback theme — mirrors the real
+ * extension/resources/mp-legacy-fallback/ shape (css/global.css plus
+ * another file) without depending on it, so these tests stay fast and
+ * don't churn if the real fallback's own contents change. */
+async function makeFallbackTheme() {
+  const themeDirectory = await mkdtemp(join(tmpdir(), 'mpx-fallback-theme-'))
+  await mkdir(join(themeDirectory, 'css'), { recursive: true })
+  await mkdir(join(themeDirectory, 'font'), { recursive: true })
+  await writeFile(join(themeDirectory, 'css', 'global.css'), '/* fallback global */')
+  await writeFile(join(themeDirectory, 'font', 'Fallback.ttf'), 'fake-font-data')
+  return { id: 'mp-legacy-fallback', name: 'Fallback', description: '', themeDirectory }
+}
+
 test('analyzeMpProject reads Module.yaml metadata, pages, and groups', async () => {
   const { sourceDirectory } = await makeTempDirs()
   await writeFile(
@@ -954,4 +967,45 @@ Content one.
   const chapter1 = await readFile(join(destinationDirectory, 'pages', 'chapter-1.md'), 'utf8')
   assert.doesNotMatch(chapter1, /intro paragraph/)
   assert.ok(result.notices.some((notice) => notice.code === 'dropped-pagebreak-preamble'))
+})
+
+test('convertMpProject seeds the whole fallback theme when the MP project has no assets/ at all', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  const fallbackTheme = await makeFallbackTheme()
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory, { fallbackTheme })
+  assert.equal(await readFile(join(destinationDirectory, 'assets', 'css', 'global.css'), 'utf8'), '/* fallback global */')
+  assert.equal(await readFile(join(destinationDirectory, 'assets', 'font', 'Fallback.ttf'), 'utf8'), 'fake-font-data')
+  assert.ok(result.notices.some((notice) => notice.code === 'fallback-theme'))
+})
+
+test('convertMpProject fills in the fallback theme additively when the MP project has assets/ but no css/global.css, without touching its own custom.css', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await mkdir(join(sourceDirectory, 'assets', 'css'), { recursive: true })
+  await writeFile(join(sourceDirectory, 'assets', 'css', 'custom.css'), '/* my custom css */')
+  const fallbackTheme = await makeFallbackTheme()
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory, { fallbackTheme })
+  assert.equal(await readFile(join(destinationDirectory, 'assets', 'css', 'custom.css'), 'utf8'), '/* my custom css */')
+  assert.equal(await readFile(join(destinationDirectory, 'assets', 'css', 'global.css'), 'utf8'), '/* fallback global */')
+  assert.ok(result.notices.some((notice) => notice.code === 'fallback-theme'))
+})
+
+test('convertMpProject does not touch assets/ at all when the MP project already has its own css/global.css', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await mkdir(join(sourceDirectory, 'assets', 'css'), { recursive: true })
+  await writeFile(join(sourceDirectory, 'assets', 'css', 'global.css'), '/* my real global css */')
+  const fallbackTheme = await makeFallbackTheme()
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory, { fallbackTheme })
+  assert.equal(await readFile(join(destinationDirectory, 'assets', 'css', 'global.css'), 'utf8'), '/* my real global css */')
+  const fontDirExists = await readdir(join(destinationDirectory, 'assets', 'font')).then(
+    () => true,
+    () => false,
+  )
+  assert.ok(!fontDirExists)
+  assert.ok(!result.notices.some((notice) => notice.code === 'fallback-theme'))
 })

@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 import * as vscode from 'vscode'
-import { convertMpProject, detectWorkspaceKind, discoverProjectThemes, resolveProjectTheme, DEFAULT_PROJECT_THEME_ID } from 'mpx-core'
-import { themesRootDirectory } from './extension.js'
+import { convertMpProject, detectWorkspaceKind } from 'mpx-core'
+import { mpLegacyFallbackDirectory } from './extension.js'
 
 const CONVERT_COMMAND = 'mpx.convertMpProject'
 
@@ -52,8 +52,15 @@ async function executeConvertMpProject(context: vscode.ExtensionContext, outputC
     return
   }
 
-  const themes = await discoverProjectThemes(themesRootDirectory(context))
-  const fallbackTheme = resolveProjectTheme(themes, DEFAULT_PROJECT_THEME_ID) ?? themes[0]
+  // Module Packer V4's own default theme, not MPX's — a converted project's
+  // assets/ should look like what MP itself would have produced when the
+  // source project never had a theme of its own to begin with.
+  const fallbackTheme = {
+    id: 'mp-legacy-fallback',
+    name: 'Module Packer V4 default theme',
+    description: '',
+    themeDirectory: mpLegacyFallbackDirectory(context),
+  }
 
   try {
     const result = await vscode.window.withProgress(
