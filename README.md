@@ -12,6 +12,8 @@
 
 > [!WARNING]
 > **MPX is currently in beta.** Keep an independent backup of your source project and of your EncounterPlus data — test built modules on a copy first. Between beta versions, project files and settings are **not guaranteed to stay backward compatible**; check the changelog before upgrading an existing project.
+>
+> **MP project conversion is experimental.** It works — module metadata, pages, groups, images, maps/encounters, and inline ` ```item `/` ```spell `/` ```monster ` blocks all convert — but a converted inline block currently renders through MPX's *current* 5.5e Compendium block style, not a reproduction of the original legacy dnd5e ruleset appearance. Keep your original MP project as the source of truth until you've checked the converted result.
 
 <div align="center">
 
