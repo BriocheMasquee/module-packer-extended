@@ -1,6 +1,7 @@
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import * as vscode from 'vscode'
+import { generatePreviewFontStyles, PREVIEW_FONT_STYLE_PATH } from 'mpx-core'
 
 const MANAGED_STYLE_PATHS = ['assets/css/global.css', 'assets/css/custom.css']
 
@@ -23,13 +24,28 @@ async function configureModulePreview(workspaceFolder: vscode.WorkspaceFolder): 
 
   const markdownConfig = vscode.workspace.getConfiguration('markdown', workspaceFolder)
 
+  // A .ttc/.otc font collection under assets/font/ never resolves in
+  // VSCode's own preview webview, even though a real browser/EncounterPlus
+  // reads it fine — so each face is extracted into its own file under
+  // .vscode/mpx-preview-fonts/ (preview-only, excluded from the built
+  // .module) and declared here under the same font-family name the
+  // project's own CSS already uses.
+  const previewFontStylePath = await generatePreviewFontStyles(projectRoot).catch((error: unknown) => {
+    console.error('MPX: failed to generate preview font styles for', projectRoot, error)
+    return undefined
+  })
+
+  const allManagedStylePaths = [...MANAGED_STYLE_PATHS, PREVIEW_FONT_STYLE_PATH]
   const currentStyles = markdownConfig.get<string[]>('styles') ?? []
-  const nonManagedStyles = currentStyles.filter((style) => !MANAGED_STYLE_PATHS.includes(style))
+  const nonManagedStyles = currentStyles.filter((style) => !allManagedStylePaths.includes(style))
   const managedStyles: string[] = []
   for (const stylePath of MANAGED_STYLE_PATHS) {
     if (await fileExists(join(projectRoot, stylePath))) {
       managedStyles.push(stylePath)
     }
+  }
+  if (previewFontStylePath) {
+    managedStyles.push(previewFontStylePath)
   }
   const nextStyles = [...nonManagedStyles, ...managedStyles]
   if (JSON.stringify(nextStyles) !== JSON.stringify(currentStyles)) {
@@ -65,6 +81,13 @@ export function registerPreviewConfiguration(context: vscode.ExtensionContext): 
       styleWatcher.onDidChange(refresh)
       styleWatcher.onDidDelete(refresh)
 
+      const fontWatcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(workspaceFolder, 'assets/font/**/*.{otc,ttc}'),
+      )
+      fontWatcher.onDidCreate(refresh)
+      fontWatcher.onDidChange(refresh)
+      fontWatcher.onDidDelete(refresh)
+
       // extension.ts's own watcher reloads the cached override values; this
       // one tells any already-open preview panel to actually re-render with
       // them (same reason mpx.contentLanguage below triggers a refresh).
@@ -76,7 +99,7 @@ export function registerPreviewConfiguration(context: vscode.ExtensionContext): 
       overridesWatcher.onDidChange(refreshPreview)
       overridesWatcher.onDidDelete(refreshPreview)
 
-      return [styleWatcher, overridesWatcher]
+      return [styleWatcher, fontWatcher, overridesWatcher]
     })
   }
 

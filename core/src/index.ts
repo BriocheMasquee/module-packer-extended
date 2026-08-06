@@ -105,3 +105,5 @@ export type {
   MpPageAnalysis,
   MpProjectAnalysis,
 } from './mpConversion.js'
+export { generatePreviewFontStyles, PREVIEW_FONT_STYLE_PATH } from './previewFontStyles.js'
+export type { OpenFontCollection } from './previewFontStyles.js'
