@@ -860,41 +860,46 @@ export async function convertMpProject(
 
   let itemBlockCount = 0
   let spellBlockCount = 0
-  // Tracks which source file each spells//items/ target name came from, so
-  // two different blocks that happen to share a bare filename (e.g. two
-  // pages each with their own "cover.png") are caught instead of silently
-  // overwriting one another.
-  const compendiumImageSources = { item: new Map<string, string>(), spell: new Map<string, string>() }
+  let monsterBlockCount = 0
+  // Tracks which source file each spells//items//monsters/ target name came
+  // from, so two different blocks that happen to share a bare filename
+  // (e.g. two pages each with their own "cover.png") are caught instead of
+  // silently overwriting one another.
+  const compendiumImageSources = {
+    item: new Map<string, string>(),
+    monster: new Map<string, string>(),
+    spell: new Map<string, string>(),
+  }
+  const COMPENDIUM_FOLDER_BY_KIND = { item: 'items', monster: 'monsters', spell: 'spells' } as const
 
   const copyCompendiumBlockImage = async (
     block: MpCompendiumBlockReshape,
     pageSourcePath: string,
   ): Promise<void> => {
-    if (!block.imageReference) {
-      return
-    }
-    const folder = block.kind === 'spell' ? 'spells' : 'items'
-    const targetName = basename(block.imageReference)
-    const absoluteSourcePath = join(sourceDirectory, dirname(pageSourcePath), block.imageReference)
-    const existingSource = compendiumImageSources[block.kind].get(targetName)
-    if (existingSource && existingSource !== absoluteSourcePath) {
-      notices.push({
-        code: 'duplicate-compendium-image',
-        message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}"'s image "${targetName}" collides with another ${block.kind} block's image of the same name; kept the first one copied.`,
-        path: pageSourcePath,
-      })
-      return
-    }
-    try {
-      await mkdir(join(destinationDirectory, folder), { recursive: true })
-      await copyFile(absoluteSourcePath, join(destinationDirectory, folder, targetName))
-      compendiumImageSources[block.kind].set(targetName, absoluteSourcePath)
-    } catch {
-      notices.push({
-        code: 'missing-compendium-image',
-        message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}" references a missing image: "${block.imageReference}".`,
-        path: pageSourcePath,
-      })
+    const folder = COMPENDIUM_FOLDER_BY_KIND[block.kind]
+    for (const imageReference of block.imageReferences) {
+      const targetName = basename(imageReference)
+      const absoluteSourcePath = join(sourceDirectory, dirname(pageSourcePath), imageReference)
+      const existingSource = compendiumImageSources[block.kind].get(targetName)
+      if (existingSource && existingSource !== absoluteSourcePath) {
+        notices.push({
+          code: 'duplicate-compendium-image',
+          message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}"'s image "${targetName}" collides with another ${block.kind} block's image of the same name; kept the first one copied.`,
+          path: pageSourcePath,
+        })
+        continue
+      }
+      try {
+        await mkdir(join(destinationDirectory, folder), { recursive: true })
+        await copyFile(absoluteSourcePath, join(destinationDirectory, folder, targetName))
+        compendiumImageSources[block.kind].set(targetName, absoluteSourcePath)
+      } catch {
+        notices.push({
+          code: 'missing-compendium-image',
+          message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}" references a missing image: "${imageReference}".`,
+          path: pageSourcePath,
+        })
+      }
     }
   }
 
@@ -918,6 +923,8 @@ export async function convertMpProject(
         for (const block of blocks) {
           if (block.kind === 'spell') {
             spellBlockCount += 1
+          } else if (block.kind === 'monster') {
+            monsterBlockCount += 1
           } else {
             itemBlockCount += 1
           }
@@ -935,10 +942,10 @@ export async function convertMpProject(
       }
     }
   }
-  if (itemBlockCount > 0 || spellBlockCount > 0) {
+  if (itemBlockCount > 0 || spellBlockCount > 0 || monsterBlockCount > 0) {
     notices.push({
       code: 'compendium-blocks-converted',
-      message: `Reshaped ${itemBlockCount} inline item block(s) and ${spellBlockCount} inline spell block(s) into MPX's field format — check the field notices above for anything that needs manual review.`,
+      message: `Reshaped ${itemBlockCount} inline item block(s), ${spellBlockCount} inline spell block(s), and ${monsterBlockCount} inline monster block(s) into MPX's field format — check the field notices above for anything that needs manual review.`,
     })
   }
 
