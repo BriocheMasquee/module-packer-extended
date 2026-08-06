@@ -919,29 +919,69 @@ async function loadRootManifestBySlug(
   return bySlug
 }
 
+/** Renames every occurrence of `from` to `to` among a manifest's own string
+ * values (recursively) — used to keep a reconstructed archive's manifest in
+ * sync with a resource file renamed to dodge a collision with another
+ * reconstructed archive (see writeReconstructedArchive's usedResourceNames).
+ * Only touches values that are exactly the old resource name (a full
+ * `image`/`floor`/`resource` field), never a substring match. */
+function renameResourceInPlace(value: unknown, from: string, to: string): unknown {
+  if (typeof value === 'string') {
+    return value === from ? to : value
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => renameResourceInPlace(entry, from, to))
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, renameResourceInPlace(entry, from, to)]))
+  }
+  return value
+}
+
 /** Rebuilds a real EncounterPlus export .zip for a map/encounter entry
  * found in a root-level maps.json/encounters.json fallback (see
  * loadRootManifestBySlug) — MPX's own build (readExportArchive) requires an
  * actual archive on disk, not just a reference file, so this writes one:
  * the manifest itself plus every resource file it references that's still
- * sitting at the MP project's root. */
+ * sitting at the MP project's root.
+ *
+ * A real EncounterPlus export gives every resource file a unique name
+ * (random suffix); MP's own root manifest just references the plain file
+ * name as it sits in the project (e.g. "P.png", a tile reused across
+ * several maps) — fine on its own, but buildModule.ts merges every
+ * maps/*.zip's resources into one flat namespace and rejects a same-name
+ * collision between two different archives. `usedResourceNames` is shared
+ * across every reconstructed archive in a single conversion run, so a
+ * resource is only renamed (slug-prefixed) when it actually collides with
+ * one already claimed by an earlier map/encounter — not on every shared
+ * asset, since most never collide in EncounterPlus's own namespace either. */
 async function writeReconstructedArchive(
   projectDirectory: string,
   destinationPath: string,
   manifestFileName: string,
   record: Record<string, unknown>,
+  slug: string,
+  usedResourceNames: Map<string, string>,
 ): Promise<void> {
   const resourceNames = new Set<string>()
   collectResourceFileNames(record, resourceNames)
 
   const zip = new ZipFile()
-  zip.addBuffer(Buffer.from(JSON.stringify([record])), manifestFileName)
+  let manifestRecord: Record<string, unknown> = record
   for (const resourceName of resourceNames) {
     const resourcePath = await findFileCaseInsensitive(projectDirectory, resourceName)
-    if (resourcePath) {
-      zip.addFile(resourcePath, resourceName)
+    if (!resourcePath) {
+      continue
     }
+    const existingOwner = usedResourceNames.get(resourceName)
+    const finalName = existingOwner && existingOwner !== slug ? `${slug}-${resourceName}` : resourceName
+    if (finalName !== resourceName) {
+      manifestRecord = renameResourceInPlace(manifestRecord, resourceName, finalName) as Record<string, unknown>
+    }
+    usedResourceNames.set(finalName, slug)
+    zip.addFile(resourcePath, finalName)
   }
+  zip.addBuffer(Buffer.from(JSON.stringify([manifestRecord])), manifestFileName)
   zip.end()
 
   await mkdir(dirname(destinationPath), { recursive: true })
@@ -1079,6 +1119,10 @@ export async function convertMpProject(
     encounter: await loadRootManifestBySlug(sourceDirectory, 'encounters.json'),
     map: await loadRootManifestBySlug(sourceDirectory, 'maps.json'),
   }
+  // Shared across every reconstructed archive below — see
+  // writeReconstructedArchive's own comment for why a resource is only
+  // renamed when it actually collides with one already claimed.
+  const usedReconstructedResourceNames = new Map<string, string>()
   let archiveCount = 0
   let legacyArchiveCount = 0
   let reconstructedArchiveCount = 0
@@ -1109,7 +1153,14 @@ export async function convertMpProject(
         continue
       }
       try {
-        await writeReconstructedArchive(sourceDirectory, destinationArchivePath, ARCHIVE_MANIFEST_BY_KIND[archive.kind], rootEntry)
+        await writeReconstructedArchive(
+          sourceDirectory,
+          destinationArchivePath,
+          ARCHIVE_MANIFEST_BY_KIND[archive.kind],
+          rootEntry,
+          archive.slug,
+          usedReconstructedResourceNames,
+        )
         reconstructed = true
         reconstructedArchiveCount += 1
       } catch {

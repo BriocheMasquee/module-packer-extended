@@ -731,6 +731,52 @@ maps:
   assert.match(archivesConverted.message, /rebuilt from a leftover root maps\.json/)
 })
 
+test('convertMpProject renames a reconstructed archive\'s resource only when it actually collides with another reconstructed map', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  // Both maps reference the same shared tile ("P.png", a reused "trap"
+  // asset) — a real EncounterPlus export would never collide (each export
+  // gets its own unique file names), but reconstructing straight from the
+  // root maps.json's plain file names would, since buildModule merges every
+  // maps/*.zip's resources into one flat namespace.
+  await writeFile(join(sourceDirectory, 'P.png'), 'fake-shared-tile')
+  await writeFile(
+    join(sourceDirectory, 'maps.json'),
+    JSON.stringify([
+      { id: '11111111-1111-1111-1111-111111111111', name: 'Map A', slug: 'map-a', floor: 'P.png' },
+      { id: '22222222-2222-2222-2222-222222222222', name: 'Map B', slug: 'map-b', floor: 'P.png' },
+    ]),
+  )
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    `name: Test
+version: "1.0"
+maps:
+  - path: Cartes/map-a.zip
+    slug: map-a
+  - path: Cartes/map-b.zip
+    slug: map-b
+`,
+  )
+
+  await convertMpProject(sourceDirectory, destinationDirectory)
+
+  const { readExportArchive } = require('../dist/mapEncounterExport.js')
+  const mapA = await readExportArchive(join(destinationDirectory, 'maps', 'map-a.zip'), 'maps.json')
+  const mapB = await readExportArchive(join(destinationDirectory, 'maps', 'map-b.zip'), 'maps.json')
+
+  // First one claims the plain name; the second is renamed, and its own
+  // manifest's floor field is kept in sync with the renamed file.
+  assert.ok(mapA.resources.has('P.png'))
+  assert.equal(mapA.record.floor, 'P.png')
+  assert.ok(mapB.resources.has('map-b-P.png'))
+  assert.equal(mapB.record.floor, 'map-b-P.png')
+  assert.ok(!mapB.resources.has('P.png'))
+
+  const { buildModule } = require('../dist/index.js')
+  const summary = await buildModule(destinationDirectory)
+  assert.equal(summary.mapCount, 2)
+})
+
 test('convertMpProject detects French from Module.yaml\'s description and sets mpx.contentLanguage', async () => {
   const { destinationDirectory, sourceDirectory } = await makeTempDirs()
   await writeFile(
