@@ -861,28 +861,37 @@ ${normalizedContent}`
 
 const RESOURCE_FILE_EXTENSION_PATTERN = /\.(png|jpe?g|webp|gif|svg|avif|ttf|otf|woff2?)$/i
 
-/** Recursively collects every string value in a map/encounter manifest
- * object that looks like a bare resource file name (an image, token,
- * floor, tile asset, ...) — used instead of only reading known fields like
- * `image`/`floor`, since a real EncounterPlus map also references
- * resources from inside `tiles[]`/`tokens[]`/`lights[]` etc., too many
- * shapes to enumerate by field name. */
-function collectResourceFileNames(value: unknown, into: Set<string>): void {
+// EncounterPlus's own map/encounter manifest keys that hold an actual
+// resource file name (as opposed to e.g. an asset's own display `name`,
+// which is free text that can happen to end in something that looks like a
+// file extension without being one — a real bug this list fixes: a tile's
+// `asset.name` ("arrow white.png", lowercase display label) was getting
+// treated as a second, distinct resource on top of its own `asset.resource`
+// ("Arrow white.png", the real file), and both ended up in the rebuilt
+// .zip — colliding once extracted on a case-insensitive filesystem). */
+const RESOURCE_FILE_NAME_KEYS = new Set(['image', 'floor', 'token', 'resource', 'canvas', 'fog', 'snapshot'])
+
+/** Recursively collects every resource file name referenced by a map/
+ * encounter manifest object — scoped to EncounterPlus's own known
+ * resource-bearing keys (RESOURCE_FILE_NAME_KEYS), not just any string that
+ * happens to look like a file name (see that constant's own comment for why
+ * that broader match caused a real collision). */
+function collectResourceFileNames(value: unknown, into: Set<string>, key?: string): void {
   if (typeof value === 'string') {
-    if (RESOURCE_FILE_EXTENSION_PATTERN.test(value) && !value.includes('/') && !value.includes('\\')) {
+    if (key && RESOURCE_FILE_NAME_KEYS.has(key) && RESOURCE_FILE_EXTENSION_PATTERN.test(value) && !value.includes('/') && !value.includes('\\')) {
       into.add(value)
     }
     return
   }
   if (Array.isArray(value)) {
     for (const entry of value) {
-      collectResourceFileNames(entry, into)
+      collectResourceFileNames(entry, into, key)
     }
     return
   }
   if (isPlainObject(value)) {
-    for (const entry of Object.values(value)) {
-      collectResourceFileNames(entry, into)
+    for (const [entryKey, entry] of Object.entries(value)) {
+      collectResourceFileNames(entry, into, entryKey)
     }
   }
 }

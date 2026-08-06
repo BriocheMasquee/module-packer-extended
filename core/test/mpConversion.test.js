@@ -777,6 +777,43 @@ maps:
   assert.equal(summary.mapCount, 2)
 })
 
+test('convertMpProject does not treat a tile\'s free-text asset.name as a second resource distinct from its own asset.resource', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  // A real MP/EncounterPlus tile carries both a free-text display `name`
+  // ("arrow white.png", lowercase, not a real path) and the actual file
+  // name in `resource` ("Arrow white.png") — differing only in case. Before
+  // this fix, both were treated as resource file names, so the rebuilt
+  // .zip ended up with two entries that collide once extracted on a
+  // case-insensitive filesystem (macOS/Windows).
+  await writeFile(join(sourceDirectory, 'Arrow white.png'), 'fake-tile-image')
+  await writeFile(
+    join(sourceDirectory, 'maps.json'),
+    JSON.stringify([
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        name: 'Map C',
+        slug: 'map-c',
+        tiles: [{ asset: { name: 'arrow white.png', resource: 'Arrow white.png' } }],
+      },
+    ]),
+  )
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    `name: Test
+version: "1.0"
+maps:
+  - path: Cartes/map-c.zip
+    slug: map-c
+`,
+  )
+
+  await convertMpProject(sourceDirectory, destinationDirectory)
+
+  const { readExportArchive } = require('../dist/mapEncounterExport.js')
+  const mapC = await readExportArchive(join(destinationDirectory, 'maps', 'map-c.zip'), 'maps.json')
+  assert.deepEqual([...mapC.resources.keys()], ['Arrow white.png'])
+})
+
 test('convertMpProject detects French from Module.yaml\'s description and sets mpx.contentLanguage', async () => {
   const { destinationDirectory, sourceDirectory } = await makeTempDirs()
   await writeFile(
