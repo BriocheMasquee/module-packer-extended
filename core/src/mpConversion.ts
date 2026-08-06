@@ -1267,10 +1267,20 @@ export async function convertMpProject(
     }
     for (const [sourcePath, pagesForSource] of pagesBySource) {
       const parsed = matter(await readFile(join(sourceDirectory, sourcePath), 'utf8'))
-      const contents =
-        pagesForSource.length > 1 || pagesForSource[0].origin === 'heading'
-          ? splitMpPagebreakContent(parsed.content, pagesForSource)
-          : [parsed.content]
+      let contents: string[]
+      if (pagesForSource.length > 1 || pagesForSource[0].origin === 'heading') {
+        const split = splitMpPagebreakContent(parsed.content, pagesForSource)
+        contents = split.slices
+        if (split.droppedPreamble) {
+          notices.push({
+            code: 'dropped-pagebreak-preamble',
+            message: `${sourcePath} — content before its first module-pagebreaks heading has no MPX equivalent and was dropped, matching MP's own export behavior (only a {.before-next-page-header} cover image would have been kept).`,
+            path: sourcePath,
+          })
+        }
+      } else {
+        contents = [parsed.content]
+      }
       for (const [index, page] of pagesForSource.entries()) {
         const withDecorations = rewriteLegacyBlockquoteDecorations(contents[index] ?? contents[0])
         const { blocks, content: withCompendiumBlocks } = reshapeMpCompendiumBlocks(withDecorations)
@@ -1348,7 +1358,12 @@ export async function convertMpProject(
   }
 }
 
-function splitMpPagebreakContent(content: string, pages: readonly MpPageAnalysis[]): string[] {
+interface SplitMpPagebreakContentResult {
+  droppedPreamble?: string
+  slices: string[]
+}
+
+function splitMpPagebreakContent(content: string, pages: readonly MpPageAnalysis[]): SplitMpPagebreakContentResult {
   const headingLevels = new Set(pages.map((page) => page.headingLevel).filter((level): level is number => level !== undefined))
   const boundaries: number[] = []
   let offset = 0
@@ -1375,5 +1390,19 @@ function splitMpPagebreakContent(content: string, pages: readonly MpPageAnalysis
   if (boundaries.length !== pages.length) {
     throw new Error(`Could not reproduce the ${pages.length} MP module-pagebreak page boundaries safely.`)
   }
-  return boundaries.map((start, index) => content.slice(start, boundaries[index + 1] ?? content.length))
+  const slices = boundaries.map((start, index) => content.slice(start, boundaries[index + 1] ?? content.length))
+
+  // MP's own module-pagebreaks split (see Module.ts's own prevAll/
+  // .before-next-page-header handling) doesn't keep everything before the
+  // first splitting heading — only a block explicitly marked
+  // `{.before-next-page-header}` (typically a cover image), which it moves
+  // to the very top of the *first* split page. Anything else before that
+  // first heading is dropped by MP itself at export, not just here.
+  const preamble = content.slice(0, boundaries[0])
+  const coverMatch = preamble.match(/^(.*\{[^}]*\.before-next-page-header[^}]*\}\s*)$/ms)
+  if (coverMatch && slices.length > 0) {
+    slices[0] = `${coverMatch[1].trimEnd()}\n\n${slices[0]}`
+    return { slices }
+  }
+  return { droppedPreamble: preamble.trim() || undefined, slices }
 }

@@ -895,3 +895,63 @@ order: 0
   assert.match(page, /Some flavor text ending the quote\.\n\{\.read\}/)
   assert.match(page, /\[\*\*Room\*\*\]\(room\)\n\{\.purple \.color-links\}/)
 })
+
+test('convertMpProject moves a {.before-next-page-header} cover onto the first module-pagebreaks page only, matching MP\'s own export behavior', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await writeFile(join(sourceDirectory, 'cover.jpg'), 'fake-cover')
+  await writeFile(
+    join(sourceDirectory, 'page.md'),
+    `---
+name: Page
+slug: page
+order: 0
+module-pagebreaks: h1
+---
+
+![Cover](cover.jpg){.before-next-page-header}
+
+# Chapter 1
+
+Content one.
+
+# Chapter 2
+
+Content two.
+`,
+  )
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  const chapter1 = await readFile(join(destinationDirectory, 'pages', 'chapter-1.md'), 'utf8')
+  const chapter2 = await readFile(join(destinationDirectory, 'pages', 'chapter-2.md'), 'utf8')
+
+  assert.match(chapter1, /!\[Cover\]\(images\/cover\.jpg\)\{\.before-next-page-header\}/)
+  assert.doesNotMatch(chapter2, /Cover/)
+  assert.ok(!result.notices.some((notice) => notice.code === 'dropped-pagebreak-preamble'))
+})
+
+test('convertMpProject reports a dropped-pagebreak-preamble notice for content before the first module-pagebreaks heading with no cover marker', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await writeFile(
+    join(sourceDirectory, 'page.md'),
+    `---
+name: Page
+slug: page
+order: 0
+module-pagebreaks: h1
+---
+
+This intro paragraph has no {.before-next-page-header} marker.
+
+# Chapter 1
+
+Content one.
+`,
+  )
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  const chapter1 = await readFile(join(destinationDirectory, 'pages', 'chapter-1.md'), 'utf8')
+  assert.doesNotMatch(chapter1, /intro paragraph/)
+  assert.ok(result.notices.some((notice) => notice.code === 'dropped-pagebreak-preamble'))
+})
