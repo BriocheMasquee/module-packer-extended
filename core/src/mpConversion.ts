@@ -5,6 +5,7 @@ import matter from 'gray-matter'
 import { parse as parseYaml } from 'yaml'
 import { isPlainObject } from './compendiumShared.js'
 import { listFilesRecursively } from './fileScan.js'
+import { reshapeMpCompendiumBlocks, type MpCompendiumBlockReshape } from './mpCompendiumBlocks.js'
 import { isValidSlug, slugify } from './slug.js'
 import type { ProjectTheme } from './themeCatalog.js'
 import { isUuid } from './uuid.js'
@@ -567,8 +568,8 @@ export async function analyzeMpProject(
 
   if (compendiumBlocksTotal > 0) {
     notices.push({
-      code: 'compendium-blocks-unconverted',
-      message: `${compendiumBlocksTotal} inline Item/Spell/Monster block(s) were carried over as page text, unchanged — MPX's Compendium field format isn't applied to them yet.`,
+      code: 'compendium-blocks-found',
+      message: `${compendiumBlocksTotal} inline Item/Spell block(s) found — analysis only, running a conversion reshapes them into MPX's field format.`,
     })
   }
 
@@ -789,7 +790,10 @@ export async function convertMpProject(
   }
 
   const moduleId = (analysis.module.id ?? randomUUID()).toUpperCase()
-  const notices = [...analysis.notices]
+  // The analysis-phase notice only applies to a standalone analyzeMpProject
+  // call (no conversion happened yet) — convertMpProject reshapes these
+  // blocks for real below, so its own per-block notices replace it.
+  const notices = analysis.notices.filter((notice) => notice.code !== 'compendium-blocks-found')
 
   await mkdir(destinationDirectory, { recursive: true })
 
@@ -854,6 +858,46 @@ export async function convertMpProject(
     }
   }
 
+  let itemBlockCount = 0
+  let spellBlockCount = 0
+  // Tracks which source file each spells//items/ target name came from, so
+  // two different blocks that happen to share a bare filename (e.g. two
+  // pages each with their own "cover.png") are caught instead of silently
+  // overwriting one another.
+  const compendiumImageSources = { item: new Map<string, string>(), spell: new Map<string, string>() }
+
+  const copyCompendiumBlockImage = async (
+    block: MpCompendiumBlockReshape,
+    pageSourcePath: string,
+  ): Promise<void> => {
+    if (!block.imageReference) {
+      return
+    }
+    const folder = block.kind === 'spell' ? 'spells' : 'items'
+    const targetName = basename(block.imageReference)
+    const absoluteSourcePath = join(sourceDirectory, dirname(pageSourcePath), block.imageReference)
+    const existingSource = compendiumImageSources[block.kind].get(targetName)
+    if (existingSource && existingSource !== absoluteSourcePath) {
+      notices.push({
+        code: 'duplicate-compendium-image',
+        message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}"'s image "${targetName}" collides with another ${block.kind} block's image of the same name; kept the first one copied.`,
+        path: pageSourcePath,
+      })
+      return
+    }
+    try {
+      await mkdir(join(destinationDirectory, folder), { recursive: true })
+      await copyFile(absoluteSourcePath, join(destinationDirectory, folder, targetName))
+      compendiumImageSources[block.kind].set(targetName, absoluteSourcePath)
+    } catch {
+      notices.push({
+        code: 'missing-compendium-image',
+        message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}" references a missing image: "${block.imageReference}".`,
+        path: pageSourcePath,
+      })
+    }
+  }
+
   if (analysis.pages.length > 0) {
     await mkdir(join(destinationDirectory, 'pages'))
     const pagesBySource = new Map<string, MpPageAnalysis[]>()
@@ -869,13 +913,33 @@ export async function convertMpProject(
           ? splitMpPagebreakContent(parsed.content, pagesForSource)
           : [parsed.content]
       for (const [index, page] of pagesForSource.entries()) {
-        const content = rewriteImagePaths(
-          rewriteLegacyBlockquoteDecorations(contents[index] ?? contents[0]),
-          targetByImageName,
-        )
+        const withDecorations = rewriteLegacyBlockquoteDecorations(contents[index] ?? contents[0])
+        const { blocks, content: withCompendiumBlocks } = reshapeMpCompendiumBlocks(withDecorations)
+        for (const block of blocks) {
+          if (block.kind === 'spell') {
+            spellBlockCount += 1
+          } else {
+            itemBlockCount += 1
+          }
+          await copyCompendiumBlockImage(block, sourcePath)
+          for (const fieldNotice of block.fieldNotices) {
+            notices.push({
+              code: 'compendium-field-notice',
+              message: `${sourcePath} — ${block.kind} "${block.name ?? 'unnamed'}", field "${fieldNotice.field}": ${fieldNotice.message}`,
+              path: sourcePath,
+            })
+          }
+        }
+        const content = rewriteImagePaths(withCompendiumBlocks, targetByImageName)
         await writeFile(join(destinationDirectory, 'pages', `${page.slug}.md`), editablePageSource(page, content), 'utf8')
       }
     }
+  }
+  if (itemBlockCount > 0 || spellBlockCount > 0) {
+    notices.push({
+      code: 'compendium-blocks-converted',
+      message: `Reshaped ${itemBlockCount} inline item block(s) and ${spellBlockCount} inline spell block(s) into MPX's field format — check the field notices above for anything that needs manual review.`,
+    })
   }
 
   if (imagesToCopy.length > 0) {

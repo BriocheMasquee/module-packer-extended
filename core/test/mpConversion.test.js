@@ -123,7 +123,7 @@ name: Test Item
   const analysis = await analyzeMpProject(sourceDirectory)
   assert.ok(analysis.notices.some((notice) => notice.code === 'legacy-decoration'))
   assert.equal(analysis.compendiumBlockCount, 1)
-  assert.ok(analysis.notices.some((notice) => notice.code === 'compendium-blocks-unconverted'))
+  assert.ok(analysis.notices.some((notice) => notice.code === 'compendium-blocks-found'))
 })
 
 test('convertMpProject writes module.json, pages, groups, images, and settings.json', async () => {
@@ -230,7 +230,7 @@ test('convertMpProject refuses a destination inside the MP source project', asyn
   )
 })
 
-test('convertMpProject carries an inline Item block through as unmodified page text', async () => {
+test('convertMpProject reshapes an inline Item block into MPX field vocabulary', async () => {
   const { destinationDirectory, sourceDirectory } = await makeTempDirs()
   await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
   await writeFile(
@@ -249,8 +249,104 @@ description: Objet de test.
 \`\`\`
 `,
   )
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  const page = await readFile(join(destinationDirectory, 'pages', 'page.md'), 'utf8')
+  assert.match(page, /```item/)
+  assert.match(page, /rarity: "common"/)
+  assert.match(page, /type: "weapon"/)
+  assert.match(page, /descr: "Objet de test\."/)
+  assert.doesNotMatch(page, /description:/)
+  assert.ok(result.notices.some((notice) => notice.code === 'compendium-blocks-converted'))
+})
+
+test('convertMpProject reshapes an inline Spell block, parsing free-text activation/duration', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await writeFile(
+    join(sourceDirectory, 'page.md'),
+    `---
+name: Page
+slug: page
+order: 0
+---
+
+\`\`\`Spell
+name: Rayon illustré
+level: 2
+school: Evocation
+ritual: false
+time: 1 action
+range: 18
+components: V, S
+duration: Concentration, up to 1 minute
+description: Un rayon de test.
+classes: Magicien, Ensorceleur
+\`\`\`
+`,
+  )
   await convertMpProject(sourceDirectory, destinationDirectory)
   const page = await readFile(join(destinationDirectory, 'pages', 'page.md'), 'utf8')
-  assert.match(page, /rarity: Common/)
-  assert.match(page, /description: Objet de test\./)
+  assert.match(page, /```spell/)
+  assert.match(page, /school: "evocation"/)
+  assert.match(page, /time: 1/)
+  assert.match(page, /unit: "action"/)
+  assert.match(page, /components: \[V, S\]/)
+  assert.match(page, /durationType: "concentration"/)
+  assert.match(page, /duration: 1/)
+  assert.match(page, /durationUnit: "minute"/)
+  assert.match(page, /classes: \["Magicien", "Ensorceleur"\]/)
+})
+
+test('convertMpProject copies an inline Spell block\'s image into spells/ and rewrites its path', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await writeFile(
+    join(sourceDirectory, 'page.md'),
+    `---
+name: Page
+slug: page
+order: 0
+---
+
+\`\`\`Spell
+name: Rayon illustré
+image: spell-cover.png
+show-image: true
+\`\`\`
+`,
+  )
+  await writeFile(join(sourceDirectory, 'spell-cover.png'), 'spell image bytes')
+
+  await convertMpProject(sourceDirectory, destinationDirectory)
+  const page = await readFile(join(destinationDirectory, 'pages', 'page.md'), 'utf8')
+  assert.match(page, /image: "spells\/spell-cover\.png"/)
+  assert.match(page, /showImage: true/)
+  assert.equal(
+    await readFile(join(destinationDirectory, 'spells', 'spell-cover.png'), 'utf8'),
+    'spell image bytes',
+  )
+})
+
+test('convertMpProject reports a field notice for an unrecognized casting time/school/rarity', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await writeFile(
+    join(sourceDirectory, 'page.md'),
+    `---
+name: Page
+slug: page
+order: 0
+---
+
+\`\`\`Spell
+name: Weird Spell
+school: Not A Real School
+time: Special
+\`\`\`
+`,
+  )
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  const fieldNotices = result.notices.filter((notice) => notice.code === 'compendium-field-notice')
+  assert.ok(fieldNotices.some((notice) => notice.message.includes('field "school"')))
+  assert.ok(fieldNotices.some((notice) => notice.message.includes('field "activation"')))
 })

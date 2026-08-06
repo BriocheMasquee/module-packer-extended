@@ -86,6 +86,12 @@ export {
 } from './monsterCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'
 export { analyzeMpProject, convertMpProject } from './mpConversion.js'
+export { reshapeMpCompendiumBlocks } from './mpCompendiumBlocks.js'
+export type {
+  MpCompendiumBlockReshape,
+  MpCompendiumFieldNotice,
+  ReshapeMpCompendiumBlocksResult,
+} from './mpCompendiumBlocks.js'
 export type {
   AnalyzeMpProjectOptions,
   ConvertMpProjectOptions,
