@@ -545,3 +545,95 @@ test('convertMpProject reshapes a real MP Monster block (structured speed/saves/
   )
   assert.equal(fieldNotices.length, 0)
 })
+
+test('analyzeMpProject reads MP map/encounter archive references from Module.yaml', async () => {
+  const { sourceDirectory } = await makeTempDirs()
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    `name: Test
+version: "1.0"
+maps:
+  - path: Maps/my-first-map.zip
+    order: 2
+    parent: my-adventure-part-1
+    slug: my-first-map
+encounters:
+  - path: Encounters/my-first-encounter.zip
+    order: 1
+    parent: my-first-map
+    slug: my-first-encounter
+`,
+  )
+
+  const analysis = await analyzeMpProject(sourceDirectory)
+  assert.equal(analysis.archives.length, 2)
+  const map = analysis.archives.find((archive) => archive.kind === 'map')
+  assert.equal(map.slug, 'my-first-map')
+  assert.equal(map.sourcePath, 'Maps/my-first-map.zip')
+  assert.equal(map.rank, 2)
+  // "my-adventure-part-1" isn't a real page/group/archive slug in this
+  // fixture — same "unknown parent" handling as a page's own parent.
+  assert.equal(map.parentSlug, undefined)
+  const encounter = analysis.archives.find((archive) => archive.kind === 'encounter')
+  assert.equal(encounter.parentSlug, 'my-first-map')
+  assert.ok(analysis.notices.some((notice) => notice.code === 'archives-found'))
+  assert.ok(analysis.notices.some((notice) => notice.code === 'unknown-parent' && notice.path === 'Maps/my-first-map.zip'))
+})
+
+test('convertMpProject copies a MP map/encounter .zip as-is and writes its MPX JSON reference', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await mkdir(join(sourceDirectory, 'Maps'), { recursive: true })
+  await mkdir(join(sourceDirectory, 'Encounters'), { recursive: true })
+  await writeFile(join(sourceDirectory, 'Maps', 'my-first-map.zip'), 'fake-map-zip-content')
+  await writeFile(join(sourceDirectory, 'Encounters', 'my-first-encounter.zip'), 'fake-encounter-zip-content')
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    `name: Test
+version: "1.0"
+maps:
+  - path: Maps/my-first-map.zip
+    order: 2
+    slug: my-first-map
+encounters:
+  - path: Encounters/my-first-encounter.zip
+    order: 1
+    parent: my-first-map
+    slug: my-first-encounter
+`,
+  )
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+
+  const mapZip = await readFile(join(destinationDirectory, 'maps', 'my-first-map.zip'), 'utf8')
+  assert.equal(mapZip, 'fake-map-zip-content')
+  const mapJson = JSON.parse(await readFile(join(destinationDirectory, 'maps', 'my-first-map.json'), 'utf8'))
+  assert.equal(mapJson.slug, 'my-first-map')
+  assert.equal(mapJson.name, 'My First Map')
+  assert.equal(mapJson.rank, 2)
+  assert.equal(mapJson.parent, '')
+  assert.equal(mapJson.path, 'maps/my-first-map.zip')
+
+  const encounterZip = await readFile(join(destinationDirectory, 'encounters', 'my-first-encounter.zip'), 'utf8')
+  assert.equal(encounterZip, 'fake-encounter-zip-content')
+  const encounterJson = JSON.parse(await readFile(join(destinationDirectory, 'encounters', 'my-first-encounter.json'), 'utf8'))
+  assert.equal(encounterJson.parent, 'my-first-map')
+
+  assert.ok(result.notices.some((notice) => notice.code === 'archives-converted'))
+  assert.ok(!result.notices.some((notice) => notice.code === 'archives-found'))
+})
+
+test('convertMpProject reports a missing-archive notice when a MP map/encounter .zip cannot be found', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    `name: Test
+version: "1.0"
+maps:
+  - path: Maps/does-not-exist.zip
+    slug: does-not-exist
+`,
+  )
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  assert.ok(result.notices.some((notice) => notice.code === 'missing-archive'))
+})

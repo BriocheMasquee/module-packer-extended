@@ -62,9 +62,15 @@ export interface MpPageAnalysis {
 
 export interface MpArchiveReference {
   kind: 'encounter' | 'map'
+  /** MP's own Module.yaml declaration has no name field for a map/encounter
+   * reference (only path/order/parent/slug) — MP itself only learns the
+   * real name by reading the .zip's own manifest at build time. Since MPX
+   * doesn't parse the archive, this is a readable fallback derived from the
+   * .zip's file name. */
+  name: string
   parentSlug?: string
   rank: number
-  slug?: string
+  slug: string
   sourcePath: string
 }
 
@@ -144,6 +150,18 @@ function yamlObject(source: string): Record<string, unknown> {
  * MPX-authored content. */
 function mpSlug(value: string): string {
   return slugify(value)
+}
+
+/** "my-first-map" / "My First Map" / "my_first_map" -> "My First Map" —
+ * a readable fallback name for a map/encounter reference, which MP's own
+ * Module.yaml declaration never carries (see MpArchiveReference.name). */
+function humanizeFileName(value: string): string {
+  const words = value
+    .replaceAll(/[_-]+/g, ' ')
+    .replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/\s+/)
+    .filter(Boolean)
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 function stripHeadingMarkdown(value: string): string {
@@ -541,21 +559,46 @@ export async function analyzeMpProject(
         notices.push({ code: `invalid-${kind}-reference`, message: `A MP ${kind} reference has no path.` })
         continue
       }
+      const explicitSlug = nonEmptyString(entry.slug)
+      const baseName = basename(referencedPath, extname(referencedPath))
       archives.push({
         kind,
+        name: humanizeFileName(baseName),
         parentSlug: nonEmptyString(entry.parent),
         rank: numberOrZero(entry.order),
-        slug: nonEmptyString(entry.slug),
+        slug: uniqueSlug(explicitSlug ?? baseName, Boolean(explicitSlug)),
         sourcePath: referencedPath.replaceAll('\\', '/'),
       })
     }
   }
   await analyzeArchives('map', moduleData.maps)
   await analyzeArchives('encounter', moduleData.encounters)
+  for (const archive of archives) {
+    if (!archive.parentSlug) {
+      continue
+    }
+    const known =
+      pages.some((candidate) => candidate.slug === archive.parentSlug) ||
+      groups.some((candidate) => candidate.slug === archive.parentSlug) ||
+      archives.some((candidate) => candidate.slug === archive.parentSlug && candidate !== archive)
+    if (!known) {
+      notices.push({
+        code: 'unknown-parent',
+        message: `${archive.sourcePath} references the unknown parent slug "${archive.parentSlug}" — converted with no parent.`,
+        path: archive.sourcePath,
+      })
+      archive.parentSlug = undefined
+    }
+  }
+  // MPX just copies the source .zip through — it's an EncounterPlus export,
+  // not something MP or MPX itself produced, so there's nothing to reshape.
+  // Whatever format EncounterPlus wrote it in (its own concern, independent
+  // of MP/MPX) is preserved as-is; MPX's own build step is what will
+  // eventually complain if the export is in a format it can't read.
   if (archives.length > 0) {
     notices.push({
-      code: 'deferred-archives',
-      message: `${archives.length} MP map/encounter reference(s) are not converted yet — bring the source .zip files over manually if needed.`,
+      code: 'archives-found',
+      message: `${archives.length} MP map/encounter reference(s) found — running a conversion copies their source .zip file(s) over as-is.`,
     })
   }
   if (Array.isArray(moduleData.references) && moduleData.references.length > 0) {
@@ -790,10 +833,13 @@ export async function convertMpProject(
   }
 
   const moduleId = (analysis.module.id ?? randomUUID()).toUpperCase()
-  // The analysis-phase notice only applies to a standalone analyzeMpProject
-  // call (no conversion happened yet) — convertMpProject reshapes these
-  // blocks for real below, so its own per-block notices replace it.
-  const notices = analysis.notices.filter((notice) => notice.code !== 'compendium-blocks-found')
+  // The analysis-phase notices only apply to a standalone analyzeMpProject
+  // call (no conversion happened yet) — convertMpProject actually reshapes
+  // compendium blocks and copies archives below, so its own, more precise
+  // notices replace these two.
+  const notices = analysis.notices.filter(
+    (notice) => notice.code !== 'compendium-blocks-found' && notice.code !== 'archives-found',
+  )
 
   await mkdir(destinationDirectory, { recursive: true })
 
@@ -856,6 +902,46 @@ export async function convertMpProject(
         'utf8',
       )
     }
+  }
+
+  // Maps/encounters: the .zip is an EncounterPlus export MP only ever
+  // copied through, never generated or read itself — so MPX does the same,
+  // copying it byte-for-byte and writing MPX's own JSON reference file
+  // alongside it. Whether the .zip's own internal format is one MPX's build
+  // step can actually read is between EncounterPlus and MPX, not something
+  // this conversion can (or should) inspect.
+  const ARCHIVE_FOLDER_BY_KIND = { encounter: 'encounters', map: 'maps' } as const
+  let archiveCount = 0
+  for (const archive of analysis.archives) {
+    const folder = ARCHIVE_FOLDER_BY_KIND[archive.kind]
+    const targetName = `${archive.slug}.zip`
+    try {
+      await mkdir(join(destinationDirectory, folder), { recursive: true })
+      await copyFile(join(sourceDirectory, archive.sourcePath), join(destinationDirectory, folder, targetName))
+    } catch {
+      notices.push({
+        code: 'missing-archive',
+        message: `${archive.sourcePath} — this MP ${archive.kind} reference's .zip file couldn't be found and was skipped.`,
+        path: archive.sourcePath,
+      })
+      continue
+    }
+    await writeFile(
+      join(destinationDirectory, folder, `${archive.slug}.json`),
+      `${JSON.stringify(
+        { name: archive.name, slug: archive.slug, rank: archive.rank, parent: archive.parentSlug ?? '', path: `${folder}/${targetName}`, descr: '' },
+        null,
+        2,
+      )}\n`,
+      'utf8',
+    )
+    archiveCount += 1
+  }
+  if (archiveCount > 0) {
+    notices.push({
+      code: 'archives-converted',
+      message: `Copied ${archiveCount} MP map/encounter .zip file(s) as-is into maps/encounters — if EncounterPlus exported them in the older V4 XML format, re-export from EncounterPlus in V5 format for MPX to read them.`,
+    })
   }
 
   let itemBlockCount = 0
