@@ -5,6 +5,7 @@ import matter from 'gray-matter'
 import { parse as parseYaml } from 'yaml'
 import { isPlainObject } from './compendiumShared.js'
 import { listFilesRecursively } from './fileScan.js'
+import { readExportArchive } from './mapEncounterExport.js'
 import { reshapeMpCompendiumBlocks, type MpCompendiumBlockReshape } from './mpCompendiumBlocks.js'
 import { isValidSlug, slugify } from './slug.js'
 import type { ProjectTheme } from './themeCatalog.js'
@@ -969,19 +970,24 @@ export async function convertMpProject(
   }
 
   // Maps/encounters: the .zip is an EncounterPlus export MP only ever
-  // copied through, never generated or read itself — so MPX does the same,
-  // copying it byte-for-byte and writing MPX's own JSON reference file
-  // alongside it. Whether the .zip's own internal format is one MPX's build
-  // step can actually read is between EncounterPlus and MPX, not something
-  // this conversion can (or should) inspect.
+  // copied through, never generated itself — but MPX's own build already
+  // knows how to read one (readExportArchive), so the conversion inspects
+  // it too: a .zip already exported in EncounterPlus's current maps.json/
+  // encounters.json format works immediately, with its real name/descr
+  // pulled from the manifest instead of guessed from the file name. A .zip
+  // still in the older XML export format (or anything unreadable) is still
+  // copied through as-is, with a notice asking for a fresh V5 export.
   const ARCHIVE_FOLDER_BY_KIND = { encounter: 'encounters', map: 'maps' } as const
+  const ARCHIVE_MANIFEST_BY_KIND = { encounter: 'encounters.json', map: 'maps.json' } as const
   let archiveCount = 0
+  let legacyArchiveCount = 0
   for (const archive of analysis.archives) {
     const folder = ARCHIVE_FOLDER_BY_KIND[archive.kind]
     const targetName = `${archive.slug}.zip`
+    const absoluteSourcePath = join(sourceDirectory, archive.sourcePath)
     try {
       await mkdir(join(destinationDirectory, folder), { recursive: true })
-      await copyFile(join(sourceDirectory, archive.sourcePath), join(destinationDirectory, folder, targetName))
+      await copyFile(absoluteSourcePath, join(destinationDirectory, folder, targetName))
     } catch {
       notices.push({
         code: 'missing-archive',
@@ -990,13 +996,16 @@ export async function convertMpProject(
       })
       continue
     }
+
+    const manifest = await readExportArchive(absoluteSourcePath, ARCHIVE_MANIFEST_BY_KIND[archive.kind]).catch(() => undefined)
+    const name = (manifest && nonEmptyString(manifest.record.name)) || archive.name
+    const descr = (manifest && nonEmptyString(manifest.record.descr)) || ''
+    if (!manifest) {
+      legacyArchiveCount += 1
+    }
     await writeFile(
       join(destinationDirectory, folder, `${archive.slug}.json`),
-      `${JSON.stringify(
-        { name: archive.name, slug: archive.slug, rank: archive.rank, parent: archive.parentSlug ?? '', path: `${folder}/${targetName}`, descr: '' },
-        null,
-        2,
-      )}\n`,
+      `${JSON.stringify({ name, slug: archive.slug, rank: archive.rank, parent: archive.parentSlug ?? '', path: `${folder}/${targetName}`, descr }, null, 2)}\n`,
       'utf8',
     )
     archiveCount += 1
@@ -1004,7 +1013,11 @@ export async function convertMpProject(
   if (archiveCount > 0) {
     notices.push({
       code: 'archives-converted',
-      message: `Copied ${archiveCount} MP map/encounter .zip file(s) as-is into maps/encounters — if EncounterPlus exported them in the older V4 XML format, re-export from EncounterPlus in V5 format for MPX to read them.`,
+      message: `Copied ${archiveCount} MP map/encounter .zip file(s) into maps/encounters.${
+        legacyArchiveCount > 0
+          ? ` ${legacyArchiveCount} of them aren't in EncounterPlus's current export format — re-export from EncounterPlus in V5 format for MPX to read them.`
+          : ''
+      }`,
     })
   }
 

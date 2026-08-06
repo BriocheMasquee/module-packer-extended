@@ -622,6 +622,49 @@ encounters:
   assert.ok(!result.notices.some((notice) => notice.code === 'archives-found'))
 })
 
+/** Builds a real EncounterPlus map/encounter export zip, matching the
+ * format buildModule itself reads: a single-object manifest plus optional
+ * resources — this is what a .zip re-exported from a current EncounterPlus
+ * looks like, as opposed to MP's own older XML export format. */
+async function writeExportArchive(destPath, manifestFileName, record) {
+  const { ZipFile } = require('yazl')
+  await new Promise((resolvePromise, rejectPromise) => {
+    const zip = new ZipFile()
+    zip.addBuffer(Buffer.from(JSON.stringify([record])), manifestFileName)
+    zip.outputStream.pipe(require('node:fs').createWriteStream(destPath)).on('close', resolvePromise).on('error', rejectPromise)
+    zip.end()
+  })
+}
+
+test('convertMpProject reads the real name/descr from a MP map .zip already in EncounterPlus\'s V5 export format', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await mkdir(join(sourceDirectory, 'Maps'), { recursive: true })
+  await writeExportArchive(join(sourceDirectory, 'Maps', 'my-map.zip'), 'maps.json', {
+    name: 'Le Temple',
+    slug: 'carte-temple',
+    descr: 'Une carte du temple.',
+  })
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    `name: Test
+version: "1.0"
+maps:
+  - path: Maps/my-map.zip
+    slug: my-map
+`,
+  )
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  const mapJson = JSON.parse(await readFile(join(destinationDirectory, 'maps', 'my-map.json'), 'utf8'))
+  assert.equal(mapJson.name, 'Le Temple')
+  assert.equal(mapJson.descr, 'Une carte du temple.')
+  assert.equal(mapJson.slug, 'my-map')
+
+  const archivesConverted = result.notices.find((notice) => notice.code === 'archives-converted')
+  assert.ok(archivesConverted)
+  assert.doesNotMatch(archivesConverted.message, /re-export/)
+})
+
 test('convertMpProject reports a missing-archive notice when a MP map/encounter .zip cannot be found', async () => {
   const { destinationDirectory, sourceDirectory } = await makeTempDirs()
   await writeFile(
