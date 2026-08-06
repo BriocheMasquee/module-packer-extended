@@ -15,7 +15,7 @@ In this order:
 
 Theme doesn't get its own tree line — it's a title bar button only (see below); unlike Translation Overrides there's no per-project state worth a row (no count, nothing to delete), so a row would just duplicate the button.
 
-Before a project exists (empty folder, no folder open, or an unrecognized folder), this section shows the welcome message and the "Create Module Project" button — creation is a project-level action, not a module-content one.
+Before a project exists (empty folder, no folder open, or an unrecognized folder), this section shows the welcome message with two links: "Create Module Project" and "[Convert MP Project to MPX](Convert-MP-Project)" — both project-level actions, not module-content ones.
 
 ## Title bar buttons
 

@@ -53,10 +53,11 @@ Tested against real EncounterPlus imports. What MPX adds on top of the original 
 - Improved snippets and YAML autocompletion.
 - Improved roll table auto-detection.
 - Advanced Markdown rendering customization options, via project settings.
+- Conversion from a legacy Module Packer V4 project folder into a new MPX project.
 
 Not supported (yet):
 
-- Conversion from legacy Module Packer / EncounterPlus V4 projects — this is a creation-first rebuild.
+- Conversion from an already-built legacy `.module`/`.mpmodule` file — only a V4 project folder (`Module.yaml` + Markdown) converts today.
 - PDF export (available in the original Module Packer).
 - Opening an already-built `.module` file for editing.
 

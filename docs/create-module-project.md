@@ -38,4 +38,7 @@ See [Themes](Themes) for what each bundled theme actually looks like, and its fo
 ## Not included (yet)
 
 - Only one real theme ships today (`5.5e`) — porting old MPX's "legacy" theme (the classic Module Packer appearance) needs real CSS compatibility work first, since its markup conventions predate the Compendium block system (`.compendium-block`, `.statblock-*`, `.table-title`) entirely.
-- No conversion from legacy Module Packer / EncounterPlus V4 projects — out of scope for now, see the project's overall creation-first scope.
+
+## See also
+
+- [Convert MP Project](Convert-MP-Project) — the other way to get a new MPX project, starting from an existing Module Packer V4 project folder instead of an empty one.
