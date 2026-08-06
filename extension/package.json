@@ -177,6 +177,12 @@
         "icon": "$(new-folder)"
       },
       {
+        "command": "mpx.convertMpProject",
+        "title": "Convert MP Project to MPX",
+        "category": "MPX",
+        "icon": "$(arrow-swap)"
+      },
+      {
         "command": "mpx.refreshExplorer",
         "title": "Refresh Module Explorer",
         "category": "MPX",
@@ -347,7 +353,7 @@
     "viewsWelcome": [
       {
         "view": "mpx.projectExplorer",
-        "contents": "Welcome to Module Packer Extended.\n[Create Module Project](command:mpx.createModuleProject)",
+        "contents": "Welcome to Module Packer Extended.\n[Create Module Project](command:mpx.createModuleProject)\n[Convert MP Project to MPX](command:mpx.convertMpProject)",
         "when": "mpx.workspaceKind == empty || mpx.workspaceKind == noFolder"
       },
       {

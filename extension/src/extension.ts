@@ -19,6 +19,7 @@ import { registerCompendiumExplorer } from './compendiumExplorer.js'
 import { registerCompendiumCommands } from './compendiumCommands.js'
 import { registerContentCommands } from './contentCommands.js'
 import { registerBuildModuleCommand } from './buildModuleCommand.js'
+import { registerConvertMpProjectCommand } from './convertMpProjectCommand.js'
 import { registerPreviewConfiguration } from './previewConfiguration.js'
 import { registerLocalizationCommands } from './localizationCommands.js'
 import { registerDeleteEntryCommand } from './deleteEntryCommand.js'
@@ -219,7 +220,10 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
   registerCompendiumExplorer(context)
   registerCompendiumCommands(context)
   registerContentCommands(context)
-  registerBuildModuleCommand(context)
+  const mpxOutputChannel = vscode.window.createOutputChannel('MPX')
+  context.subscriptions.push(mpxOutputChannel)
+  registerBuildModuleCommand(context, mpxOutputChannel)
+  registerConvertMpProjectCommand(context, mpxOutputChannel)
   registerPreviewConfiguration(context)
   registerLocalizationCommands(context)
   registerThemeCommands(context)
