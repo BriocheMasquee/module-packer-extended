@@ -44,6 +44,20 @@ test('createMarkdownRenderer wraps a "read" blockquote in its own dedicated wrap
   assert.match(html, /<div class="blockquote-read-wrap"><blockquote class="read">/)
 })
 
+test('createMarkdownRenderer hoists {.class} onto the blockquote itself when its last line is a list, not a plain paragraph', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('> **Maps:**\n> - [Room A](room-a)\n> - [Room B](room-b)\n{.purple .color-links}\n')
+  assert.match(html, /<blockquote class="purple color-links">/)
+  assert.match(html, /<ul>\s*<li>/)
+  assert.doesNotMatch(html, /<ul class="purple color-links">/)
+})
+
+test('createMarkdownRenderer leaves an explicit blockquote class alone, does not overwrite it with a trailing list class', () => {
+  const markdown = createMarkdownRenderer()
+  const html = markdown.render('> Chapter 1\n{.flowchart}\n')
+  assert.match(html, /<blockquote class="flowchart">/)
+})
+
 test('createMarkdownRenderer does not hide front matter or wrap #page by default (build mode)', () => {
   const markdown = createMarkdownRenderer()
   const html = markdown.render('---\nname: Test\nslug: test\n---\n\n# Hello\n')
