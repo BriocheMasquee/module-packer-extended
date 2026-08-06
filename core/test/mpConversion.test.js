@@ -681,6 +681,56 @@ maps:
   assert.ok(result.notices.some((notice) => notice.code === 'missing-archive'))
 })
 
+test('convertMpProject rebuilds a missing map .zip from a leftover root maps.json', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  // Module.yaml references a .zip that was never actually placed in Maps/
+  // (e.g. a community module whose author stripped the raw exports before
+  // sharing it) — but a maps.json is still sitting at the project root, a
+  // residual build artifact MP itself writes next to Module.yaml, and it
+  // has this exact map's own data plus its resource file names.
+  await writeFile(join(sourceDirectory, 'floor.png'), 'fake-floor-image')
+  await writeFile(join(sourceDirectory, 'illustration.webp'), 'fake-illustration')
+  await writeFile(
+    join(sourceDirectory, 'maps.json'),
+    JSON.stringify([
+      {
+        id: '4c2f3208-a9df-5123-bee9-0caa688e832c',
+        name: 'Le Temple',
+        slug: 'carte-temple',
+        descr: 'Une carte du temple.',
+        image: 'illustration.webp',
+        floor: 'floor.png',
+        tiles: [{ asset: { resource: 'floor.png' } }],
+      },
+    ]),
+  )
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    `name: Test
+version: "1.0"
+maps:
+  - path: Cartes/carte-temple.zip
+    slug: carte-temple
+`,
+  )
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  assert.ok(!result.notices.some((notice) => notice.code === 'missing-archive'))
+
+  const mapJson = JSON.parse(await readFile(join(destinationDirectory, 'maps', 'carte-temple.json'), 'utf8'))
+  assert.equal(mapJson.name, 'Le Temple')
+  assert.equal(mapJson.descr, 'Une carte du temple.')
+
+  const { readExportArchive } = require('../dist/mapEncounterExport.js')
+  const rebuilt = await readExportArchive(join(destinationDirectory, 'maps', 'carte-temple.zip'), 'maps.json')
+  assert.equal(rebuilt.record.name, 'Le Temple')
+  assert.ok(rebuilt.resources.has('floor.png'))
+  assert.ok(rebuilt.resources.has('illustration.webp'))
+
+  const archivesConverted = result.notices.find((notice) => notice.code === 'archives-converted')
+  assert.match(archivesConverted.message, /rebuilt from a leftover root maps\.json/)
+})
+
 test('convertMpProject detects French from Module.yaml\'s description and sets mpx.contentLanguage', async () => {
   const { destinationDirectory, sourceDirectory } = await makeTempDirs()
   await writeFile(

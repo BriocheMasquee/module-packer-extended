@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
+import { createWriteStream } from 'node:fs'
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import matter from 'gray-matter'
 import { parse as parseYaml } from 'yaml'
+import { ZipFile } from 'yazl'
 import { isPlainObject } from './compendiumShared.js'
 import { listFilesRecursively } from './fileScan.js'
 import { readExportArchive } from './mapEncounterExport.js'
@@ -857,6 +859,100 @@ parent: ${JSON.stringify(page.parentSlug ?? '')}
 ${normalizedContent}`
 }
 
+const RESOURCE_FILE_EXTENSION_PATTERN = /\.(png|jpe?g|webp|gif|svg|avif|ttf|otf|woff2?)$/i
+
+/** Recursively collects every string value in a map/encounter manifest
+ * object that looks like a bare resource file name (an image, token,
+ * floor, tile asset, ...) — used instead of only reading known fields like
+ * `image`/`floor`, since a real EncounterPlus map also references
+ * resources from inside `tiles[]`/`tokens[]`/`lights[]` etc., too many
+ * shapes to enumerate by field name. */
+function collectResourceFileNames(value: unknown, into: Set<string>): void {
+  if (typeof value === 'string') {
+    if (RESOURCE_FILE_EXTENSION_PATTERN.test(value) && !value.includes('/') && !value.includes('\\')) {
+      into.add(value)
+    }
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectResourceFileNames(entry, into)
+    }
+    return
+  }
+  if (isPlainObject(value)) {
+    for (const entry of Object.values(value)) {
+      collectResourceFileNames(entry, into)
+    }
+  }
+}
+
+/** Reads a root-level maps.json/encounters.json — not a documented MP
+ * source format, but a residual build artifact MP itself writes next to
+ * Module.yaml (see exportXML in the original tool) that a project folder
+ * often still has lying around from a previous build. Indexed by slug, so
+ * a missing archive with a matching slug can be reconstructed below rather
+ * than losing the map/encounter entirely. */
+async function loadRootManifestBySlug(
+  projectDirectory: string,
+  manifestFileName: string,
+): Promise<Map<string, Record<string, unknown>>> {
+  const bySlug = new Map<string, Record<string, unknown>>()
+  const manifestPath = await findFileCaseInsensitive(projectDirectory, manifestFileName)
+  if (!manifestPath) {
+    return bySlug
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(await readFile(manifestPath, 'utf8'))
+  } catch {
+    return bySlug
+  }
+  if (!Array.isArray(parsed)) {
+    return bySlug
+  }
+  for (const entry of parsed) {
+    if (isPlainObject(entry) && typeof entry.slug === 'string' && entry.slug.trim()) {
+      bySlug.set(entry.slug.trim(), entry)
+    }
+  }
+  return bySlug
+}
+
+/** Rebuilds a real EncounterPlus export .zip for a map/encounter entry
+ * found in a root-level maps.json/encounters.json fallback (see
+ * loadRootManifestBySlug) — MPX's own build (readExportArchive) requires an
+ * actual archive on disk, not just a reference file, so this writes one:
+ * the manifest itself plus every resource file it references that's still
+ * sitting at the MP project's root. */
+async function writeReconstructedArchive(
+  projectDirectory: string,
+  destinationPath: string,
+  manifestFileName: string,
+  record: Record<string, unknown>,
+): Promise<void> {
+  const resourceNames = new Set<string>()
+  collectResourceFileNames(record, resourceNames)
+
+  const zip = new ZipFile()
+  zip.addBuffer(Buffer.from(JSON.stringify([record])), manifestFileName)
+  for (const resourceName of resourceNames) {
+    const resourcePath = await findFileCaseInsensitive(projectDirectory, resourceName)
+    if (resourcePath) {
+      zip.addFile(resourcePath, resourceName)
+    }
+  }
+  zip.end()
+
+  await mkdir(dirname(destinationPath), { recursive: true })
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    zip.outputStream
+      .pipe(createWriteStream(destinationPath))
+      .on('close', () => resolvePromise())
+      .on('error', rejectPromise)
+  })
+}
+
 function settingsJson(module: MpModuleAnalysis): Record<string, boolean | string> {
   return {
     'mpx.autoIncrementVersion': true,
@@ -979,25 +1075,56 @@ export async function convertMpProject(
   // copied through as-is, with a notice asking for a fresh V5 export.
   const ARCHIVE_FOLDER_BY_KIND = { encounter: 'encounters', map: 'maps' } as const
   const ARCHIVE_MANIFEST_BY_KIND = { encounter: 'encounters.json', map: 'maps.json' } as const
+  const rootManifestsByKind = {
+    encounter: await loadRootManifestBySlug(sourceDirectory, 'encounters.json'),
+    map: await loadRootManifestBySlug(sourceDirectory, 'maps.json'),
+  }
   let archiveCount = 0
   let legacyArchiveCount = 0
+  let reconstructedArchiveCount = 0
   for (const archive of analysis.archives) {
     const folder = ARCHIVE_FOLDER_BY_KIND[archive.kind]
     const targetName = `${archive.slug}.zip`
     const absoluteSourcePath = join(sourceDirectory, archive.sourcePath)
+    const destinationArchivePath = join(destinationDirectory, folder, targetName)
+    let reconstructed = false
     try {
       await mkdir(join(destinationDirectory, folder), { recursive: true })
-      await copyFile(absoluteSourcePath, join(destinationDirectory, folder, targetName))
+      await copyFile(absoluteSourcePath, destinationArchivePath)
     } catch {
-      notices.push({
-        code: 'missing-archive',
-        message: `${archive.sourcePath} — this MP ${archive.kind} reference's .zip file couldn't be found and was skipped.`,
-        path: archive.sourcePath,
-      })
-      continue
+      // The .zip Module.yaml references is gone — MP itself never reads
+      // this file either, only copies it through, so its absence loses
+      // nothing MP could recover. But a leftover root maps.json/
+      // encounters.json (see loadRootManifestBySlug) is a residual build
+      // artifact that still has this exact map/encounter's own data —
+      // reconstructing a fresh .zip from it recovers what would otherwise
+      // be permanently lost.
+      const rootEntry = rootManifestsByKind[archive.kind].get(archive.slug)
+      if (!rootEntry) {
+        notices.push({
+          code: 'missing-archive',
+          message: `${archive.sourcePath} — this MP ${archive.kind} reference's .zip file couldn't be found and was skipped.`,
+          path: archive.sourcePath,
+        })
+        continue
+      }
+      try {
+        await writeReconstructedArchive(sourceDirectory, destinationArchivePath, ARCHIVE_MANIFEST_BY_KIND[archive.kind], rootEntry)
+        reconstructed = true
+        reconstructedArchiveCount += 1
+      } catch {
+        notices.push({
+          code: 'missing-archive',
+          message: `${archive.sourcePath} — this MP ${archive.kind} reference's .zip file couldn't be found, and rebuilding it from ${ARCHIVE_MANIFEST_BY_KIND[archive.kind]} failed too.`,
+          path: archive.sourcePath,
+        })
+        continue
+      }
     }
 
-    const manifest = await readExportArchive(absoluteSourcePath, ARCHIVE_MANIFEST_BY_KIND[archive.kind]).catch(() => undefined)
+    const manifest = reconstructed
+      ? { record: rootManifestsByKind[archive.kind].get(archive.slug) as Record<string, unknown> }
+      : await readExportArchive(absoluteSourcePath, ARCHIVE_MANIFEST_BY_KIND[archive.kind]).catch(() => undefined)
     const name = (manifest && nonEmptyString(manifest.record.name)) || archive.name
     const descr = (manifest && nonEmptyString(manifest.record.descr)) || ''
     if (!manifest) {
@@ -1014,6 +1141,10 @@ export async function convertMpProject(
     notices.push({
       code: 'archives-converted',
       message: `Copied ${archiveCount} MP map/encounter .zip file(s) into maps/encounters.${
+        reconstructedArchiveCount > 0
+          ? ` ${reconstructedArchiveCount} had no .zip on disk and were rebuilt from a leftover root maps.json/encounters.json instead.`
+          : ''
+      }${
         legacyArchiveCount > 0
           ? ` ${legacyArchiveCount} of them aren't in EncounterPlus's current export format — re-export from EncounterPlus in V5 format for MPX to read them.`
           : ''
