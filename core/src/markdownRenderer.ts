@@ -154,6 +154,61 @@ function firstClass(token: Token): string | undefined {
   return typeof value === 'string' ? value.split(/\s+/)[0] : undefined
 }
 
+/** `{.class}` right after a blockquote is meant for the blockquote itself
+ * (`{.purple .color-links}` recoloring the whole quote), but markdown-it-
+ * attrs only ever attaches an attribute to the single block immediately
+ * above it — when the blockquote's last line is a list (or any block other
+ * than a plain paragraph), that's the list, not the enclosing blockquote.
+ * Runs as a core rule right after markdown-it-attrs' own ('curly_attributes'),
+ * moving the class up from a childless-of-attrs blockquote's last top-level
+ * child onto the blockquote_open token itself, so the theme's
+ * `blockquote.purple`/`.color-links` CSS actually matches. */
+function installBlockquoteAttributeHoisting(markdown: MarkdownItInstance): void {
+  markdown.core.ruler.after('curly_attributes', 'mpx_blockquote_attrs', (state) => {
+    const tokens = state.tokens
+    for (let index = 0; index < tokens.length; index += 1) {
+      const openToken = tokens[index]
+      if (openToken.type !== 'blockquote_open' || openToken.attrGet('class')) {
+        continue
+      }
+
+      // markdown-it-attrs only ever sets `class` on a block's opening (or
+      // self-closing) token, never its closing one — so track the last
+      // *opening* token seen directly inside the blockquote (containerDepth
+      // 1, i.e. a direct child, not a grandchild like a list item's own
+      // paragraph), not the last token overall.
+      let containerDepth = 1
+      let closeIndex = -1
+      let lastTopLevelOpenIndex = -1
+      for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
+        const candidate = tokens[cursor]
+        if (candidate.type === 'blockquote_close' && containerDepth === 1) {
+          closeIndex = cursor
+          break
+        }
+        if (containerDepth === 1 && candidate.nesting >= 0) {
+          lastTopLevelOpenIndex = cursor
+        }
+        containerDepth += candidate.nesting
+      }
+      if (closeIndex === -1 || lastTopLevelOpenIndex === -1) {
+        continue
+      }
+
+      const lastChild = tokens[lastTopLevelOpenIndex]
+      const lastChildClass = lastChild.attrGet('class')
+      if (typeof lastChildClass !== 'string' || !lastChildClass) {
+        continue
+      }
+      openToken.attrSet('class', lastChildClass)
+      const classIndex = lastChild.attrIndex('class')
+      if (classIndex >= 0) {
+        lastChild.attrs?.splice(classIndex, 1)
+      }
+    }
+  })
+}
+
 function installBlockquoteWrapping(markdown: MarkdownItInstance): void {
   const defaultOpen =
     markdown.renderer.rules.blockquote_open ??
@@ -739,6 +794,7 @@ export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): M
     .use(sup)
     .use(underline)
 
+  installBlockquoteAttributeHoisting(markdown)
   installBlockquoteWrapping(markdown)
   installImageSizeSyntax(markdown)
   installImageRendering(markdown, options)

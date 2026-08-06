@@ -85,3 +85,25 @@ export {
   MONSTER_ENVIRONMENTS,
 } from './monsterCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'
+export { analyzeMpProject, convertMpProject } from './mpConversion.js'
+export { reshapeMpCompendiumBlocks } from './mpCompendiumBlocks.js'
+export type {
+  MpCompendiumBlockReshape,
+  MpCompendiumFieldNotice,
+  ReshapeMpCompendiumBlocksResult,
+} from './mpCompendiumBlocks.js'
+export type {
+  AnalyzeMpProjectOptions,
+  ConvertMpProjectOptions,
+  ConvertMpProjectResult,
+  MpAnalysisNotice,
+  MpArchiveReference,
+  MpAssetsAnalysis,
+  MpGroupAnalysis,
+  MpImageAnalysis,
+  MpModuleAnalysis,
+  MpPageAnalysis,
+  MpProjectAnalysis,
+} from './mpConversion.js'
+export { generatePreviewFontStyles, PREVIEW_FONT_STYLE_PATH } from './previewFontStyles.js'
+export type { OpenFontCollection } from './previewFontStyles.js'

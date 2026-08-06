@@ -6,6 +6,23 @@ html, body.vscode-body {
   border-left: 0;
 }
 
+/* VSCode's own markdown.css declares `.vscode-dark h1, .vscode-dark h2,
+ * .vscode-dark hr, .vscode-dark td { border-color: rgba(255,255,255,0.18) }`
+ * (and a `.vscode-light` equivalent) — a class+element selector, so it
+ * always outranks a theme's own plain `h1 { border-bottom: ... }` /
+ * `h2 { ... }` rule regardless of stylesheet load order, leaving a themed
+ * heading's border-bottom nearly invisible in the preview even though the
+ * same CSS renders correctly in a real browser or EncounterPlus. `unset`
+ * (not `inherit`, which resolved to the wrong color in testing) drops
+ * VSCode's override entirely, letting the theme's own border-bottom
+ * shorthand — including its color — apply as authored, preview-only. */
+.vscode-dark h1,
+.vscode-dark h2,
+.vscode-light h1,
+.vscode-light h2 {
+  border-color: unset;
+}
+
 /* Preview-only annotation under a Markdown table auto-detected as a roll
  * table (see installRollTableDetection in core/src/markdownRenderer.ts) —
  * never part of the built .module, purely an editor affordance. */

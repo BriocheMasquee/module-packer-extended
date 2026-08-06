@@ -132,10 +132,6 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
   }
 }
 
-export function registerBuildModuleCommand(context: vscode.ExtensionContext): void {
-  const outputChannel = vscode.window.createOutputChannel('MPX')
-  context.subscriptions.push(
-    outputChannel,
-    vscode.commands.registerCommand(BUILD_COMMAND, () => executeBuildModule(outputChannel)),
-  )
+export function registerBuildModuleCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel): void {
+  context.subscriptions.push(vscode.commands.registerCommand(BUILD_COMMAND, () => executeBuildModule(outputChannel)))
 }
