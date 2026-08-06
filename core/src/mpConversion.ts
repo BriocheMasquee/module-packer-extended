@@ -32,6 +32,11 @@ export interface MpAnalysisNotice {
 export interface MpModuleAnalysis {
   acronym: string
   author: string
+  /** MP has no explicit language field — guessed from descr's own text
+   * (French stop-word/accent heuristic), since content language otherwise
+   * has no signal anywhere in a MP project. */
+  autoDetectedLanguage: 'en' | 'fr'
+  autoDetectRollTables: boolean
   category: string
   descr: string
   id?: string
@@ -109,6 +114,25 @@ function nonEmptyString(value: unknown): string | undefined {
 
 function numberOrZero(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+// French accented letters and common short stop-words are a strong enough
+// signal for a module description's length of text — a full statistical
+// language detector would be overkill for a couple of sentences, and MP
+// has no dedicated language field to read instead.
+const FRENCH_ACCENT_PATTERN = /[àâäçèéêëîïôöùûüÿœæ]/i
+const FRENCH_STOP_WORDS = new Set([
+  'de', 'des', 'du', 'le', 'la', 'les', 'un', 'une', 'et', 'est', 'dans', 'pour', 'avec',
+  'sur', 'vous', 'votre', 'ce', 'cette', 'ces', 'qui', 'que', 'au', 'aux', 'sont', 'plus',
+])
+
+function detectMpLanguage(descr: string): 'en' | 'fr' {
+  if (FRENCH_ACCENT_PATTERN.test(descr)) {
+    return 'fr'
+  }
+  const words = descr.toLowerCase().match(/[a-zàâäçèéêëîïôöùûüÿœæ]+/g) ?? []
+  const frenchStopWordCount = words.filter((word) => FRENCH_STOP_WORDS.has(word)).length
+  return frenchStopWordCount >= 2 ? 'fr' : 'en'
 }
 
 function portablePath(root: string, filePath: string): string {
@@ -285,11 +309,14 @@ export async function analyzeMpProject(
 
   const moduleName = nonEmptyString(moduleData.name) ?? basename(projectDirectory)
   const moduleImage = nonEmptyString(moduleData.cover) ?? ''
+  const moduleDescr = nonEmptyString(moduleData.description) ?? ''
   const module: MpModuleAnalysis = {
     acronym: nonEmptyString(moduleData.code) ?? '',
     author: nonEmptyString(moduleData.author) ?? '',
+    autoDetectedLanguage: detectMpLanguage(moduleDescr),
+    autoDetectRollTables: typeof moduleData['create-roll-tables'] === 'boolean' ? moduleData['create-roll-tables'] : true,
     category: nonEmptyString(moduleData.category) ?? '',
-    descr: nonEmptyString(moduleData.description) ?? '',
+    descr: moduleDescr,
     id: moduleId && isUuid(moduleId) ? moduleId : undefined,
     image: moduleImage,
     name: moduleName,
@@ -303,7 +330,6 @@ export async function analyzeMpProject(
   for (const unsupportedKey of [
     'auto-increment-version',
     'compress-images',
-    'create-roll-tables',
     'delete-empty-groups',
     'print-cover',
     'print-document-size',
@@ -507,7 +533,12 @@ export async function analyzeMpProject(
       const explicitSlug = nonEmptyString(groupData.slug)
       const groupSlug = uniqueSlug(explicitSlug ?? `group-${mpSlug(groupName)}`, Boolean(explicitSlug))
       const groupParent = nonEmptyString(groupData.parent) ?? context.parentGroupSlug
-      const includedInModule = includeIn === 'all' || includeIn === 'module'
+      // A plain subfolder with no Group.yaml of its own is just a filesystem
+      // organization detail in MP, not a real chapter — only a folder that
+      // actually declares a Group.yaml becomes an MPX group. Its own
+      // markdown files/subfolders are still scanned and attached to
+      // whatever group the parent folder resolved to.
+      const includedInModule = groupPath !== undefined && (includeIn === 'all' || includeIn === 'module')
       if (includedInModule) {
         groups.push({
           name: groupName,
@@ -519,7 +550,7 @@ export async function analyzeMpProject(
       }
 
       await scanDirectory(childDirectory, {
-        includeIn: includedInModule ? includeIn : 'print',
+        includeIn: includedInModule ? includeIn : context.includeIn,
         parentGroupSlug: includedInModule ? groupSlug : context.parentGroupSlug,
       })
     }
@@ -741,35 +772,66 @@ async function copyDirectory(sourceDirectory: string, targetDirectory: string): 
  * MPX dropped the markdown-it-decorate extension that used to render it, so
  * without this rewrite the decoration would silently stop working, not just
  * look dated. Rewritten to MPX's own `{.red .color-links}` attribute syntax,
- * same visual result, still functional. */
+ * same visual result, still functional.
+ *
+ * markdown-it-decorate also accepted a second, more common MP authoring
+ * style: `{.class ...}` appended directly onto a blockquote's own last line
+ * (`...boue.{.read}`), rather than on its own line below it. MPX's
+ * replacement, markdown-it-attrs, only recognizes the attribute on its own
+ * line right after the block — glued to the text it's silently ignored, so
+ * the blockquote renders as a plain quote instead of getting its class.
+ * This splits it onto its own line so the same markup keeps working. */
 function rewriteLegacyBlockquoteDecorations(content: string): string {
   let fenceMarker: string | undefined
-  return content
-    .split('\n')
-    .map((rawLine) => {
-      const carriageReturn = rawLine.endsWith('\r') ? '\r' : ''
-      const line = carriageReturn ? rawLine.slice(0, -1) : rawLine
-      const fenceMatch = line.match(/^\s*(```+|~~~+)/)
-      if (fenceMatch) {
-        const marker = fenceMatch[1][0]
-        fenceMarker = !fenceMarker ? marker : fenceMarker === marker ? undefined : fenceMarker
-        return rawLine
-      }
-      if (fenceMarker) {
-        return rawLine
-      }
-      const decorationMatch = line.match(/^(\s*)<!--\{\s*blockquote\s*:\s*((?:\.[A-Za-z_][\w-]*)+)\s*\}-->\s*$/)
-      if (!decorationMatch) {
-        return rawLine
-      }
+  const lines = content.split('\n')
+  const output: string[] = []
+
+  for (const [index, rawLine] of lines.entries()) {
+    const carriageReturn = rawLine.endsWith('\r') ? '\r' : ''
+    const line = carriageReturn ? rawLine.slice(0, -1) : rawLine
+    const fenceMatch = line.match(/^\s*(```+|~~~+)/)
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0]
+      fenceMarker = !fenceMarker ? marker : fenceMarker === marker ? undefined : fenceMarker
+      output.push(rawLine)
+      continue
+    }
+    if (fenceMarker) {
+      output.push(rawLine)
+      continue
+    }
+
+    const decorationMatch = line.match(/^(\s*)<!--\{\s*blockquote\s*:\s*((?:\.[A-Za-z_][\w-]*)+)\s*\}-->\s*$/)
+    if (decorationMatch) {
       const classes = decorationMatch[2]
         .split('.')
         .filter(Boolean)
         .map((className) => `.${className}`)
         .join(' ')
-      return `${decorationMatch[1]}{${classes}}${carriageReturn}`
-    })
-    .join('\n')
+      output.push(`${decorationMatch[1]}{${classes}}${carriageReturn}`)
+      continue
+    }
+
+    // Only the last line of the blockquote carries the attribute, glued
+    // onto its own text — e.g. "...votre présence.{.read}" or
+    // "...(salles-inferieures-2)\n{.purple .color-links}" already on its
+    // own line (left untouched by this branch, markdown-it-attrs handles it
+    // natively). Detected only at the very end of a `>` line so ordinary
+    // curly braces in prose are never mistaken for it.
+    const gluedMatch = line.match(/^(\s*>.*\S)((?:\{\.[A-Za-z_][\w-]*(?:\s+\.[A-Za-z_][\w-]*)*\})+)\s*$/)
+    if (gluedMatch) {
+      const nextLine = lines[index + 1]
+      const isLastBlockquoteLine = nextLine === undefined || !/^\s*>/.test(nextLine)
+      if (isLastBlockquoteLine) {
+        output.push(`${gluedMatch[1]}${carriageReturn}`)
+        output.push(gluedMatch[2])
+        continue
+      }
+    }
+
+    output.push(rawLine)
+  }
+  return output.join('\n')
 }
 
 function rewriteImagePaths(content: string, targetByImageName: ReadonlyMap<string, string>): string {
@@ -794,23 +856,25 @@ parent: ${JSON.stringify(page.parentSlug ?? '')}
 ${normalizedContent}`
 }
 
-const DEFAULT_SETTINGS_JSON = {
-  'mpx.autoIncrementVersion': true,
-  'mpx.contentLanguage': 'en',
-  'mpx.defaultMeasurement': 'auto',
-  'mpx.defaultShowSpellImage': true,
-  'mpx.defaultShowSpellSchoolIcon': true,
-  'mpx.defaultShowSpellAreaEffectIcon': true,
-  'mpx.defaultShowSpellSources': true,
-  'mpx.defaultShowSpellTags': true,
-  'mpx.defaultShowItemImage': true,
-  'mpx.defaultShowItemSources': true,
-  'mpx.defaultShowItemTags': true,
-  'mpx.defaultShowMonsterImage': true,
-  'mpx.defaultShowMonsterToken': true,
-  'mpx.defaultShowMonsterSources': true,
-  'mpx.defaultShowMonsterTags': true,
-  'mpx.autoDetectRollTables': true,
+function settingsJson(module: MpModuleAnalysis): Record<string, boolean | string> {
+  return {
+    'mpx.autoIncrementVersion': true,
+    'mpx.contentLanguage': module.autoDetectedLanguage,
+    'mpx.defaultMeasurement': 'auto',
+    'mpx.defaultShowSpellImage': true,
+    'mpx.defaultShowSpellSchoolIcon': true,
+    'mpx.defaultShowSpellAreaEffectIcon': true,
+    'mpx.defaultShowSpellSources': true,
+    'mpx.defaultShowSpellTags': true,
+    'mpx.defaultShowItemImage': true,
+    'mpx.defaultShowItemSources': true,
+    'mpx.defaultShowItemTags': true,
+    'mpx.defaultShowMonsterImage': true,
+    'mpx.defaultShowMonsterToken': true,
+    'mpx.defaultShowMonsterSources': true,
+    'mpx.defaultShowMonsterTags': true,
+    'mpx.autoDetectRollTables': module.autoDetectRollTables,
+  }
 }
 
 export async function convertMpProject(
@@ -1064,7 +1128,7 @@ export async function convertMpProject(
   await mkdir(join(destinationDirectory, '.vscode'), { recursive: true })
   await writeFile(
     join(destinationDirectory, '.vscode', 'settings.json'),
-    `${JSON.stringify(DEFAULT_SETTINGS_JSON, null, 2)}\n`,
+    `${JSON.stringify(settingsJson(analysis.module), null, 2)}\n`,
     'utf8',
   )
 

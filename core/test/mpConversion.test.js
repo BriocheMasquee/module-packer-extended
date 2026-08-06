@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { mkdir, mkdtemp, readFile, writeFile } = require('node:fs/promises')
+const { mkdir, mkdtemp, readdir, readFile, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const test = require('node:test')
@@ -636,4 +636,86 @@ maps:
 
   const result = await convertMpProject(sourceDirectory, destinationDirectory)
   assert.ok(result.notices.some((notice) => notice.code === 'missing-archive'))
+})
+
+test('convertMpProject detects French from Module.yaml\'s description and sets mpx.contentLanguage', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(
+    join(sourceDirectory, 'Module.yaml'),
+    'name: Test\nversion: "1.0"\ndescription: Une description en français avec des accents éèà pour tester la détection.\n',
+  )
+  await convertMpProject(sourceDirectory, destinationDirectory)
+  const settings = JSON.parse(await readFile(join(destinationDirectory, '.vscode', 'settings.json'), 'utf8'))
+  assert.equal(settings['mpx.contentLanguage'], 'fr')
+})
+
+test('convertMpProject reflects Module.yaml\'s create-roll-tables value in mpx.autoDetectRollTables', async () => {
+  const { destinationDirectory: destA, sourceDirectory: sourceA } = await makeTempDirs()
+  await writeFile(join(sourceA, 'Module.yaml'), 'name: Test\nversion: "1.0"\ncreate-roll-tables: false\n')
+  await convertMpProject(sourceA, destA)
+  const settingsA = JSON.parse(await readFile(join(destA, '.vscode', 'settings.json'), 'utf8'))
+  assert.equal(settingsA['mpx.autoDetectRollTables'], false)
+
+  const { destinationDirectory: destB, sourceDirectory: sourceB } = await makeTempDirs()
+  await writeFile(join(sourceB, 'Module.yaml'), 'name: Test\nversion: "1.0"\ncreate-roll-tables: true\n')
+  await convertMpProject(sourceB, destB)
+  const settingsB = JSON.parse(await readFile(join(destB, '.vscode', 'settings.json'), 'utf8'))
+  assert.equal(settingsB['mpx.autoDetectRollTables'], true)
+
+  const { destinationDirectory: destC, sourceDirectory: sourceC } = await makeTempDirs()
+  await writeFile(join(sourceC, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await convertMpProject(sourceC, destC)
+  const settingsC = JSON.parse(await readFile(join(destC, '.vscode', 'settings.json'), 'utf8'))
+  assert.equal(settingsC['mpx.autoDetectRollTables'], true)
+})
+
+test('convertMpProject does not create a group for a plain subfolder with no Group.yaml', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await mkdir(join(sourceDirectory, 'resources', 'items'), { recursive: true })
+  await mkdir(join(sourceDirectory, 'resources', 'monsters'), { recursive: true })
+  await writeFile(join(sourceDirectory, 'resources', 'items', 'sword.png'), 'fake-image')
+  await writeFile(join(sourceDirectory, 'page.md'), '---\nname: Page\nslug: page\norder: 0\n---\n\nText.\n')
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  assert.equal(result.groupCount, 0)
+  const groupsExist = await readdir(destinationDirectory).catch(() => [])
+  assert.ok(!groupsExist.includes('groups'))
+})
+
+test('convertMpProject still creates a group for a subfolder that does declare a Group.yaml', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await mkdir(join(sourceDirectory, 'Chapter 1'), { recursive: true })
+  await writeFile(join(sourceDirectory, 'Chapter 1', 'Group.yaml'), 'name: Chapter One\n')
+  await writeFile(join(sourceDirectory, 'Chapter 1', 'page.md'), '---\nname: Page\nslug: page\norder: 0\n---\n\nText.\n')
+
+  const result = await convertMpProject(sourceDirectory, destinationDirectory)
+  assert.equal(result.groupCount, 1)
+  const groupFiles = await readdir(join(destinationDirectory, 'groups'))
+  assert.deepEqual(groupFiles, ['group-chapter-one.json'])
+})
+
+test('convertMpProject splits a glued {.class} blockquote decoration onto its own line', async () => {
+  const { destinationDirectory, sourceDirectory } = await makeTempDirs()
+  await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
+  await writeFile(
+    join(sourceDirectory, 'page.md'),
+    `---
+name: Page
+slug: page
+order: 0
+---
+
+>Some flavor text ending the quote.{.read}
+
+>**Cartes :**
+>- [**Room**](room)
+{.purple .color-links}
+`,
+  )
+  await convertMpProject(sourceDirectory, destinationDirectory)
+  const page = await readFile(join(destinationDirectory, 'pages', 'page.md'), 'utf8')
+  assert.match(page, /Some flavor text ending the quote\.\n\{\.read\}/)
+  assert.match(page, /\[\*\*Room\*\*\]\(room\)\n\{\.purple \.color-links\}/)
 })
