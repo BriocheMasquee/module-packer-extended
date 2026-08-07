@@ -1415,3 +1415,30 @@ mark.text-black,     strong.text-black,     em.text-black     { color: var(--col
   display: none;
 }
 
+/* Background: same .compendium-block markup as item/spell, but its own
+ * `compendium-block-background` class (set by renderBackgroundBlockHtml)
+ * lets it diverge visually — no top-border flourish (unlike item/spell),
+ * title styled like the theme's own h3 (rather than item/spell's larger
+ * heading-style title) with extra breathing room before the data block,
+ * and its illustration image (placed between the description and the
+ * Source/Tags footer) rendered at its normal full width like item's own
+ * (not shrunk), just centered via its wrapper. The data block's font/
+ * bold-label/zero-inter-paragraph-spacing and the description's narrative
+ * font are already the shared defaults above — nothing to override
+ * there. */
+.compendium-block-background .compendium-block-top-border {
+  display: none;
+}
+
+.compendium-block-background .compendium-block-title {
+  font-size: 2.5rem;
+  line-height: 3.2rem;
+  border-bottom: 0.15rem solid var(--color-gold);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.compendium-block-background .compendium-image-block {
+  text-align: center;
+}
+

@@ -20,9 +20,11 @@ import { isNonEmptyString, isPlainObject, stripEmptyValues } from './compendiumS
 import { SPELL_IMAGE_PATTERN, validateSpellData, stripEmptySpellFields } from './spellCompendium.js'
 import { ITEM_IMAGE_PATTERN, validateItemData, stripEmptyItemFields } from './itemCompendium.js'
 import { MONSTER_IMAGE_PATTERN, validateMonsterData, stripEmptyMonsterFields } from './monsterCompendium.js'
+import { BACKGROUND_IMAGE_PATTERN, validateBackgroundData, stripEmptyBackgroundFields } from './backgroundCompendium.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
 import type { ItemDisplayDefaults } from './itemBlock.js'
 import type { MonsterDisplayDefaults } from './monsterBlock.js'
+import type { BackgroundDisplayDefaults } from './backgroundBlock.js'
 
 export interface BuildIssue {
   file: string
@@ -46,6 +48,7 @@ export interface BuildSummary {
   spellCount: number
   tableCount: number
   monsterCount: number
+  backgroundCount: number
   /** The version the .module archive was actually built with. */
   builtVersion: string
   /** Set only when autoIncrementVersion bumped module.json for the next build. */
@@ -84,8 +87,9 @@ const RESERVED_RESOURCE_NAMES = new Set([
   'spells.json',
   'tables.json',
   'monsters.json',
+  'backgrounds.json',
 ])
-const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', 'monsters/']
+const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', 'monsters/', 'backgrounds/']
 
 const MODULE_JSON_OPTIONAL_FIELDS = [
   'acronym',
@@ -239,12 +243,14 @@ async function readPages(
   spellDisplayDefaults: SpellDisplayDefaults | undefined,
   itemDisplayDefaults: ItemDisplayDefaults | undefined,
   monsterDisplayDefaults: MonsterDisplayDefaults | undefined,
+  backgroundDisplayDefaults: BackgroundDisplayDefaults | undefined,
   autoDetectRollTables: boolean,
 ): Promise<{
   entries: ResolvedEntry[]
   inlineSpells: PageInlineEntrySource[]
   inlineItems: PageInlineEntrySource[]
   inlineMonsters: PageInlineEntrySource[]
+  inlineBackgrounds: PageInlineEntrySource[]
   inlineRollTables: PageInlineEntrySource[]
 }> {
   const markdown = createMarkdownRenderer({
@@ -254,12 +260,14 @@ async function readPages(
     spellDisplayDefaults,
     itemDisplayDefaults,
     monsterDisplayDefaults,
+    backgroundDisplayDefaults,
     autoDetectRollTables,
   })
   const entries: ResolvedEntry[] = []
   const inlineSpells: PageInlineEntrySource[] = []
   const inlineItems: PageInlineEntrySource[] = []
   const inlineMonsters: PageInlineEntrySource[] = []
+  const inlineBackgrounds: PageInlineEntrySource[] = []
   const inlineRollTables: PageInlineEntrySource[] = []
 
   for (const filePath of await listFilesRecursively(join(moduleRoot, 'pages'), '.md')) {
@@ -302,6 +310,9 @@ async function readPages(
     for (const block of env.inlineMonsters ?? []) {
       inlineMonsters.push({ pageRelativePath: relativePath, data: block.data })
     }
+    for (const block of env.inlineBackgrounds ?? []) {
+      inlineBackgrounds.push({ pageRelativePath: relativePath, data: block.data })
+    }
     for (const block of env.inlineRollTables ?? []) {
       inlineRollTables.push({ pageRelativePath: relativePath, data: block.data })
     }
@@ -320,7 +331,7 @@ async function readPages(
     })
   }
 
-  return { entries, inlineSpells, inlineItems, inlineMonsters, inlineRollTables }
+  return { entries, inlineSpells, inlineItems, inlineMonsters, inlineBackgrounds, inlineRollTables }
 }
 
 async function readGroups(moduleRoot: string, issues: BuildIssue[]): Promise<ResolvedEntry[]> {
@@ -769,6 +780,96 @@ function readMonsters(
   )
 }
 
+function readBackgrounds(
+  moduleRoot: string,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+  defaultMeasurement: MeasurementSystem,
+): Promise<Record<string, unknown>[]> {
+  return readCompendiumEntries(
+    moduleRoot,
+    {
+      folder: 'backgrounds',
+      kind: 'background',
+      imagePattern: BACKGROUND_IMAGE_PATTERN,
+      validateData: validateBackgroundData,
+      stripEmptyFields: stripEmptyBackgroundFields,
+      defaultMeasurement,
+    },
+    issues,
+    imageResourcesOut,
+  )
+}
+
+const BACKGROUND_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'sources', 'tags', 'image', 'data'] as const
+
+/** Same mechanism as buildInlineItemRecord (see its comment) — for
+ * backgrounds merging into backgrounds.json instead of items.json. */
+async function buildInlineBackgroundRecord(
+  moduleRoot: string,
+  source: PageInlineEntrySource,
+  moduleId: string,
+  defaultMeasurement: MeasurementSystem,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+  pathById: Map<string, string>,
+  pathBySlug: Map<string, string>,
+): Promise<Record<string, unknown> | undefined> {
+  const { pageRelativePath, data: raw } = source
+  const name = raw.name as string
+  const label = `${pageRelativePath} (inline background "${name}")`
+
+  const slug = isNonEmptyString(raw.slug) ? raw.slug.trim() : slugify(name)
+  validateSlugFormat(label, slug, issues)
+  validateBackgroundData(label, raw.data, issues)
+  if (raw.sources !== undefined && !Array.isArray(raw.sources)) {
+    issues.push({ file: label, message: 'sources must be an array when provided.' })
+  }
+  if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
+    issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
+  }
+  const image = raw.image
+  if (isNonEmptyString(image) && image !== 'backgrounds/') {
+    if (!BACKGROUND_IMAGE_PATTERN.test(image)) {
+      issues.push({ file: label, message: 'image must be a path to a file directly inside the backgrounds folder.' })
+    } else {
+      const resolved = await checkResourceReference(moduleRoot, label, '"image"', image, issues)
+      if (resolved) {
+        imageResourcesOut.set(image, resolved)
+      }
+    }
+  }
+
+  if (!isValidSlug(slug)) {
+    return undefined
+  }
+
+  const explicitId = isUuid(raw.id) ? (raw.id as string) : undefined
+  const id = explicitId ?? createUuidV5(slug, moduleId)
+
+  const existingSlugPath = pathBySlug.get(slug)
+  if (existingSlugPath) {
+    issues.push({ file: label, message: `Duplicate background slug "${slug}" in ${existingSlugPath} and ${label}.` })
+  } else {
+    pathBySlug.set(slug, label)
+  }
+  const existingIdPath = pathById.get(id)
+  if (existingIdPath) {
+    issues.push({ file: label, message: `Duplicate background id "${id}" in ${existingIdPath} and ${label}.` })
+  } else {
+    pathById.set(id, label)
+  }
+
+  const record: Record<string, unknown> = { id, slug }
+  for (const field of BACKGROUND_ENVELOPE_FIELDS) {
+    if (raw[field] !== undefined) {
+      record[field] = raw[field]
+    }
+  }
+  applyCompendiumAttributeDefaults(record, defaultMeasurement)
+  return stripEmptyBackgroundFields(record)
+}
+
 const ROLL_TABLE_ROLL_MODES = ['normal', 'noRepeat', 'eachRow']
 const ROLL_TABLE_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
 
@@ -1162,6 +1263,9 @@ export interface BuildOptions {
   /** Same as `spellDisplayDefaults`, for an inline monster's `show*` toggles
    * (mpx.defaultShowMonster* settings). */
   monsterDisplayDefaults?: MonsterDisplayDefaults
+  /** Same as `spellDisplayDefaults`, for an inline background's `show*`
+   * toggles (mpx.defaultShowBackground* settings). */
+  backgroundDisplayDefaults?: BackgroundDisplayDefaults
   /** Resolved from the project's `mpx.autoDetectRollTables` setting — when
    * `false`, a page's Markdown tables are never auto-detected as roll
    * tables, even one whose header links to `/roll/...`. Defaults to `true`
@@ -1238,6 +1342,7 @@ export interface InlinePageCompendiumCounts {
   spells: number
   items: number
   monsters: number
+  backgrounds: number
   rollTables: number
 }
 
@@ -1249,7 +1354,7 @@ export interface InlinePageCompendiumCounts {
  * folders are a separate, simpler file count the caller already has. */
 export async function countInlinePageCompendiumEntries(moduleRoot: string): Promise<InlinePageCompendiumCounts> {
   const markdown = createMarkdownRenderer({ autoDetectRollTables: true })
-  const counts: InlinePageCompendiumCounts = { spells: 0, items: 0, monsters: 0, rollTables: 0 }
+  const counts: InlinePageCompendiumCounts = { spells: 0, items: 0, monsters: 0, backgrounds: 0, rollTables: 0 }
 
   for (const filePath of await listFilesRecursively(join(moduleRoot, 'pages'), '.md')) {
     let content: string
@@ -1263,6 +1368,7 @@ export async function countInlinePageCompendiumEntries(moduleRoot: string): Prom
     counts.spells += env.inlineSpells?.length ?? 0
     counts.items += env.inlineItems?.length ?? 0
     counts.monsters += env.inlineMonsters?.length ?? 0
+    counts.backgrounds += env.inlineBackgrounds?.length ?? 0
     counts.rollTables += env.inlineRollTables?.length ?? 0
   }
 
@@ -1288,7 +1394,8 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const itemImageResources = new Map<string, string>()
   const spellImageResources = new Map<string, string>()
   const monsterImageResources = new Map<string, string>()
-  const [pageResult, groups, maps, encounters, items, spells, tables, monsters] = await Promise.all([
+  const backgroundImageResources = new Map<string, string>()
+  const [pageResult, groups, maps, encounters, items, spells, tables, monsters, backgrounds] = await Promise.all([
     readPages(
       moduleRoot,
       issues,
@@ -1298,6 +1405,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       options.spellDisplayDefaults,
       options.itemDisplayDefaults,
       options.monsterDisplayDefaults,
+      options.backgroundDisplayDefaults,
       options.autoDetectRollTables ?? true,
     ),
     readGroups(moduleRoot, issues),
@@ -1307,12 +1415,14 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     readSpells(moduleRoot, issues, spellImageResources, defaultMeasurement),
     readRollTables(moduleRoot, issues),
     readMonsters(moduleRoot, issues, monsterImageResources, defaultMeasurement),
+    readBackgrounds(moduleRoot, issues, backgroundImageResources, defaultMeasurement),
   ])
   const {
     entries: pages,
     inlineSpells: inlineSpellSources,
     inlineItems: inlineItemSources,
     inlineMonsters: inlineMonsterSources,
+    inlineBackgrounds: inlineBackgroundSources,
     inlineRollTables: inlineRollTableSources,
   } = pageResult
   const entries = [...pages, ...groups, ...maps, ...encounters]
@@ -1377,6 +1487,25 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     }
   }
   monsters.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+
+  const backgroundPathById = new Map(backgrounds.map((background) => [background.id as string, 'a standalone background file']))
+  const backgroundPathBySlug = new Map(backgrounds.map((background) => [background.slug as string, 'a standalone background file']))
+  for (const source of inlineBackgroundSources) {
+    const record = await buildInlineBackgroundRecord(
+      moduleRoot,
+      source,
+      moduleId,
+      defaultMeasurement,
+      issues,
+      backgroundImageResources,
+      backgroundPathById,
+      backgroundPathBySlug,
+    )
+    if (record) {
+      backgrounds.push(record)
+    }
+  }
+  backgrounds.sort((a, b) => String(a.name).localeCompare(String(b.name)))
 
   const tablePathById = new Map(tables.map((table) => [table.id as string, 'a standalone roll table file']))
   const tablePathBySlug = new Map(tables.map((table) => [table.slug as string, 'a standalone roll table file']))
@@ -1459,6 +1588,9 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   if (monsters.length > 0) {
     addJson(monsters, 'monsters.json')
   }
+  if (backgrounds.length > 0) {
+    addJson(backgrounds, 'backgrounds.json')
+  }
 
   await addDirectoryToZip(zip, join(moduleRoot, 'images'), 'images')
   await addDirectoryToZip(zip, join(moduleRoot, 'assets'), 'assets')
@@ -1476,6 +1608,9 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     zip.addFile(resolvedPath, archivePath, { compress: false })
   }
   for (const [archivePath, resolvedPath] of monsterImageResources) {
+    zip.addFile(resolvedPath, archivePath, { compress: false })
+  }
+  for (const [archivePath, resolvedPath] of backgroundImageResources) {
     zip.addFile(resolvedPath, archivePath, { compress: false })
   }
 
@@ -1513,6 +1648,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     spellCount: spells.length,
     tableCount: tables.length,
     monsterCount: monsters.length,
+    backgroundCount: backgrounds.length,
     builtVersion,
     nextVersion,
     brokenLinks,

@@ -112,10 +112,11 @@ export function registerPreviewConfiguration(context: vscode.ExtensionContext): 
       void configureAllWorkspacePreviews()
     }),
     // The renderer reads mpx.defaultMeasurement/mpx.contentLanguage/
-    // mpx.defaultShowSpell*/mpx.defaultShowItem*/mpx.defaultShowMonster*
-    // fresh on every render (see extension.ts's extendMarkdownIt), so
-    // refreshing the open preview is enough to reflect a changed setting
-    // immediately — no Extension Development Host reload needed.
+    // mpx.defaultShowSpell*/mpx.defaultShowItem*/mpx.defaultShowMonster*/
+    // mpx.defaultShowBackground* fresh on every render (see extension.ts's
+    // extendMarkdownIt), so refreshing the open preview is enough to
+    // reflect a changed setting immediately — no Extension Development
+    // Host reload needed.
     vscode.workspace.onDidChangeConfiguration((event) => {
       const watchedSettings = [
         'mpx.defaultMeasurement',
@@ -132,6 +133,9 @@ export function registerPreviewConfiguration(context: vscode.ExtensionContext): 
         'mpx.defaultShowMonsterToken',
         'mpx.defaultShowMonsterSources',
         'mpx.defaultShowMonsterTags',
+        'mpx.defaultShowBackgroundImage',
+        'mpx.defaultShowBackgroundSources',
+        'mpx.defaultShowBackgroundTags',
         'mpx.autoDetectRollTables',
       ]
       if (watchedSettings.some((setting) => event.affectsConfiguration(setting))) {

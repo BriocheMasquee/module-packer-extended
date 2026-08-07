@@ -155,6 +155,34 @@
     ],
     "description": "Insert a complete MPX inline monster block (all fields, with sensible empty defaults)"
   },
+  "MPX Background Block": {
+    "prefix": "mpx-background",
+    "body": [
+      "```background",
+      "name: \"${1:New Background}\"",
+      "slug: ${2:new-background}",
+      "attributes:",
+      "  measurement: \"\"",
+      "  ruleset: \"5.5e\"",
+      "abilities: []",
+      "feat: \"${3:}\"",
+      "skills: []",
+      "tools: []",
+      "equipment: \"${4:}\"",
+      "descr: \"${5:}\"",
+      "sources:",
+      "  - name: \"\"",
+      "    page: 0",
+      "showSources: false",
+      "tags: []",
+      "showTags: false",
+      "image: \"backgrounds/\"",
+      "showImage: false",
+      "```",
+      "$0"
+    ],
+    "description": "Insert a complete MPX inline background block (all fields, with sensible empty defaults)"
+  },
   "MPX Read-Aloud Block": {
     "prefix": "mpx-read",
     "body": [

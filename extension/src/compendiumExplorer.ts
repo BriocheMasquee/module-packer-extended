@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { findInlineSpells, findInlineItems, findInlineMonsters, findInlineRollTables } from 'mpx-core'
+import { findInlineSpells, findInlineItems, findInlineMonsters, findInlineBackgrounds, findInlineRollTables } from 'mpx-core'
 
 const VIEW_ID = 'mpx.compendiumExplorer'
 const REVEAL_INLINE_ENTRY_COMMAND = 'mpx.revealInlineEntry'
@@ -29,6 +29,7 @@ const CATEGORIES = [
   { label: 'Spells', folder: 'spells', icon: 'wand', findInline: findInlineSpells },
   { label: 'Items', folder: 'items', icon: 'archive', findInline: findInlineItems },
   { label: 'Roll Tables', folder: 'tables', icon: 'list-unordered', findInline: findInlineRollTablesIfEnabled },
+  { label: 'Backgrounds', folder: 'backgrounds', icon: 'mortar-board', findInline: findInlineBackgrounds },
 ] satisfies readonly {
   label: string
   folder: string
@@ -187,7 +188,7 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
     // string is fragile (a stray top-level comma silently breaks the whole
     // match instead of erroring), so each concern gets its own clear glob.
     const entryWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, '{items,spells,tables,monsters}/**/*.json'),
+      new vscode.RelativePattern(workspaceFolder, '{items,spells,tables,monsters,backgrounds}/**/*.json'),
     )
     const pageWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceFolder, 'pages/**/*.md'))
     for (const watcher of [entryWatcher, pageWatcher]) {

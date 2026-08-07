@@ -78,6 +78,11 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
     showSources: config.get<boolean>('defaultShowMonsterSources', true),
     showTags: config.get<boolean>('defaultShowMonsterTags', true),
   }
+  const backgroundDisplayDefaults = {
+    showImage: config.get<boolean>('defaultShowBackgroundImage', true),
+    showSources: config.get<boolean>('defaultShowBackgroundSources', true),
+    showTags: config.get<boolean>('defaultShowBackgroundTags', true),
+  }
   const autoDetectRollTables = config.get<boolean>('autoDetectRollTables', true)
 
   try {
@@ -92,6 +97,7 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
           spellDisplayDefaults,
           itemDisplayDefaults,
           monsterDisplayDefaults,
+          backgroundDisplayDefaults,
           autoDetectRollTables,
         }),
     )
@@ -106,7 +112,7 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
       `Module built as version ${summary.builtVersion}: ${summary.pageCount} page(s), ` +
         `${summary.groupCount} group(s), ${summary.mapCount} map(s), ${summary.encounterCount} encounter(s), ` +
         `${summary.itemCount} item(s), ${summary.spellCount} spell(s), ${summary.tableCount} roll table(s), ` +
-        `${summary.monsterCount} monster(s).` +
+        `${summary.monsterCount} monster(s), ${summary.backgroundCount} background(s).` +
         versionNote +
         brokenLinksNote,
       ...actions,

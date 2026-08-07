@@ -111,17 +111,21 @@ export function labelSeparator(language: ContentLanguage): string {
   return language === 'fr' ? '&nbsp;: ' : ': '
 }
 
-export function formatSources(sources: unknown): string | undefined {
+/** "Name, p. 178" (English) / "Nom, page 178" (French, "page" spelled out
+ * rather than abbreviated) — confirmed against a real EncounterPlus-
+ * rendered card. */
+export function formatSources(sources: unknown, language: ContentLanguage): string | undefined {
   if (!Array.isArray(sources)) {
     return undefined
   }
+  const pageWord = language === 'fr' ? 'page' : 'p.'
   const parts = sources
     .filter(isPlainObject)
     .map((source) => {
       if (!isNonEmptyString(source.name)) {
         return undefined
       }
-      const page = typeof source.page === 'number' ? ` p.${source.page}` : ''
+      const page = typeof source.page === 'number' ? `, ${pageWord} ${source.page}` : ''
       return `${source.name}${page}`
     })
     .filter((entry): entry is string => entry !== undefined)

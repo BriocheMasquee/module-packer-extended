@@ -17,7 +17,14 @@ export {
   createEncounterReference,
 } from './contentEntries.js'
 export type { ContentEntryKind, CreatedContentEntry } from './contentEntries.js'
-export { createItem, createSpell, createRollTable, createMonster, COMPENDIUM_RULESET } from './compendiumEntries.js'
+export {
+  createItem,
+  createSpell,
+  createRollTable,
+  createMonster,
+  createBackground,
+  COMPENDIUM_RULESET,
+} from './compendiumEntries.js'
 export { buildModule, ModuleBuildError, countInlinePageCompendiumEntries } from './buildModule.js'
 export type { BuildIssue, BuildOptions, BuildSummary, InlinePageCompendiumCounts } from './buildModule.js'
 export { incrementPatchVersion } from './version.js'
@@ -39,17 +46,21 @@ export type {
   InlineSpellBlock,
   InlineItemBlock,
   InlineMonsterBlock,
+  InlineBackgroundBlock,
   InlineRollTableBlock,
 } from './markdownRenderer.js'
 export type { SpellDisplayDefaults } from './spellBlock.js'
 export type { ItemDisplayDefaults } from './itemBlock.js'
 export type { MonsterDisplayDefaults } from './monsterBlock.js'
+export type { BackgroundDisplayDefaults } from './backgroundBlock.js'
 export { findInlineSpells } from './inlineSpellScan.js'
 export type { InlineSpellSummary } from './inlineSpellScan.js'
 export { findInlineItems } from './inlineItemScan.js'
 export type { InlineItemSummary } from './inlineItemScan.js'
 export { findInlineMonsters } from './inlineMonsterScan.js'
 export type { InlineMonsterSummary } from './inlineMonsterScan.js'
+export { findInlineBackgrounds } from './inlineBackgroundScan.js'
+export type { InlineBackgroundSummary } from './inlineBackgroundScan.js'
 export { findInlineRollTables } from './inlineRollTableScan.js'
 export type { InlineRollTableSummary } from './inlineRollTableScan.js'
 
@@ -63,6 +74,8 @@ export { parseItemBlock, ITEM_META_FIELDS, ITEM_DATA_FIELDS } from './itemBlock.
 export type { ParsedItemBlock } from './itemBlock.js'
 export { parseMonsterBlock, MONSTER_META_FIELDS, MONSTER_DATA_FIELDS } from './monsterBlock.js'
 export type { ParsedMonsterBlock } from './monsterBlock.js'
+export { parseBackgroundBlock, BACKGROUND_META_FIELDS, BACKGROUND_DATA_FIELDS } from './backgroundBlock.js'
+export type { ParsedBackgroundBlock } from './backgroundBlock.js'
 export {
   SPELL_SCHOOLS,
   SPELL_ACTIVATION_UNITS,
@@ -84,6 +97,7 @@ export {
   MONSTER_LANGUAGES,
   MONSTER_ENVIRONMENTS,
 } from './monsterCompendium.js'
+export { BACKGROUND_ABILITY_KEYS, BACKGROUND_SKILLS } from './backgroundCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'
 export { analyzeMpProject, convertMpProject } from './mpConversion.js'
 export { reshapeMpCompendiumBlocks } from './mpCompendiumBlocks.js'

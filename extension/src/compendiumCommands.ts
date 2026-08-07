@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { createItem, createMonster, createRollTable, createSpell, resolveMeasurementSystem } from 'mpx-core'
+import { createBackground, createItem, createMonster, createRollTable, createSpell, resolveMeasurementSystem } from 'mpx-core'
 import { registerContentCreationCommand } from './contentCommands.js'
 
 function resolveProjectMeasurement(moduleFolder: string): string {
@@ -21,4 +21,9 @@ export function registerCompendiumCommands(context: vscode.ExtensionContext): vo
   registerContentCreationCommand(context, 'mpx.createMonster', 'Monster name', 'New monster', (moduleFolder, name) =>
     createMonster(moduleFolder, name, resolveProjectMeasurement(moduleFolder)),
   )
+  // Unlike item/spell/monster, a background's measurement is left empty at
+  // creation (never prefilled from the project's resolved setting) — the
+  // build's own applyCompendiumAttributeDefaults still fills it in from the
+  // project setting when empty, same as the other three.
+  registerContentCreationCommand(context, 'mpx.createBackground', 'Background name', 'New background', createBackground)
 }

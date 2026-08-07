@@ -118,7 +118,7 @@ async function countJsonFiles(folderPath: string): Promise<number> {
   return entries.filter((name) => name.endsWith('.json')).length
 }
 
-const COMPENDIUM_FOLDERS = ['monsters', 'spells', 'items', 'tables']
+const COMPENDIUM_FOLDERS = ['monsters', 'spells', 'items', 'tables', 'backgrounds']
 
 async function buildCompendiumSummary(projectRoot: string): Promise<CompendiumSummaryItem> {
   const [standaloneCounts, inlineCounts] = await Promise.all([
@@ -126,7 +126,8 @@ async function buildCompendiumSummary(projectRoot: string): Promise<CompendiumSu
     countInlinePageCompendiumEntries(projectRoot),
   ])
   const standaloneTotal = standaloneCounts.reduce((sum, count) => sum + count, 0)
-  const inlineTotal = inlineCounts.spells + inlineCounts.items + inlineCounts.monsters + inlineCounts.rollTables
+  const inlineTotal =
+    inlineCounts.spells + inlineCounts.items + inlineCounts.monsters + inlineCounts.backgrounds + inlineCounts.rollTables
   return new CompendiumSummaryItem(`${standaloneTotal + inlineTotal} entries`)
 }
 

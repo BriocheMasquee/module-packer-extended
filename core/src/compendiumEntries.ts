@@ -163,6 +163,30 @@ export function createMonster(moduleRoot: string, name: string, measurement = ''
   })
 }
 
+export function createBackground(moduleRoot: string, name: string, measurement = ''): Promise<CreatedContentEntry> {
+  const slug = slugify(name)
+  return writeCompendiumEntry(moduleRoot, 'background', 'backgrounds', name, {
+    id: randomUUID(),
+    name,
+    slug,
+    attributes: {
+      measurement,
+      ruleset: COMPENDIUM_RULESET,
+    },
+    data: {
+      abilities: [] as string[],
+      feat: '',
+      skills: [] as string[],
+      tools: [] as string[],
+      equipment: '',
+    },
+    descr: '',
+    sources: [] as { name: string; page?: number }[],
+    tags: [] as string[],
+    image: 'backgrounds/',
+  })
+}
+
 export function createRollTable(moduleRoot: string, name: string): Promise<CreatedContentEntry> {
   const slug = slugify(name)
   return writeCompendiumEntry(moduleRoot, 'roll table', 'tables', name, {

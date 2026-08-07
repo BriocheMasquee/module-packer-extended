@@ -6,6 +6,8 @@ import { parseItemBlock, renderItemBlockHtml } from './itemBlock.js'
 import type { ItemDisplayDefaults } from './itemBlock.js'
 import { parseMonsterBlock, renderMonsterBlockHtml } from './monsterBlock.js'
 import type { MonsterDisplayDefaults } from './monsterBlock.js'
+import { parseBackgroundBlock, renderBackgroundBlockHtml } from './backgroundBlock.js'
+import type { BackgroundDisplayDefaults } from './backgroundBlock.js'
 import { escapeHtml } from './compendiumBlock.js'
 import { slugify } from './slug.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
@@ -56,6 +58,8 @@ export interface MarkdownRendererOptions {
   itemDisplayDefaults?: ItemDisplayDefaults | (() => ItemDisplayDefaults)
   /** Same as `spellDisplayDefaults`, for a monster's `show*` toggles. */
   monsterDisplayDefaults?: MonsterDisplayDefaults | (() => MonsterDisplayDefaults)
+  /** Same as `spellDisplayDefaults`, for a background's `show*` toggles. */
+  backgroundDisplayDefaults?: BackgroundDisplayDefaults | (() => BackgroundDisplayDefaults)
   /** Project-wide opt-out for roll table auto-detection (`mpx.autoDetectRollTables`,
    * default `true`) — when `false`, a table whose header links to `/roll/...`
    * renders as a plain table, with no env.inlineRollTables entry, no href
@@ -72,6 +76,7 @@ export interface MpxMarkdownEnvironment {
   inlineSpells?: InlineSpellBlock[]
   inlineItems?: InlineItemBlock[]
   inlineMonsters?: InlineMonsterBlock[]
+  inlineBackgrounds?: InlineBackgroundBlock[]
   inlineRollTables?: InlineRollTableBlock[]
   /** The current page's front-matter name/slug, used only to build a roll
    * table's default name/slug when no {.table-title} heading precedes it.
@@ -98,6 +103,13 @@ export interface InlineItemBlock {
 }
 
 export interface InlineMonsterBlock {
+  data: Record<string, unknown>
+  issues: ValidationIssue[]
+  /** 0-based source line the fence starts at, for "reveal in page" navigation. */
+  line: number
+}
+
+export interface InlineBackgroundBlock {
   data: Record<string, unknown>
   issues: ValidationIssue[]
   /** 0-based source line the fence starts at, for "reveal in page" navigation. */
@@ -533,6 +545,38 @@ function installMonsterBlockRendering(markdown: MarkdownItInstance, options: Mar
   }
 }
 
+/** Renders a fenced ` ```background ` block — same mechanism as
+ * installSpellBlockRendering/installItemBlockRendering, chained after
+ * monster so its own `defaultFence` falls back through monster then item
+ * then spell then a plain code block. */
+function installBackgroundBlockRendering(markdown: MarkdownItInstance, options: MarkdownRendererOptions): void {
+  const defaultFence =
+    markdown.renderer.rules.fence ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts))
+
+  markdown.renderer.rules.fence = (tokens, idx, opts, envArg: MpxMarkdownEnvironment | undefined, self) => {
+    const env: MpxMarkdownEnvironment = envArg ?? {}
+    const token = tokens[idx]
+    if (token.info.trim().toLowerCase() !== 'background') {
+      return defaultFence(tokens, idx, opts, env, self)
+    }
+
+    const { data, issues } = parseBackgroundBlock(token.content)
+    if (issues.length > 0) {
+      const messages = issues.map((issue) => escapeHtml(issue.message)).join(' ')
+      return `<div class="background-block-error">${messages}</div>`
+    }
+
+    env.inlineBackgrounds ??= []
+    env.inlineBackgrounds.push({ data, issues, line: token.map?.[0] ?? 0 })
+
+    const measurement = resolveOption(options.measurement, 'imperial' as MeasurementSystem)
+    const language = resolveOption(options.language, 'en' as ContentLanguage)
+    const overrides = resolveOption(options.overrides, undefined as CatalogOverrides | undefined)
+    const displayDefaults = resolveOption(options.backgroundDisplayDefaults, undefined as BackgroundDisplayDefaults | undefined)
+    return renderBackgroundBlockHtml(data, markdown, { measurement, language, overrides, preview: options.preview, displayDefaults })
+  }
+}
+
 function hasClass(token: Token, name: string): boolean {
   const value = token.attrGet('class')
   return typeof value === 'string' && value.split(/\s+/).includes(name)
@@ -801,6 +845,7 @@ export function createMarkdownRenderer(options: MarkdownRendererOptions = {}): M
   installSpellBlockRendering(markdown, options)
   installItemBlockRendering(markdown, options)
   installMonsterBlockRendering(markdown, options)
+  installBackgroundBlockRendering(markdown, options)
   installRollTableDetection(markdown, options)
 
   if (options.preview) {

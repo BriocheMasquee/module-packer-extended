@@ -103,6 +103,9 @@ export async function createModuleProject(
     'mpx.defaultShowMonsterToken': true,
     'mpx.defaultShowMonsterSources': true,
     'mpx.defaultShowMonsterTags': true,
+    'mpx.defaultShowBackgroundImage': true,
+    'mpx.defaultShowBackgroundSources': true,
+    'mpx.defaultShowBackgroundTags': true,
     'mpx.autoDetectRollTables': true,
   }
   await mkdir(join(targetFolder, '.vscode'), { recursive: true })

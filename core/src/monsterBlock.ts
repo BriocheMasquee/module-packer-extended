@@ -644,7 +644,7 @@ export function renderMonsterBlockHtml(
   const showTagsDefault = options.displayDefaults?.showTags ?? true
   const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
   const footerLines = [
-    detailLine(translate('Common.Source', locale.language, locale.overrides), showSources ? formatSources(data.sources) : undefined),
+    detailLine(translate('Common.Source', locale.language, locale.overrides), showSources ? formatSources(data.sources, locale.language) : undefined),
     detailLine(translate('Common.Tags', locale.language, locale.overrides), showTags ? formatTags(data.tags) : undefined),
   ]
     .filter(Boolean)
