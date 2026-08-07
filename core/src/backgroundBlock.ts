@@ -151,12 +151,17 @@ function formatConjunctionList(items: string[], language: ContentLanguage): stri
   return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(items)
 }
 
+/** Plain `, `-joined, no conjunction — confirmed against a real
+ * EncounterPlus-rendered card: "Intelligence, Wisdom, Charisma", never
+ * "...and Charisma" the way `Skill Proficiencies`/`Tool Proficiencies`
+ * do (see formatConjunctionList). Ability Scores is the one detail line
+ * that doesn't get the "and"/"et" treatment. */
 function formatAbilities(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const abilities = Array.isArray(data.abilities) ? data.abilities.filter((entry): entry is string => typeof entry === 'string') : []
-  return formatConjunctionList(
-    abilities.map((ability) => translateAbility(ability, locale)),
-    locale.language,
-  )
+  if (abilities.length === 0) {
+    return undefined
+  }
+  return abilities.map((ability) => translateAbility(ability, locale)).join(', ')
 }
 
 function formatSkills(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
@@ -200,17 +205,22 @@ export interface BackgroundBlockRenderOptions {
  * styles — shared with item/spell. Unlike item/spell's colon-separated
  * detail lines ("Weight: 3 lb"), a background's own detail lines use the
  * real official book's run-in-header style ("Ability Scores. Intelligence,
- * Wisdom, and Charisma"), a bold label ending in a period rather than a
- * colon — `.compendium-block-detail-label` is already bold in the theme
- * CSS, only the separator differs, so the existing classes are reused
- * as-is with a different separator string. `data.equipment` supports
- * Markdown (real EncounterPlus data embeds links like
- * `[Calligrapher's Supplies](/item/...)`), rendered inline like the other
- * detail values but through the Markdown renderer instead of escaped text.
- * Image renders right after the description, before the Source/Tags
- * footer — the outer div also carries a `compendium-block-background`
- * class alongside the shared `compendium-block` one, so a theme can style
- * background's title/detail lines/image differently from item/spell's
+ * Wisdom, Charisma"), a bold label ending in a period rather than a colon
+ * — `.compendium-block-detail-label` is already bold in the theme CSS,
+ * only the separator differs, so the existing classes are reused as-is
+ * with a different separator string. `Ability Scores` joins with a plain
+ * comma (no "and"/"et"), unlike `Skill Proficiencies`/`Tool Proficiencies`
+ * (see formatConjunctionList) — confirmed against a real
+ * EncounterPlus-rendered card. `data.feat`/`data.tools`/`data.equipment`
+ * support Markdown (real EncounterPlus data embeds links like
+ * `[Calligrapher's Supplies](/item/...)` in these fields), rendered
+ * inline like the other detail values but through the Markdown renderer
+ * instead of escaped text — `data.skills` doesn't, since its values are
+ * translated catalog labels, never authored free text. Image renders
+ * right after the description, before the Source/Tags footer — the outer
+ * div also carries a `compendium-block-background` class alongside the
+ * shared `compendium-block` one, so a theme can style background's
+ * title/detail lines/image differently from item/spell's
  * identical-looking card without affecting them. */
 export function renderBackgroundBlockHtml(
   data: Record<string, unknown>,
@@ -239,6 +249,10 @@ export function renderBackgroundBlockHtml(
   }
   const escapedDetailLine = (label: string, value: string | undefined): string =>
     value ? detailLine(label, escapeHtml(value)) : ''
+  // Feat/Tools/Equipment support Markdown — real EncounterPlus data embeds
+  // links like `[Calligrapher's Supplies](/item/...)` in these fields.
+  const markdownDetailLine = (label: string, value: string | undefined): string =>
+    value ? detailLine(label, markdown.renderInline(value)) : ''
   const footerDetailLine = (label: string, value: string | undefined): string => {
     if (!value) {
       return ''
@@ -281,12 +295,10 @@ export function renderBackgroundBlockHtml(
     '<div class="compendium-block-body">',
     '<div class="compendium-block-details">',
     escapedDetailLine(translate('Background.AbilityScores', locale.language, locale.overrides), formatAbilities(backgroundData, locale)),
-    escapedDetailLine(translate('Entity.Feat', locale.language, locale.overrides), formatFeat(backgroundData)),
+    markdownDetailLine(translate('Entity.Feat', locale.language, locale.overrides), formatFeat(backgroundData)),
     escapedDetailLine(translate('Background.SkillProficiencies', locale.language, locale.overrides), formatSkills(backgroundData, locale)),
-    escapedDetailLine(translate('Background.ToolProficiencies', locale.language, locale.overrides), formatTools(backgroundData, locale)),
-    equipment
-      ? detailLine(translate('Background.Equipment', locale.language, locale.overrides), markdown.renderInline(equipment))
-      : '',
+    markdownDetailLine(translate('Background.ToolProficiencies', locale.language, locale.overrides), formatTools(backgroundData, locale)),
+    markdownDetailLine(translate('Background.Equipment', locale.language, locale.overrides), equipment),
     '</div>',
     descriptionHtml,
     imageHtml,
