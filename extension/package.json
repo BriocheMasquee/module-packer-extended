@@ -293,6 +293,30 @@
         "title": "Delete",
         "category": "MPX",
         "icon": "$(trash)"
+      },
+      {
+        "command": "mpx.toggleBold",
+        "title": "Toggle Bold",
+        "category": "MPX"
+      },
+      {
+        "command": "mpx.toggleItalic",
+        "title": "Toggle Italic",
+        "category": "MPX"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "mpx.toggleBold",
+        "key": "ctrl+b",
+        "mac": "cmd+b",
+        "when": "editorTextFocus && editorLangId == markdown"
+      },
+      {
+        "command": "mpx.toggleItalic",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "editorTextFocus && editorLangId == markdown"
       }
     ],
     "viewsContainers": {

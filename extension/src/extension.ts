@@ -26,6 +26,7 @@ import { registerDeleteEntryCommand } from './deleteEntryCommand.js'
 import { registerCompendiumBlockAssistance } from './compendiumBlockAssistance.js'
 import { registerThemeCommands } from './themeCommands.js'
 import { registerThemeGatedSnippets } from './themeGatedSnippets.js'
+import { registerFormattingCommands } from './formattingCommands.js'
 
 interface MarkdownItExtensionApi {
   extendMarkdownIt: (markdownIt: unknown) => unknown
@@ -238,6 +239,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
   registerDeleteEntryCommand(context)
   registerCompendiumBlockAssistance(context)
   registerThemeGatedSnippets(context)
+  registerFormattingCommands(context)
 
   void updateWorkspaceKindContext()
   void openPendingModuleConfiguration(context)
