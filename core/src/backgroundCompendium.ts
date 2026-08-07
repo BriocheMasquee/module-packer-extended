@@ -8,9 +8,11 @@ import {
 } from './compendiumShared.js'
 
 /** Suggestions only, not a validated enum — a real EncounterPlus background
- * form lets a custom ability/skill/language/tool alongside the standard
- * list, same convention as a monster's `languages`/`environments` (see
- * monsterCompendium.ts). */
+ * form lets a custom ability/skill alongside the standard list, same
+ * convention as a monster's `languages`/`environments` (see
+ * monsterCompendium.ts). No `languages` here — a 5e-only background field,
+ * dropped from 5.5e's own background data model (confirmed against real
+ * 5.5e exports, none of which carry it). */
 export const BACKGROUND_ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 export const BACKGROUND_SKILLS = [
   'acrobatics',
@@ -32,29 +34,11 @@ export const BACKGROUND_SKILLS = [
   'stealth',
   'survival',
 ]
-export const BACKGROUND_LANGUAGES = [
-  'Common',
-  'Dwarvish',
-  'Elvish',
-  'Giant',
-  'Gnomish',
-  'Goblin',
-  'Halfling',
-  'Orc',
-  'Abyssal',
-  'Celestial',
-  'DeepSpeech',
-  'Draconic',
-  'Infernal',
-  'Primordial',
-  'Sylvan',
-  'Undercommon',
-]
 export const BACKGROUND_IMAGE_PATTERN = /^backgrounds\/[^/\\]+$/
 
 const BACKGROUND_TOP_LEVEL_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
-const BACKGROUND_DATA_OPTIONAL_FIELDS = ['abilities', 'feat', 'skills', 'tools', 'languages', 'equipment']
-const BACKGROUND_DATA_STRING_ARRAY_FIELDS = ['abilities', 'skills', 'tools', 'languages']
+const BACKGROUND_DATA_OPTIONAL_FIELDS = ['abilities', 'feat', 'skills', 'tools', 'equipment']
+const BACKGROUND_DATA_STRING_ARRAY_FIELDS = ['abilities', 'skills', 'tools']
 
 export function validateBackgroundData(relativePath: string, data: unknown, issues: ValidationIssue[]): void {
   if (data === undefined) {

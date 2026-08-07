@@ -178,7 +178,6 @@ export function createBackground(moduleRoot: string, name: string, measurement =
       feat: '',
       skills: [] as string[],
       tools: [] as string[],
-      languages: [] as string[],
       equipment: '',
     },
     descr: '',

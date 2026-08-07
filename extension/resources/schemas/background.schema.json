@@ -157,45 +157,6 @@
             ]
           ]
         },
-        "languages": {
-          "type": "array",
-          "markdownDescription": "*Optional.* Languages granted by this background, or a custom value.\n\nExample: `[\"Common\", \"Dwarvish\"]`\n\nEmpty: `[]`",
-          "items": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "Common",
-                  "Dwarvish",
-                  "Elvish",
-                  "Giant",
-                  "Gnomish",
-                  "Goblin",
-                  "Halfling",
-                  "Orc",
-                  "Abyssal",
-                  "Celestial",
-                  "DeepSpeech",
-                  "Draconic",
-                  "Infernal",
-                  "Primordial",
-                  "Sylvan",
-                  "Undercommon"
-                ]
-              },
-              {
-                "type": "string"
-              }
-            ]
-          },
-          "default": [],
-          "examples": [
-            [
-              "Common",
-              "Dwarvish"
-            ]
-          ]
-        },
         "equipment": {
           "type": "string",
           "markdownDescription": "*Optional.* Starting equipment granted by this background, as free text. Markdown is supported.",

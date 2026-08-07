@@ -91,7 +91,7 @@ export {
   MONSTER_LANGUAGES,
   MONSTER_ENVIRONMENTS,
 } from './monsterCompendium.js'
-export { BACKGROUND_ABILITY_KEYS, BACKGROUND_SKILLS, BACKGROUND_LANGUAGES } from './backgroundCompendium.js'
+export { BACKGROUND_ABILITY_KEYS, BACKGROUND_SKILLS } from './backgroundCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'
 export { analyzeMpProject, convertMpProject } from './mpConversion.js'
 export { reshapeMpCompendiumBlocks } from './mpCompendiumBlocks.js'
