@@ -63,6 +63,10 @@ export { findInlineBackgrounds } from './inlineBackgroundScan.js'
 export type { InlineBackgroundSummary } from './inlineBackgroundScan.js'
 export { findInlineRollTables } from './inlineRollTableScan.js'
 export type { InlineRollTableSummary } from './inlineRollTableScan.js'
+export { readRuleImportZips, RULE_MANIFEST_FILE_NAME } from './ruleImport.js'
+export type { RuleImportZip, RuleImportZipFailure } from './ruleImport.js'
+export { detectManifestFileName } from './mapEncounterExport.js'
+export { RAW_COMPENDIUM_IMPORT_TYPES, AUTHORED_COMPENDIUM_MANIFESTS } from './compendiumImportTypes.js'
 
 // Inline ```spell/item/monster block editing assistance (completion +
 // diagnostics, see extension/src/compendiumBlockAssistance.ts): parsers,

@@ -6,6 +6,7 @@ import matter from 'gray-matter'
 import { ZipFile } from 'yazl'
 import { listFilesRecursively } from './fileScan.js'
 import { readExportArchive } from './mapEncounterExport.js'
+import { readRuleImportZips, RULE_IMAGE_PATTERN } from './ruleImport.js'
 import { createMarkdownRenderer } from './markdownRenderer.js'
 import type { MpxMarkdownEnvironment } from './markdownRenderer.js'
 import { MODULE_CATEGORIES } from './moduleProject.js'
@@ -50,6 +51,7 @@ export interface BuildSummary {
   tableCount: number
   monsterCount: number
   backgroundCount: number
+  ruleCount: number
   /** The version the .module archive was actually built with. */
   builtVersion: string
   /** Set only when autoIncrementVersion bumped module.json for the next build. */
@@ -89,8 +91,9 @@ const RESERVED_RESOURCE_NAMES = new Set([
   'tables.json',
   'monsters.json',
   'backgrounds.json',
+  'rules.json',
 ])
-const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', 'monsters/', 'backgrounds/']
+const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', 'monsters/', 'backgrounds/', 'rules/']
 
 const MODULE_JSON_OPTIONAL_FIELDS = [
   'acronym',
@@ -979,6 +982,76 @@ function validateRollTableShape(relativePath: string, data: Record<string, unkno
   }
 }
 
+/** Reads every `.zip` in rules/ — raw EncounterPlus "Rule" Compendium exports
+ * (a `rules.json` manifest holding every entry from that export, plus any
+ * referenced images) — and merges them into one array. Unlike item/spell/
+ * monster/background, MPX has no YAML authoring or schema for this content
+ * type: entries pass through close to verbatim, since E+ already guarantees
+ * their shape. Only structural safety (id/name/slug, no duplicates, image
+ * resources actually present in the zip) is checked. */
+async function readRuleImports(
+  moduleRoot: string,
+  issues: BuildIssue[],
+  ruleImageResourcesOut: Map<string, { data: Buffer; sourceZip: string }>,
+): Promise<Record<string, unknown>[]> {
+  const { succeeded, failed } = await readRuleImportZips(moduleRoot)
+  const rules: Record<string, unknown>[] = []
+  const pathById = new Map<string, string>()
+  const pathBySlug = new Map<string, string>()
+
+  for (const { zipFilePath, error } of failed) {
+    issues.push({ file: toPortablePath(moduleRoot, zipFilePath), message: `is not a readable Compendium export: ${error}` })
+  }
+
+  for (const { zipFilePath, records, resources } of succeeded) {
+    const relativePath = toPortablePath(moduleRoot, zipFilePath)
+    for (const record of records) {
+      if (!isUuid(record.id) || !isNonEmptyString(record.name) || !isNonEmptyString(record.slug)) {
+        issues.push({ file: relativePath, message: 'Each rule entry must contain a valid UUID id, a non-empty name, and a non-empty slug.' })
+        continue
+      }
+      const slug = record.slug.trim()
+      validateSlugFormat(relativePath, slug, issues)
+      const id = record.id
+
+      const existingIdPath = pathById.get(id)
+      if (existingIdPath) {
+        issues.push({ file: relativePath, message: `Duplicate rule id "${id}" in ${existingIdPath} and ${relativePath}.` })
+      } else {
+        pathById.set(id, relativePath)
+      }
+      const existingSlugPath = pathBySlug.get(slug)
+      if (existingSlugPath) {
+        issues.push({ file: relativePath, message: `Duplicate rule slug "${slug}" in ${existingSlugPath} and ${relativePath}.` })
+      } else {
+        pathBySlug.set(slug, relativePath)
+      }
+
+      if (isNonEmptyString(record.image)) {
+        if (!RULE_IMAGE_PATTERN.test(record.image)) {
+          issues.push({ file: relativePath, message: `image must be a path to a file directly inside the rules folder (got "${record.image}").` })
+        } else if (!resources.has(record.image)) {
+          issues.push({ file: relativePath, message: `references missing rule image "${record.image}" — not found in the export archive.` })
+        } else {
+          const existingImage = ruleImageResourcesOut.get(record.image)
+          if (existingImage && existingImage.sourceZip !== relativePath) {
+            issues.push({
+              file: relativePath,
+              message: `Rule image collision for "${record.image}" between ${existingImage.sourceZip} and ${relativePath}.`,
+            })
+          } else {
+            ruleImageResourcesOut.set(record.image, { data: resources.get(record.image) as Buffer, sourceZip: relativePath })
+          }
+        }
+      }
+
+      rules.push({ ...record, slug })
+    }
+  }
+
+  return rules.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+}
+
 /** Reads tables/**\/*.json. Unlike items/spells, roll tables have no
  * attributes/data/image envelope — just columns/rows and a few optional
  * fields. `rolls` is an EncounterPlus-internal runtime field (roll history)
@@ -1464,7 +1537,8 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const spellImageResources = new Map<string, string>()
   const monsterImageResources = new Map<string, string>()
   const backgroundImageResources = new Map<string, string>()
-  const [pageResult, groups, maps, encounters, items, spells, tables, monsters, backgrounds] = await Promise.all([
+  const ruleImageResources = new Map<string, { data: Buffer; sourceZip: string }>()
+  const [pageResult, groups, maps, encounters, items, spells, tables, monsters, backgrounds, rules] = await Promise.all([
     readPages(
       moduleRoot,
       issues,
@@ -1485,6 +1559,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     readRollTables(moduleRoot, issues),
     readMonsters(moduleRoot, issues, monsterImageResources, defaultMeasurement),
     readBackgrounds(moduleRoot, issues, backgroundImageResources, defaultMeasurement),
+    readRuleImports(moduleRoot, issues, ruleImageResources),
   ])
   const {
     entries: pages,
@@ -1665,6 +1740,9 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   if (backgrounds.length > 0) {
     addJson(backgrounds, 'backgrounds.json')
   }
+  if (rules.length > 0) {
+    addJson(rules, 'rules.json')
+  }
 
   await addDirectoryToZip(zip, join(moduleRoot, 'images'), 'images')
   await addDirectoryToZip(zip, join(moduleRoot, 'assets'), 'assets')
@@ -1686,6 +1764,9 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   }
   for (const [archivePath, resolvedPath] of backgroundImageResources) {
     zip.addFile(resolvedPath, archivePath, { compress: false })
+  }
+  for (const [archivePath, resource] of ruleImageResources) {
+    zip.addBuffer(resource.data, archivePath, { compress: false })
   }
 
   for (const field of ['image', 'banner']) {
@@ -1723,6 +1804,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     tableCount: tables.length,
     monsterCount: monsters.length,
     backgroundCount: backgrounds.length,
+    ruleCount: rules.length,
     builtVersion,
     nextVersion,
     brokenLinks,

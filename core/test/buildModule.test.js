@@ -48,6 +48,21 @@ async function writeExportArchive(destPath, manifestFileName, record, resources 
   })
 }
 
+/** Builds a real EncounterPlus Compendium "Rule" export zip — a manifest
+ * holding *every* exported entry (unlike a map/encounter export, which
+ * always holds exactly one) plus optional resources. */
+async function writeCompendiumImportArchive(destPath, manifestFileName, records, resources = {}) {
+  await new Promise((resolvePromise, rejectPromise) => {
+    const zip = new ZipFile()
+    zip.addBuffer(Buffer.from(JSON.stringify(records)), manifestFileName)
+    for (const [name, content] of Object.entries(resources)) {
+      zip.addBuffer(Buffer.from(content), name)
+    }
+    zip.outputStream.pipe(createWriteStream(destPath)).on('close', resolvePromise).on('error', rejectPromise)
+    zip.end()
+  })
+}
+
 test('buildModule writes a .module archive with resolved ids and rendered page content', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)
@@ -2713,4 +2728,145 @@ test('buildModule flagging a broken link does not fail the build (non-blocking)'
   // Would throw ModuleBuildError if this were treated as a hard failure.
   const summary = await buildModule(root)
   assert.ok(summary.outputPath)
+})
+
+test('buildModule omits rules.json when there are no rule imports', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.ruleCount, 0)
+  assert.ok(!listZipEntries(summary.outputPath).includes('rules.json'))
+})
+
+test('buildModule merges a raw Rule Compendium export zip into rules.json, verbatim, and copies its image', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'rules'), { recursive: true })
+  await writeCompendiumImportArchive(
+    join(root, 'rules', 'export.zip'),
+    'rules.json',
+    [
+      {
+        created: '2026-07-23T09:24:05Z',
+        modified: '2026-08-05T06:50:30Z',
+        descr: '## Un texte de règle\n\nAvec du **markdown**.',
+        id: '971261B8-B699-5E5A-860D-11206F12F7BA',
+        image: 'rules/cover.png',
+        name: 'Agrippé',
+        slug: 'agrippe',
+        type: 'condition',
+      },
+    ],
+    { 'rules/cover.png': 'fake-image-bytes' },
+  )
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.ruleCount, 1)
+  const rules = JSON.parse(readZipEntry(summary.outputPath, 'rules.json'))
+  assert.equal(rules.length, 1)
+  // Passed through close to verbatim — no MPX schema reshapes the record.
+  assert.equal(rules[0].name, 'Agrippé')
+  assert.equal(rules[0].type, 'condition')
+  assert.equal(rules[0].descr, '## Un texte de règle\n\nAvec du **markdown**.')
+  assert.equal(rules[0].created, '2026-07-23T09:24:05Z')
+  assert.ok(listZipEntries(summary.outputPath).includes('rules/cover.png'))
+})
+
+test('buildModule merges rule entries from several export zips into one rules.json', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'rules'), { recursive: true })
+  await writeCompendiumImportArchive(join(root, 'rules', 'phb.zip'), 'rules.json', [
+    { id: '971261B8-B699-5E5A-860D-11206F12F7BA', name: 'Agrippé', slug: 'agrippe', type: 'condition' },
+  ])
+  await writeCompendiumImportArchive(join(root, 'rules', 'dmg.zip'), 'rules.json', [
+    { id: '11111111-1111-1111-1111-111111111111', name: 'Aveuglé', slug: 'aveugle', type: 'condition' },
+  ])
+
+  const summary = await buildModule(root)
+
+  assert.equal(summary.ruleCount, 2)
+  const rules = JSON.parse(readZipEntry(summary.outputPath, 'rules.json'))
+  assert.deepEqual(
+    rules.map((rule) => rule.slug).sort(),
+    ['agrippe', 'aveugle'],
+  )
+})
+
+test('buildModule rejects a rule entry missing a valid id/name/slug', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'rules'), { recursive: true })
+  await writeCompendiumImportArchive(join(root, 'rules', 'export.zip'), 'rules.json', [
+    { id: 'not-a-uuid', name: 'Agrippé', slug: 'agrippe', type: 'condition' },
+  ])
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.equal(error.issues.length, 1)
+      assert.match(error.issues[0].message, /must contain a valid UUID id/)
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a duplicate rule id across two export zips', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'rules'), { recursive: true })
+  const duplicateId = '971261B8-B699-5E5A-860D-11206F12F7BA'
+  await writeCompendiumImportArchive(join(root, 'rules', 'a.zip'), 'rules.json', [
+    { id: duplicateId, name: 'Agrippé', slug: 'agrippe', type: 'condition' },
+  ])
+  await writeCompendiumImportArchive(join(root, 'rules', 'b.zip'), 'rules.json', [
+    { id: duplicateId, name: 'Agrippé (bis)', slug: 'agrippe-bis', type: 'condition' },
+  ])
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.match(error.issues[0].message, /Duplicate rule id/)
+      return true
+    },
+  )
+})
+
+test('buildModule rejects a rule entry referencing an image missing from its own export zip', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'rules'), { recursive: true })
+  await writeCompendiumImportArchive(join(root, 'rules', 'export.zip'), 'rules.json', [
+    { id: '971261B8-B699-5E5A-860D-11206F12F7BA', name: 'Agrippé', slug: 'agrippe', type: 'condition', image: 'rules/cover.png' },
+  ])
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.match(error.issues[0].message, /references missing rule image/)
+      return true
+    },
+  )
+})
+
+test('buildModule rejects an unreadable rule export zip', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'rules'), { recursive: true })
+  await writeFile(join(root, 'rules', 'export.zip'), 'not actually a zip')
+
+  await assert.rejects(
+    () => buildModule(root),
+    (error) => {
+      assert.ok(error instanceof ModuleBuildError)
+      assert.match(error.issues[0].message, /is not a readable Compendium export/)
+      return true
+    },
+  )
 })

@@ -5,6 +5,16 @@ const DELETE_COMMAND = 'mpx.deleteEntry'
 
 interface DeletableTreeItem extends vscode.TreeItem {
   filePath: string
+  /** Overrides the confirmation dialog's displayed name — for an item whose
+   * `filePath` isn't itself "the thing the user clicked" (e.g. a rule entry
+   * read out of a shared import zip), showing the entry's own label would
+   * misname what's actually about to be deleted. */
+  deleteDisplayName?: string
+  /** Extra sentence appended to the confirmation dialog, for a delete whose
+   * blast radius is bigger than the single clicked item (e.g. deleting a
+   * rule import zip removes every entry inside it, not just the one
+   * clicked). */
+  deleteWarningNote?: string
 }
 
 function isDeletableTreeItem(item: unknown): item is DeletableTreeItem {
@@ -17,9 +27,10 @@ export function registerDeleteEntryCommand(context: vscode.ExtensionContext): vo
       if (!isDeletableTreeItem(item)) {
         return
       }
-      const displayName = typeof item.label === 'string' ? item.label : basename(item.filePath)
+      const displayName = item.deleteDisplayName ?? (typeof item.label === 'string' ? item.label : basename(item.filePath))
+      const warningNote = item.deleteWarningNote ? ` ${item.deleteWarningNote}` : ''
       const confirmation = await vscode.window.showWarningMessage(
-        `Delete "${displayName}"? It will be moved to the OS trash.`,
+        `Delete "${displayName}"?${warningNote} It will be moved to the OS trash.`,
         { modal: true },
         'Delete',
       )

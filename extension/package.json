@@ -295,6 +295,12 @@
         "icon": "$(trash)"
       },
       {
+        "command": "mpx.importCompendium",
+        "title": "Import Compendium (.zip)",
+        "category": "MPX",
+        "icon": "$(cloud-upload)"
+      },
+      {
         "command": "mpx.toggleBold",
         "title": "Toggle Bold",
         "category": "MPX"
@@ -480,6 +486,11 @@
           "command": "mpx.createBackground",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@5"
+        },
+        {
+          "command": "mpx.importCompendium",
+          "when": "view == mpx.compendiumExplorer",
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [
