@@ -315,7 +315,7 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
   const showSources = typeof data.showSources === 'boolean' ? data.showSources : showSourcesDefault
   const showTagsDefault = options.displayDefaults?.showTags ?? true
   const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
-  const sourcesText = showSources ? formatSources(data.sources) : undefined
+  const sourcesText = showSources ? formatSources(data.sources, locale.language) : undefined
   const tagsText = showTags ? formatTags(data.tags) : undefined
   const footerLines = [
     detailLine(translate('Common.Source', locale.language, locale.overrides), sourcesText),

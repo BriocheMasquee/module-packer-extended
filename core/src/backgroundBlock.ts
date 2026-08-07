@@ -278,7 +278,7 @@ export function renderBackgroundBlockHtml(
   const showSources = typeof data.showSources === 'boolean' ? data.showSources : showSourcesDefault
   const showTagsDefault = options.displayDefaults?.showTags ?? true
   const showTags = typeof data.showTags === 'boolean' ? data.showTags : showTagsDefault
-  const sourcesText = showSources ? formatSources(data.sources) : undefined
+  const sourcesText = showSources ? formatSources(data.sources, locale.language) : undefined
   const tagsText = showTags ? formatTags(data.tags) : undefined
   const footerLines = [
     footerDetailLine(translate('Common.Source', locale.language, locale.overrides), sourcesText),
