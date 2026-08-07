@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto'
-import { copyFile, mkdir, readdir, readFile, rename, rm } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
 import { listFilesRecursively } from './fileScan.js'
 import { isNonEmptyString } from './compendiumShared.js'
@@ -122,68 +121,38 @@ export async function projectAssetsMatchTheme(projectDirectory: string, theme: P
  * own customization layer — see USER_CUSTOMIZATION_FILES), only seeded from
  * the theme's own template the first time they're missing.
  *
- * Staged in a temp directory and swapped in with a rename, with the
- * previous assets/ kept as a backup until the swap succeeds — a failure
- * partway through (e.g. a full disk) leaves the original assets/ untouched
- * rather than a half-copied folder. */
+ * Writes each file directly into assets/ in place (no staging directory,
+ * no whole-folder rename/swap) — an earlier version staged into a temp
+ * directory and swapped it in with a rename, which turned out to race
+ * badly with a project folder synced by iCloud Drive/OneDrive/Dropbox:
+ * the sync daemon watching the folder could pick up the brief
+ * rename-away/rename-in sequence as a conflict and materialize a
+ * duplicate "assets 2"/"assets 3" folder on a repeated click. Per-file
+ * `copyFile` is exactly the kind of write cloud sync providers are built
+ * to handle safely, unlike a rapid directory rename. The trade-off: a
+ * file that existed under an older version of the theme but was removed
+ * from a newer one is never cleaned up here (the old swap-based version
+ * effectively did, since it replaced the whole directory) — an accepted
+ * cost for never risking user data on a synced folder. */
 export async function replaceProjectThemeAssets(projectDirectory: string, theme: ProjectTheme): Promise<void> {
   const assetsDirectory = join(projectDirectory, 'assets')
-  const operationId = randomUUID()
-  const stagedDirectory = join(projectDirectory, `.assets-mpx-${operationId}`)
-  const backupDirectory = join(projectDirectory, `.assets-mpx-backup-${operationId}`)
-  const hadAssets = await readdir(assetsDirectory)
-    .then(() => true)
-    .catch(() => false)
-
-  await mkdir(stagedDirectory, { recursive: true })
-
-  // Customization files: preserve the project's own copy if it already has
-  // one, staged before the theme's own files below so they never get
-  // clobbered by them.
-  for (const relativePath of USER_CUSTOMIZATION_FILES) {
-    const stagedPath = join(stagedDirectory, relativePath)
-    await mkdir(dirname(stagedPath), { recursive: true })
-    await copyFile(join(assetsDirectory, relativePath), stagedPath).catch(() => undefined)
-  }
 
   for (const filePath of await listFilesRecursively(theme.themeDirectory)) {
     const relativePath = portablePath(relative(theme.themeDirectory, filePath))
     if (NEVER_INSTALL_FILE_NAMES.has(relativePath.split('/').pop() ?? '')) {
       continue
     }
-    const targetPath = join(stagedDirectory, relativePath)
+    const targetPath = join(assetsDirectory, relativePath)
     if (USER_CUSTOMIZATION_FILES.has(relativePath)) {
-      // Only seed from the theme's template when the project didn't already
-      // have its own copy (staged above).
-      const alreadyStaged = await readFile(targetPath)
+      // Never overwrite the project's own customization file once it exists.
+      const alreadyExists = await readFile(targetPath)
         .then(() => true)
         .catch(() => false)
-      if (alreadyStaged) {
+      if (alreadyExists) {
         continue
       }
     }
     await mkdir(dirname(targetPath), { recursive: true })
     await copyFile(filePath, targetPath)
-  }
-
-  try {
-    if (hadAssets) {
-      await rename(assetsDirectory, backupDirectory)
-    }
-    await rename(stagedDirectory, assetsDirectory)
-    if (hadAssets) {
-      await rm(backupDirectory, { recursive: true, force: true })
-    }
-  } catch (error) {
-    await rm(stagedDirectory, { recursive: true, force: true })
-    if (hadAssets) {
-      const assetsMissing = await readdir(assetsDirectory)
-        .then(() => false)
-        .catch(() => true)
-      if (assetsMissing) {
-        await rename(backupDirectory, assetsDirectory)
-      }
-    }
-    throw error
   }
 }
