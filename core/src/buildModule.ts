@@ -20,6 +20,7 @@ import { isNonEmptyString, isPlainObject, stripEmptyValues } from './compendiumS
 import { SPELL_IMAGE_PATTERN, validateSpellData, stripEmptySpellFields } from './spellCompendium.js'
 import { ITEM_IMAGE_PATTERN, validateItemData, stripEmptyItemFields } from './itemCompendium.js'
 import { MONSTER_IMAGE_PATTERN, validateMonsterData, stripEmptyMonsterFields } from './monsterCompendium.js'
+import { BACKGROUND_IMAGE_PATTERN, validateBackgroundData, stripEmptyBackgroundFields } from './backgroundCompendium.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
 import type { ItemDisplayDefaults } from './itemBlock.js'
 import type { MonsterDisplayDefaults } from './monsterBlock.js'
@@ -46,6 +47,7 @@ export interface BuildSummary {
   spellCount: number
   tableCount: number
   monsterCount: number
+  backgroundCount: number
   /** The version the .module archive was actually built with. */
   builtVersion: string
   /** Set only when autoIncrementVersion bumped module.json for the next build. */
@@ -84,8 +86,9 @@ const RESERVED_RESOURCE_NAMES = new Set([
   'spells.json',
   'tables.json',
   'monsters.json',
+  'backgrounds.json',
 ])
-const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', 'monsters/']
+const RESERVED_RESOURCE_PREFIXES = ['images/', 'assets/', 'items/', 'spells/', 'monsters/', 'backgrounds/']
 
 const MODULE_JSON_OPTIONAL_FIELDS = [
   'acronym',
@@ -769,6 +772,27 @@ function readMonsters(
   )
 }
 
+function readBackgrounds(
+  moduleRoot: string,
+  issues: BuildIssue[],
+  imageResourcesOut: Map<string, string>,
+  defaultMeasurement: MeasurementSystem,
+): Promise<Record<string, unknown>[]> {
+  return readCompendiumEntries(
+    moduleRoot,
+    {
+      folder: 'backgrounds',
+      kind: 'background',
+      imagePattern: BACKGROUND_IMAGE_PATTERN,
+      validateData: validateBackgroundData,
+      stripEmptyFields: stripEmptyBackgroundFields,
+      defaultMeasurement,
+    },
+    issues,
+    imageResourcesOut,
+  )
+}
+
 const ROLL_TABLE_ROLL_MODES = ['normal', 'noRepeat', 'eachRow']
 const ROLL_TABLE_OPTIONAL_FIELDS = ['descr', 'sources', 'tags']
 
@@ -1288,7 +1312,8 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   const itemImageResources = new Map<string, string>()
   const spellImageResources = new Map<string, string>()
   const monsterImageResources = new Map<string, string>()
-  const [pageResult, groups, maps, encounters, items, spells, tables, monsters] = await Promise.all([
+  const backgroundImageResources = new Map<string, string>()
+  const [pageResult, groups, maps, encounters, items, spells, tables, monsters, backgrounds] = await Promise.all([
     readPages(
       moduleRoot,
       issues,
@@ -1307,6 +1332,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     readSpells(moduleRoot, issues, spellImageResources, defaultMeasurement),
     readRollTables(moduleRoot, issues),
     readMonsters(moduleRoot, issues, monsterImageResources, defaultMeasurement),
+    readBackgrounds(moduleRoot, issues, backgroundImageResources, defaultMeasurement),
   ])
   const {
     entries: pages,
@@ -1459,6 +1485,9 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
   if (monsters.length > 0) {
     addJson(monsters, 'monsters.json')
   }
+  if (backgrounds.length > 0) {
+    addJson(backgrounds, 'backgrounds.json')
+  }
 
   await addDirectoryToZip(zip, join(moduleRoot, 'images'), 'images')
   await addDirectoryToZip(zip, join(moduleRoot, 'assets'), 'assets')
@@ -1476,6 +1505,9 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     zip.addFile(resolvedPath, archivePath, { compress: false })
   }
   for (const [archivePath, resolvedPath] of monsterImageResources) {
+    zip.addFile(resolvedPath, archivePath, { compress: false })
+  }
+  for (const [archivePath, resolvedPath] of backgroundImageResources) {
     zip.addFile(resolvedPath, archivePath, { compress: false })
   }
 
@@ -1513,6 +1545,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
     spellCount: spells.length,
     tableCount: tables.length,
     monsterCount: monsters.length,
+    backgroundCount: backgrounds.length,
     builtVersion,
     nextVersion,
     brokenLinks,

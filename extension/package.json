@@ -243,6 +243,12 @@
         "icon": "$(list-unordered)"
       },
       {
+        "command": "mpx.createBackground",
+        "title": "Create Background",
+        "category": "MPX",
+        "icon": "$(mortar-board)"
+      },
+      {
         "command": "mpx.selectContentLanguage",
         "title": "Select Content Language",
         "category": "MPX"
@@ -331,6 +337,10 @@
       {
         "fileMatch": "/monsters/*.json",
         "url": "./resources/schemas/monster.schema.json"
+      },
+      {
+        "fileMatch": "/backgrounds/*.json",
+        "url": "./resources/schemas/background.schema.json"
       },
       {
         "fileMatch": "/translation-overrides.json",
@@ -423,6 +433,11 @@
           "command": "mpx.createRollTable",
           "when": "view == mpx.compendiumExplorer",
           "group": "navigation@4"
+        },
+        {
+          "command": "mpx.createBackground",
+          "when": "view == mpx.compendiumExplorer",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [

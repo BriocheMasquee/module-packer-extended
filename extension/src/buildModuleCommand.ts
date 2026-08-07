@@ -106,7 +106,7 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
       `Module built as version ${summary.builtVersion}: ${summary.pageCount} page(s), ` +
         `${summary.groupCount} group(s), ${summary.mapCount} map(s), ${summary.encounterCount} encounter(s), ` +
         `${summary.itemCount} item(s), ${summary.spellCount} spell(s), ${summary.tableCount} roll table(s), ` +
-        `${summary.monsterCount} monster(s).` +
+        `${summary.monsterCount} monster(s), ${summary.backgroundCount} background(s).` +
         versionNote +
         brokenLinksNote,
       ...actions,

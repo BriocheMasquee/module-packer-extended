@@ -17,7 +17,14 @@ export {
   createEncounterReference,
 } from './contentEntries.js'
 export type { ContentEntryKind, CreatedContentEntry } from './contentEntries.js'
-export { createItem, createSpell, createRollTable, createMonster, COMPENDIUM_RULESET } from './compendiumEntries.js'
+export {
+  createItem,
+  createSpell,
+  createRollTable,
+  createMonster,
+  createBackground,
+  COMPENDIUM_RULESET,
+} from './compendiumEntries.js'
 export { buildModule, ModuleBuildError, countInlinePageCompendiumEntries } from './buildModule.js'
 export type { BuildIssue, BuildOptions, BuildSummary, InlinePageCompendiumCounts } from './buildModule.js'
 export { incrementPatchVersion } from './version.js'
@@ -84,6 +91,7 @@ export {
   MONSTER_LANGUAGES,
   MONSTER_ENVIRONMENTS,
 } from './monsterCompendium.js'
+export { BACKGROUND_ABILITY_KEYS, BACKGROUND_SKILLS, BACKGROUND_LANGUAGES } from './backgroundCompendium.js'
 export type { ValidationIssue } from './compendiumShared.js'
 export { analyzeMpProject, convertMpProject } from './mpConversion.js'
 export { reshapeMpCompendiumBlocks } from './mpCompendiumBlocks.js'

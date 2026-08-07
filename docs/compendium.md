@@ -1,13 +1,13 @@
 # Compendium
 
-A "Compendium" section in the MPX sidebar, alongside [Project](Project-Panel) and [Module Explorer](Module-Explorer), for reusable game content — items, spells, roll tables, and monsters — rather than the page tree.
+A "Compendium" section in the MPX sidebar, alongside [Project](Project-Panel) and [Module Explorer](Module-Explorer), for reusable game content — items, spells, roll tables, monsters, and backgrounds — rather than the page tree.
 
 ## How to use it
 
-1. Run the command (palette, or the corresponding button in the Compendium panel's title bar, in this order: `MPX: Create Monster`, `MPX: Create Spell`, `MPX: Create Item`, `MPX: Create Roll Table`).
+1. Run the command (palette, or the corresponding button in the Compendium panel's title bar, in this order: `MPX: Create Monster`, `MPX: Create Spell`, `MPX: Create Item`, `MPX: Create Roll Table`, `MPX: Create Background`).
 2. Enter a name. `slug` is generated automatically from it.
 3. The file is created and opens automatically.
-4. It appears under its category (Monsters / Spells / Items / Roll Tables — each labeled with its entry count in parentheses, e.g. "Monsters (3)") in the panel, labeled by its `name` and using the same icon as its "Create" button — the panel watches the folder and refreshes automatically as files are created, edited, or deleted.
+4. It appears under its category (Monsters / Spells / Items / Roll Tables / Backgrounds — each labeled with its entry count in parentheses, e.g. "Monsters (3)") in the panel, labeled by its `name` and using the same icon as its "Create" button — the panel watches the folder and refreshes automatically as files are created, edited, or deleted.
 
 If the generated slug already matches an existing file of the same type, the command fails with a clear error — nothing is overwritten.
 
@@ -21,6 +21,7 @@ Both the Compendium and Module panels have a "Collapse All" button (VSCode's bui
 - **Spell** (`spells/<slug>.json`): `id`, `name`, `slug`, `attributes`, `data` (`level`, `school`, `ritual`, `activation`, `rangeType`/`range`, `areaEffectShape`/`areaEffectSize`, `components`/`componentsDetail`, `durationType`/`duration`/`durationUnit`, `classes`), `descr`, `image`, `sources`, `tags`.
 - **Roll Table** (`tables/<slug>.json`): `id`, `name`, `slug`, `columns`, `rows`, `descr`, `sources`, `tags` — no `attributes`/`data`/`image`, unlike the other three.
 - **Monster** (`monsters/<slug>.json`): `id`, `name`, `slug`, `attributes`, `data` (`size`, `type`, `alignment`, `ac`/`hp` as free text, `speed`, `abilities`, `savingThrows`/`skills` as sparse ability/skill → bonus maps, `conditionImmunities`/`damageImmunities`/`damageResistances`/`damageVulnerabilities`, `senses`, `passivePerception`, `languages`, `cr`, `initiativeBonus`/`proficiencyBonus`, `environments`, and five feature lists — `traits`/`actions`/`bonusActions`/`reactions`/`legendaryActions`, each `{ name, text, usage? }`), `descr`, `image`, `token` (a separate map-token image), `sources`, `tags`. No `mythicActions` — confirmed to be an unused 5.5e-era leftover, omitted entirely.
+- **Background** (`backgrounds/<slug>.json`): `id`, `name`, `slug`, `attributes`, `data` (`abilities`, `feat`, `skills`, `tools`, `languages`, `equipment`), `descr`, `sources`, `tags`, `image` — a different field order than the other three (`descr`/`sources`/`tags`/`image`, not `descr`/`image`/`sources`/`tags`); the other three are tracked to be realigned to match ([issue #41](https://github.com/BriocheMasquee/module-packer-extended/issues/41)). Standalone file only for now — no inline `` ```background `` block authoring yet, unlike item/spell/monster.
 
 Every field is written upfront, like `module.json` — delete whatever doesn't apply to this entry. Nothing is required beyond `id`/`name`/`slug` (see [Build Module](Build-Module) for exactly what's validated and how empty fields are handled at build time).
 
@@ -58,6 +59,12 @@ A spell's `rangeType` and `range` are mutually exclusive, confirmed against real
 A monster's `data.languages` and `data.environments` aren't strictly validated against their standard list — the real EncounterPlus form lets you type a custom entry alongside the usual options (e.g. a homebrew language or a setting-specific environment), so any string is accepted for both. `data.environments` isn't rendered on the card at all (matching real books — it's app-only metadata, not printed stat block content). `data.languages` **is** rendered, and each entry is translated against the catalog's `Language.*` namespace when `mpx.contentLanguage` is `"fr"` (e.g. `Common` → `Commun`) — a value with no matching catalog entry (a homebrew language, or "All") renders exactly as typed, untranslated.
 
 `data.cr` (challenge rating), on the other hand, **is** a closed list — confirmed against EncounterPlus's own challenge-rating-to-XP table: `0`, the three sub-1 fractions (`1/8`, `1/4`, `1/2`), then every integer from `1` to `30`.
+
+A background's `data.abilities`, `data.skills`, and `data.languages` follow the exact same convention — any string is accepted alongside the standard ability/skill/language list. Unlike monster's `languages`/`environments` (free text with no schema-level suggestions), these three fields' JSON schema pairs the standard list with an unrestricted string branch (`anyOf`), so VSCode's Ctrl+Space/⌃Space completion suggests the standard values while still accepting a custom one without a validation error. `data.tools` has no standard list at all (EncounterPlus itself has no fixed tool catalog) — it's plain free text, one entry per string, no completion.
+
+## Background's `data.feat` is a single string, not a list
+
+Confirmed against a real `backgrounds.json` export: a background grants exactly one origin feat, authored as a plain string (e.g. `"Magic Initiate (Cleric)"`), not an array — even though the adjacent `abilities`/`skills`/`tools`/`languages` fields are all arrays. `data.equipment` is also a single free-text string (the "Choose A or B" starting-equipment blurb) and supports Markdown, same as `descr`.
 
 ## Inline spell authoring
 
@@ -371,3 +378,4 @@ Both reuse the exact same field-name/enum-value lists and validators the rendere
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/module-packer-extended/issues/3)), so both fields just accept free-form strings for now.
 - **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — deliberately not planned (closed as not wanted, see former issue #1); front-matter mistakes are still caught at `Build Module` time.
 - **No completion for a monster's `speed`/`senses`** nested fields — every other nested object field (`attributes`, a spell's `activation`, a monster's `abilities`/`savingThrows`/`skills`) is covered, see [Editing assistance for inline blocks](#editing-assistance-for-inline-blocks).
+- **No inline `` ```background `` block authoring** — unlike item/spell/monster, a background can currently only be authored as a standalone `backgrounds/<slug>.json` file. No card rendering (`.compendium-block` or otherwise) exists for it yet either.
