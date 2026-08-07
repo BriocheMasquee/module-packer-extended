@@ -109,6 +109,7 @@ export function createMonster(moduleRoot: string, name: string, measurement = ''
     id: randomUUID(),
     name,
     slug,
+    token: 'monsters/',
     attributes: {
       measurement,
       ruleset: COMPENDIUM_RULESET,
@@ -157,7 +158,6 @@ export function createMonster(moduleRoot: string, name: string, measurement = ''
     },
     descr: '',
     image: 'monsters/',
-    token: 'monsters/',
     sources: [] as { name: string; page?: number }[],
     tags: [] as string[],
   })

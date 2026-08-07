@@ -1,7 +1,7 @@
 import { parse as parseYaml } from 'yaml'
 import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
-import { validateItemData } from './itemCompendium.js'
+import { validateItemData, ITEM_RARITIES, ITEM_MASTERIES, ITEM_PROPERTIES } from './itemCompendium.js'
 import { translate, type RenderLocale, type CatalogOverrides } from './catalog.js'
 import {
   escapeHtml,
@@ -11,6 +11,8 @@ import {
   formatSources,
   formatTags,
   labelSeparator,
+  translateEnum,
+  translateEnumOrCustom,
 } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
@@ -103,14 +105,8 @@ export function parseItemBlock(yamlSource: string): ParsedItemBlock {
   return { data, issues }
 }
 
-/** Catalog keys follow `{Namespace}.{PascalCase(enumKey)}` — same pattern
- * confirmed for spell enums (see spellBlock.ts's translateEnum). "custom" is
- * the one item type with no ItemType.Custom entry — Common.Custom covers it. */
-function translateEnum(namespace: string, enumKey: string, locale: RenderLocale): string {
-  const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
-  return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
-}
-
+/** "custom" is the one item type with no ItemType.Custom entry —
+ * Common.Custom covers it. */
 function translateItemType(type: string, locale: RenderLocale): string {
   return type === 'custom' ? translate('Common.Custom', locale.language, locale.overrides) : translateEnum('ItemType', type, locale)
 }
@@ -158,7 +154,7 @@ function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): st
   const rawType = isNonEmptyString(data.type) ? data.type : undefined
   const type = rawType ? translateItemType(rawType, locale) : undefined
   const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
-  let rarity = isNonEmptyString(data.rarity) ? translateEnum('ItemRarity', data.rarity, locale) : undefined
+  let rarity = isNonEmptyString(data.rarity) ? translateEnumOrCustom('ItemRarity', data.rarity, ITEM_RARITIES, locale) : undefined
   if (rarity && locale.language === 'fr' && rawType && ITEM_TYPE_FEMININE[rawType]) {
     rarity = feminizeFrenchRarity(rarity)
   }
@@ -200,7 +196,7 @@ function formatDamage(data: Record<string, unknown>, locale: RenderLocale): stri
 }
 
 function formatMastery(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
-  return isNonEmptyString(data.mastery) ? translateEnum('ItemProperty', data.mastery, locale) : undefined
+  return isNonEmptyString(data.mastery) ? translateEnumOrCustom('ItemProperty', data.mastery, ITEM_MASTERIES, locale) : undefined
 }
 
 function formatItemRange(data: Record<string, unknown>): string | undefined {
@@ -211,7 +207,9 @@ function formatProperties(data: Record<string, unknown>, locale: RenderLocale): 
   const properties = Array.isArray(data.properties)
     ? data.properties.filter((entry): entry is string => typeof entry === 'string')
     : []
-  return properties.length > 0 ? properties.map((property) => translateEnum('ItemProperty', property, locale)).join(', ') : undefined
+  return properties.length > 0
+    ? properties.map((property) => translateEnumOrCustom('ItemProperty', property, ITEM_PROPERTIES, locale)).join(', ')
+    : undefined
 }
 
 /** Attunement/stealth are boolean flags, not label:value pairs — rendered

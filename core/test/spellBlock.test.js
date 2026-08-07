@@ -338,6 +338,17 @@ name: Fireball
   assert.doesNotMatch(html, /spell-block-school-icon/)
 })
 
+test('accepts a custom school value, rendered exactly as typed (not a mangled catalog key), with no icon', () => {
+  const html = renderSpell(`
+name: Homebrew Spell
+level: 3
+school: homebrewSchool
+`)
+  assert.doesNotMatch(html, /spell-block-error/)
+  assert.doesNotMatch(html, /spell-block-school-icon/)
+  assert.match(html, /Level 3 homebrewSchool/)
+})
+
 test('appends an area effect size and shape icon to the Range detail line', () => {
   const html = renderSpell(`
 name: Fireball

@@ -8,6 +8,19 @@ function renderItem(yamlBody) {
   return markdown.render('```item\n' + yamlBody + '\n```\n')
 }
 
+test('accepts a custom rarity/mastery/properties value, rendered exactly as typed (not a mangled catalog key)', () => {
+  const html = renderItem(`
+name: Custom Item
+rarity: homebrew-tier
+mastery: custom-mastery
+properties: [custom-property]
+`)
+  assert.doesNotMatch(html, /item-block-error/)
+  assert.match(html, /<div class="compendium-block-heading">homebrew-tier<\/div>/)
+  assert.match(html, /Mastery: <\/span><span class="compendium-block-detail-value">custom-mastery</)
+  assert.match(html, /Properties: <\/span><span class="compendium-block-detail-value">custom-property</)
+})
+
 test('renders name, type/rarity subtitle, weight, value, damage, mastery, range, properties', () => {
   const html = renderItem(`
 name: Outil exhaustif arme

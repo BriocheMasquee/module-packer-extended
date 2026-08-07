@@ -204,7 +204,23 @@ function feminizeFrenchAlignment(masculine: string): string {
     .replace(/\bLoyal\b/, 'Loyale')
     .replace(/\bBon\b/, 'Bonne')
     .replace(/\bMauvais\b/, 'Mauvaise')
-    .replace(/\baligné\b/, 'alignée')
+    // `\b` doesn't match after "é" in JS regexes (accented letters aren't
+    // \w characters), so a trailing \baligné\b never matches — anchor on
+    // end-of-string instead, since "aligné" is always the final word here.
+    .replace(/\baligné$/, 'alignée')
+}
+
+/** `alignment` accepts a custom value alongside its standard list (see
+ * validateMonsterData in monsterCompendium.ts) — unlike a one-step enum
+ * lookup (translateEnumOrCustom in compendiumBlock.ts), alignment is a
+ * *two*-step lookup (short code -> catalog's PascalCase word -> translate),
+ * so a custom code needs its own fallback: render the raw value as typed
+ * when it doesn't match a standard code, rather than the whole alignment
+ * silently vanishing from the subtitle (ALIGNMENT_WORDS[custom] would be
+ * undefined, previously dropped outright instead of falling back). */
+function formatAlignment(rawAlignment: string, locale: RenderLocale): string {
+  const alignmentWord = ALIGNMENT_WORDS[rawAlignment]
+  return alignmentWord ? translateEnum('Alignment', alignmentWord, locale) : rawAlignment
 }
 
 /** "Large Fey, Neutral Evil" in English. French reverses the word order
@@ -217,8 +233,7 @@ function formatSubtitle(data: Record<string, unknown>, locale: RenderLocale): st
   const typeLabel = rawType ? translateEnum('MonsterType', rawType, locale) : undefined
   const typeDetail = isNonEmptyString(data.typeDetail) ? data.typeDetail : undefined
   const typePart = typeLabel ? (typeDetail ? `${typeLabel} (${typeDetail})` : typeLabel) : typeDetail
-  const alignmentWord = isNonEmptyString(data.alignment) ? ALIGNMENT_WORDS[data.alignment] : undefined
-  let alignmentLabel = alignmentWord ? translateEnum('Alignment', alignmentWord, locale) : undefined
+  let alignmentLabel = isNonEmptyString(data.alignment) ? formatAlignment(data.alignment, locale) : undefined
 
   if (locale.language === 'fr') {
     if (alignmentLabel && rawType && MONSTER_TYPE_FEMININE[rawType]) {

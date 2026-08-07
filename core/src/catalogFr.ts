@@ -42,7 +42,7 @@ export const CATALOG_FR: Record<string, string | { one: string; many: string }> 
   'Alignment.Neutral': 'Neutre',
   'Alignment.NeutralEvil': 'Neutre Mauvais',
   'Alignment.NeutralGood': 'Neutre Bon',
-  'Alignment.Unaligned': 'Non alignée',
+  'Alignment.Unaligned': 'Non aligné',
   'AreaEffect.Shape': 'Forme',
   'AreaEffect.Size': 'Taille',
   'AreaEffectShape.Cone': 'Cône',

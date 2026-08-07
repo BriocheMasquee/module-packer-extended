@@ -1,5 +1,26 @@
 import { isNonEmptyString, isPlainObject } from './compendiumShared.js'
+import { translate, type RenderLocale } from './catalog.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
+
+/** Catalog keys follow `{Namespace}.{PascalCase(enumKey)}` — confirmed
+ * across every Compendium block type's own enum fields (spell/item's
+ * school/type/rarity/..., a monster's size/type/alignment/...). */
+export function translateEnum(namespace: string, enumKey: string, locale: RenderLocale): string {
+  const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
+  return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
+}
+
+/** For a field that accepts a custom value alongside its standard list
+ * (e.g. a spell's `school`, an item's `rarity`/`mastery`/`properties` —
+ * see each field's own validateXData in its *Compendium.ts) —
+ * translateEnum's own catalog lookup falls back to returning the *lookup
+ * key itself* when it finds no match (e.g. "SpellSchool.Homebrewschool"),
+ * not the original value, so a custom entry must skip translation
+ * entirely and render exactly as typed instead — same convention as a
+ * monster's languages/environments (see docs). */
+export function translateEnumOrCustom(namespace: string, value: string, standardValues: readonly string[], locale: RenderLocale): string {
+  return standardValues.includes(value) ? translateEnum(namespace, value, locale) : value
+}
 
 /** Shared by every inline Compendium block renderer (spell, item, ...) —
  * escapes text dropped into the `.compendium-block` markup. */

@@ -1049,7 +1049,7 @@ test('buildModule writes spells.json with rangeType/range and duration handled p
   assert.equal(spells[1].data.durationUnit, 'minute')
 })
 
-test('buildModule rejects a spell with an unrecognized data.school', async () => {
+test('buildModule accepts a spell with a custom data.school, alongside the standard list', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)
   await mkdir(join(root, 'spells'), { recursive: true })
@@ -1063,11 +1063,31 @@ test('buildModule rejects a spell with an unrecognized data.school', async () =>
     }),
   )
 
+  const summary = await buildModule(root)
+  assert.equal(summary.spellCount, 1)
+  const spells = JSON.parse(readZipEntry(summary.outputPath, 'spells.json'))
+  assert.equal(spells[0].data.school, 'notASchool')
+})
+
+test('buildModule rejects a spell whose data.school is not a string', async () => {
+  const root = await makeTempModule()
+  await writeValidModule(root)
+  await mkdir(join(root, 'spells'), { recursive: true })
+  await writeFile(
+    join(root, 'spells', 'weird.json'),
+    JSON.stringify({
+      id: '9D36046F-200E-44A4-ADBE-64521193DAFF',
+      name: 'Weird',
+      slug: 'weird',
+      data: { school: 42 },
+    }),
+  )
+
   await assert.rejects(
     () => buildModule(root),
     (error) => {
       assert.ok(error instanceof ModuleBuildError)
-      assert.ok(error.issues.some((issue) => issue.message.includes('not a recognized spell school')))
+      assert.ok(error.issues.some((issue) => issue.message.includes('data.school must be a string')))
       return true
     },
   )

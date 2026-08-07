@@ -67,7 +67,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "markdownDescription": "*Optional.* Item type, used to pick which of the fields below apply.\n\nPossible values: `\"\"` (default), `\"custom\"`, `\"armor\"`, `\"weapon\"`, `\"lightArmor\"`, `\"mediumArmor\"`, `\"heavyArmor\"`, `\"shield\"`, `\"meleeWeapon\"`, `\"rangedWeapon\"`, `\"ammunition\"`, `\"rod\"`, `\"staff\"`, `\"wand\"`, `\"potion\"`, `\"ring\"`, `\"scroll\"`, `\"wondrousItem\"`, `\"adventuringGear\"`, `\"wealth\"`, `\"gemstone\"`, `\"tool\"`, `\"poison\"`, `\"instrument\"`, `\"arcaneFocus\"`, `\"holySymbol\"`, `\"mount\"`, `\"equipmentPack\"`, `\"tradeGood\"`, `\"druidicFocus\"`, `\"vehicleLand\"`, `\"vehicleWater\"`, `\"vehicleSpace\"`.",
+          "markdownDescription": "*Optional.* Item type, used to pick which of the fields below apply. `\"custom\"` is its own recognized value, for an item that doesn't fit any real type. ⌃Space/Ctrl+Space for the full list.",
           "enum": [
             "",
             "custom",
@@ -112,17 +112,24 @@
           ]
         },
         "rarity": {
-          "type": "string",
-          "markdownDescription": "*Optional.* Item rarity.\n\nPossible values: `\"\"` (default), `\"common\"`, `\"uncommon\"`, `\"rare\"`, `\"veryrare\"`, `\"legendary\"`, `\"artifact\"`, `\"unknown\"`.",
-          "enum": [
-            "",
-            "common",
-            "uncommon",
-            "rare",
-            "veryrare",
-            "legendary",
-            "artifact",
-            "unknown"
+          "markdownDescription": "*Optional.* Item rarity, or a custom value. ⌃Space/Ctrl+Space for the standard list.\n\nExample: `\"veryrare\"`",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "",
+                "common",
+                "uncommon",
+                "rare",
+                "veryrare",
+                "legendary",
+                "artifact",
+                "unknown"
+              ]
+            },
+            {
+              "type": "string"
+            }
           ]
         },
         "attunement": {
@@ -162,29 +169,36 @@
         },
         "properties": {
           "type": "array",
-          "markdownDescription": "*Optional.* Weapon properties.\n\nPossible values: `\"ammunition\"`, `\"finesse\"`, `\"heavy\"`, `\"light\"`, `\"loading\"`, `\"range\"`, `\"reach\"`, `\"special\"`, `\"thrown\"`, `\"twoHanded\"`, `\"versatile\"`, `\"cleave\"`, `\"graze\"`, `\"nick\"`, `\"push\"`, `\"sap\"`, `\"slow\"`, `\"topple\"`, `\"vex\"`.\n\nExample: `[\"finesse\", \"thrown\"]`\n\nEmpty: `[]`",
+          "markdownDescription": "*Optional.* Weapon properties, or a custom value. ⌃Space/Ctrl+Space for the standard list.\n\nExample: `[\"finesse\", \"thrown\"]`\n\nEmpty: `[]`",
           "items": {
-            "type": "string",
-            "enum": [
-              "ammunition",
-              "finesse",
-              "heavy",
-              "light",
-              "loading",
-              "range",
-              "reach",
-              "special",
-              "thrown",
-              "twoHanded",
-              "versatile",
-              "cleave",
-              "graze",
-              "nick",
-              "push",
-              "sap",
-              "slow",
-              "topple",
-              "vex"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ammunition",
+                  "finesse",
+                  "heavy",
+                  "light",
+                  "loading",
+                  "range",
+                  "reach",
+                  "special",
+                  "thrown",
+                  "twoHanded",
+                  "versatile",
+                  "cleave",
+                  "graze",
+                  "nick",
+                  "push",
+                  "sap",
+                  "slow",
+                  "topple",
+                  "vex"
+                ]
+              },
+              {
+                "type": "string"
+              }
             ]
           },
           "default": [],
@@ -196,18 +210,25 @@
           ]
         },
         "mastery": {
-          "type": "string",
-          "markdownDescription": "*Optional.* Weapon mastery property (5.5e).\n\nPossible values: `\"\"` (default), `\"cleave\"`, `\"graze\"`, `\"nick\"`, `\"push\"`, `\"sap\"`, `\"slow\"`, `\"topple\"`, `\"vex\"`.",
-          "enum": [
-            "",
-            "cleave",
-            "graze",
-            "nick",
-            "push",
-            "sap",
-            "slow",
-            "topple",
-            "vex"
+          "markdownDescription": "*Optional.* Weapon mastery property (5.5e), or a custom value. ⌃Space/Ctrl+Space for the standard list.\n\nExample: `\"cleave\"`",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "",
+                "cleave",
+                "graze",
+                "nick",
+                "push",
+                "sap",
+                "slow",
+                "topple",
+                "vex"
+              ]
+            },
+            {
+              "type": "string"
+            }
           ]
         },
         "dmg1": {
@@ -226,7 +247,7 @@
         },
         "dmgType": {
           "type": "string",
-          "markdownDescription": "*Optional.* Damage type.\n\nPossible values: `\"\"` (default), `\"acid\"`, `\"bludgeoning\"`, `\"cold\"`, `\"fire\"`, `\"force\"`, `\"lightning\"`, `\"necrotic\"`, `\"piercing\"`, `\"poison\"`, `\"psychic\"`, `\"radiant\"`, `\"slashing\"`, `\"thunder\"`.",
+          "markdownDescription": "*Optional.* Damage type. ⌃Space/Ctrl+Space for the full list.",
           "enum": [
             "",
             "acid",

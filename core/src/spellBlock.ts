@@ -1,7 +1,7 @@
 import { parse as parseYaml } from 'yaml'
 import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
-import { validateSpellData } from './spellCompendium.js'
+import { validateSpellData, SPELL_SCHOOLS } from './spellCompendium.js'
 import { translate, pluralize, type RenderLocale, type CatalogOverrides } from './catalog.js'
 import {
   escapeHtml,
@@ -14,6 +14,8 @@ import {
   formatSources,
   formatTags,
   labelSeparator,
+  translateEnum,
+  translateEnumOrCustom,
 } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
@@ -108,16 +110,6 @@ export function parseSpellBlock(yamlSource: string): ParsedSpellBlock {
   return { data, issues }
 }
 
-/** Catalog keys follow a simple `{Namespace}.{PascalCase(enumKey)}` pattern
- * (confirmed against every enum in the real EncounterPlus catalog: e.g.
- * `meleeWeapon` -> `ItemType.MeleeWeapon`, `dispelOrTrigger` ->
- * `SpellDuration.DispelOrTrigger`) — capitalizing just the first letter of
- * the camelCase key always lands on the right catalog entry. */
-function translateEnum(namespace: string, enumKey: string, locale: RenderLocale): string {
-  const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
-  return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
-}
-
 /** French grammatical gender of each school's own name, used only to pick
  * "mineur"/"mineure" for a cantrip's heading — confirmed against real 5.5e
  * French SRD text (e.g. "Nécromancie mineure"); not sourced from the
@@ -142,7 +134,7 @@ function ordinalFr(n: number): string {
 function formatHeading(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const level = typeof data.level === 'number' ? data.level : undefined
   const school = isNonEmptyString(data.school) ? data.school : undefined
-  const schoolLabel = school ? translateEnum('SpellSchool', school, locale) : undefined
+  const schoolLabel = school ? translateEnumOrCustom('SpellSchool', school, SPELL_SCHOOLS, locale) : undefined
   const classes = Array.isArray(data.classes)
     ? data.classes.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.split('|')[0])
     : []

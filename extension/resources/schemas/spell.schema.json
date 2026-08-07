@@ -73,18 +73,25 @@
           "default": 0
         },
         "school": {
-          "type": "string",
-          "markdownDescription": "*Optional.* School of magic.\n\nPossible values: `\"\"` (default), `\"abjuration\"`, `\"conjuration\"`, `\"divination\"`, `\"enchantment\"`, `\"evocation\"`, `\"illusion\"`, `\"necromancy\"`, `\"transmutation\"`.",
-          "enum": [
-            "",
-            "abjuration",
-            "conjuration",
-            "divination",
-            "enchantment",
-            "evocation",
-            "illusion",
-            "necromancy",
-            "transmutation"
+          "markdownDescription": "*Optional.* School of magic, or a custom value. ⌃Space/Ctrl+Space for the standard list.\n\nExample: `\"evocation\"`",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "",
+                "abjuration",
+                "conjuration",
+                "divination",
+                "enchantment",
+                "evocation",
+                "illusion",
+                "necromancy",
+                "transmutation"
+              ]
+            },
+            {
+              "type": "string"
+            }
           ]
         },
         "ritual": {

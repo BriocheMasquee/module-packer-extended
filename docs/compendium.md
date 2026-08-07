@@ -31,7 +31,7 @@ While editing, VSCode validates each file against its own EncounterPlus schema �
 
 ## `attributes.measurement` / `attributes.ruleset`
 
-Item/Spell/Monster's `attributes.measurement` is prefilled at creation from two project-wide VSCode settings — never stored in `module.json`, since neither is attached to the module in EncounterPlus, only to the game system:
+Monster's `attributes.measurement` is prefilled at creation from two project-wide VSCode settings — never stored in `module.json`, since neither is attached to the module in EncounterPlus, only to the game system (for now — this is being phased out in favor of leaving it empty everywhere, see Item/Spell/Background below). Item, Spell, and Background leave it empty at creation instead (same reasoning as their `show*`/`add*ToCompendium` toggles below — resolved at build time from the project setting, not baked in as a stored value the moment the file is created):
 
 - `mpx.contentLanguage`: `"en"` (default) or `"fr"`.
 - `mpx.defaultMeasurement`: `"auto"` (default), `"imperial"`, or `"metric"`.
@@ -64,6 +64,8 @@ A monster's `data.languages` and `data.environments` aren't strictly validated a
 
 A background's `data.abilities` and `data.skills` follow the exact same convention — any string is accepted alongside the standard ability/skill list. Unlike monster's `languages`/`environments` (free text with no schema-level suggestions), these two fields' JSON schema pairs the standard list with an unrestricted string branch (`anyOf`), so VSCode's Ctrl+Space/⌃Space completion suggests the standard values while still accepting a custom one without a validation error. `data.tools` has no standard list at all (EncounterPlus itself has no fixed tool catalog) — it's plain free text, one entry per string, no completion. A background has no `data.languages` field at all — a 5e-only field, dropped from 5.5e's own background data model.
 
+An item's `data.rarity`, `data.mastery`, and `data.properties`, and a spell's `data.school`, use the same `anyOf` schema pattern as background's `abilities`/`skills` — a custom value is accepted alongside the standard list, with Ctrl+Space/⌃Space still suggesting the standard one. A custom value renders exactly as typed on the card, not translated — `translateEnum`'s own catalog lookup falls back to returning the *lookup key itself* (e.g. `"ItemRarity.Homebrew-tier"`) when it finds no match, not the original value, so a value outside the standard list skips translation entirely instead of rendering that mangled fallback (`translateEnumOrCustom` in `compendiumBlock.ts`, shared by every block type that needs this). `data.type` (item) is unaffected — it stays a closed enum, since `"custom"` is already one of its own real recognized values (rendered as "Custom"/"Personnalisé"), not a free-text escape hatch.
+
 ## Background's `data.feat` is a single string, not a list
 
 Confirmed against a real `backgrounds.json` export: a background grants exactly one origin feat, authored as a plain string (e.g. `"Magic Initiate (Cleric)"`), not an array — even though the adjacent `abilities`/`skills`/`tools` fields are all arrays. `data.equipment` is also a single free-text string (the "Choose A or B" starting-equipment blurb) and supports Markdown, same as `descr`.
@@ -83,11 +85,9 @@ slug: new-spell
 attributes:
   measurement: ""
   ruleset: "5.5e"
-image: "images/"
-addImageToCompendium: true
 level: 0
 school: ""
-showSchoolIcon: true
+showSchoolIcon:
 ritual: false
 activation:
   time: 0
@@ -97,7 +97,7 @@ rangeType: ""
 range: 0
 areaEffectShape: ""
 areaEffectSize: 0
-showAreaEffectIcon: true
+showAreaEffectIcon:
 components: []
 componentsDetail: ""
 durationType: ""
@@ -108,9 +108,11 @@ descr: ""
 sources:
   - name: ""
     page: 0
-showSources: true
+showSources:
 tags: []
-showTags: true
+showTags:
+image: "images/"
+addImageToCompendium:
 ```
 ```
 
@@ -128,6 +130,8 @@ The school icon, the area-effect shape icon, the Source line, and the Tags line 
 - `mpx.defaultShowSpellTags`
 
 All default to `true`. A spell's own `show*` field, once explicitly set to `true` or `false`, always wins over the project setting — the project setting only fills in when the field is left out of the YAML entirely. `createModuleProject` prefills all four (plus `addImageToCompendium`) in `.vscode/settings.json`, same as `mpx.contentLanguage`/`mpx.defaultMeasurement`.
+
+The `mpx-spell` snippet (and every other Compendium block snippet's own toggles — `showSources`/`showTags`/`addImageToCompendium`/`addTokenToCompendium` alike) inserts each of these fields with **no value** (`showSources:`, not `showSources: true`) rather than a hardcoded default — these fields exist specifically to let an author *override* the project-wide setting for one entry, so a freshly inserted block shouldn't already claim an opinion. A key with no value parses as YAML `null`, which the renderer treats exactly like the field being absent entirely (falls through to the project setting) — confirmed to build and render correctly either way, and never persisted into the built JSON regardless (see [Build merge](#build-merge) below).
 
 ### Where the illustration image lives
 
@@ -182,8 +186,6 @@ slug: new-item
 attributes:
   measurement: ""
   ruleset: "5.5e"
-image: "images/"
-addImageToCompendium: true
 type: ""
 typeDetail: ""
 rarity: ""
@@ -206,9 +208,11 @@ descr: ""
 sources:
   - name: ""
     page: 0
-showSources: true
+showSources:
 tags: []
-showTags: true
+showTags:
+image: "images/"
+addImageToCompendium:
 ```
 ```
 
@@ -233,10 +237,6 @@ slug: new-monster
 attributes:
   measurement: ""
   ruleset: "5.5e"
-image: "images/"
-addImageToCompendium: true
-token: "images/"
-addTokenToCompendium: true
 size: ""
 type: ""
 typeDetail: ""
@@ -289,9 +289,13 @@ descr: ""
 sources:
   - name: ""
     page: 0
-showSources: true
+showSources:
 tags: []
-showTags: true
+showTags:
+image: "images/"
+addImageToCompendium:
+token: "images/"
+addTokenToCompendium:
 ```
 ```
 
@@ -358,15 +362,15 @@ descr: ""
 sources:
   - name: ""
     page: 0
-showSources: true
+showSources:
 tags: []
-showTags: true
+showTags:
 image: "images/"
-addImageToCompendium: false
+addImageToCompendium:
 ```
 ```
 
-Field order deliberately differs from spell/item/monster's own snippet (`descr`/`sources`/`tags`/`image`, not `descr`/`image`/`sources`/`tags`) — see [issue #41](https://github.com/BriocheMasquee/module-packer-extended/issues/41).
+Field order (`descr`/`sources`/`tags`/`image`) matches spell/item/monster's own snippet — all four were realigned to this order. The *standalone* file templates (`compendiumEntries.ts`) still differ (`descr`/`image`/`sources`/`tags`) — tracked separately in [issue #41](https://github.com/BriocheMasquee/module-packer-extended/issues/41).
 
 ### Detail line style: a period, not a colon
 
@@ -386,7 +390,7 @@ A real EncounterPlus `data.equipment` value routinely embeds a link like `[Calli
 
 ### `show*` toggles
 
-Three toggles: `addImageToCompendium`, `showSources`, `showTags` (project defaults: `mpx.defaultAddBackgroundImageToCompendium`, `mpx.defaultShowBackgroundSources`, `mpx.defaultShowBackgroundTags`) — no icon toggle, same as item. The illustration image renders unconditionally once `image` is set (in the page/preview), regardless of `addImageToCompendium` — see [Where the illustration image lives](#where-the-illustration-image-lives). The snippet's own default is `addImageToCompendium: false`, unlike item/spell/monster's `true` — a deliberate choice for background specifically (see the project's own history for why), not a general convention.
+Three toggles: `addImageToCompendium`, `showSources`, `showTags` (project defaults: `mpx.defaultAddBackgroundImageToCompendium`, `mpx.defaultShowBackgroundSources`, `mpx.defaultShowBackgroundTags`) — no icon toggle, same as item. The illustration image renders unconditionally once `image` is set (in the page/preview), regardless of `addImageToCompendium` — see [Where the illustration image lives](#where-the-illustration-image-lives).
 
 ### No `data.languages`
 

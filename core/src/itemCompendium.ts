@@ -108,20 +108,21 @@ export function validateItemData(relativePath: string, data: unknown, issues: Va
   if (data.type !== undefined && !ITEM_TYPES.includes(data.type as string)) {
     issues.push({ file: relativePath, message: `data.type "${String(data.type)}" is not a recognized item type.` })
   }
-  if (data.rarity !== undefined && !ITEM_RARITIES.includes(data.rarity as string)) {
-    issues.push({ file: relativePath, message: `data.rarity "${String(data.rarity)}" is not a recognized rarity.` })
+  // rarity/mastery/properties are suggestions, not a closed enum — the real
+  // EncounterPlus form lets you type a custom value alongside the usual
+  // options, same convention as a monster's languages/environments (see
+  // monsterCompendium.ts).
+  if (data.rarity !== undefined && typeof data.rarity !== 'string') {
+    issues.push({ file: relativePath, message: 'data.rarity must be a string when provided.' })
   }
   if (data.dmgType !== undefined && !ITEM_DAMAGE_TYPES.includes(data.dmgType as string)) {
     issues.push({ file: relativePath, message: `data.dmgType "${String(data.dmgType)}" is not a recognized damage type.` })
   }
-  if (data.mastery !== undefined && !ITEM_MASTERIES.includes(data.mastery as string)) {
-    issues.push({ file: relativePath, message: `data.mastery "${String(data.mastery)}" is not a recognized mastery.` })
+  if (data.mastery !== undefined && typeof data.mastery !== 'string') {
+    issues.push({ file: relativePath, message: 'data.mastery must be a string when provided.' })
   }
-  if (
-    data.properties !== undefined &&
-    (!Array.isArray(data.properties) || !data.properties.every((property) => ITEM_PROPERTIES.includes(property)))
-  ) {
-    issues.push({ file: relativePath, message: 'data.properties must be an array of recognized item properties.' })
+  if (data.properties !== undefined && (!Array.isArray(data.properties) || !data.properties.every((property) => typeof property === 'string'))) {
+    issues.push({ file: relativePath, message: 'data.properties must be an array of strings when provided.' })
   }
   for (const field of ['value', 'weight', 'ac', 'str', 'capacity']) {
     if (data[field] !== undefined && typeof data[field] !== 'number') {

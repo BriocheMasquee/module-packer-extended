@@ -178,8 +178,10 @@ export function validateMonsterData(relativePath: string, data: unknown, issues:
   if (data.typeDetail !== undefined && typeof data.typeDetail !== 'string') {
     issues.push({ file: relativePath, message: 'data.typeDetail must be a string when provided.' })
   }
-  if (data.alignment !== undefined && !MONSTER_ALIGNMENTS.includes(data.alignment as string)) {
-    issues.push({ file: relativePath, message: `data.alignment "${String(data.alignment)}" is not a recognized alignment.` })
+  // A suggestion, not a closed enum — same convention as a spell's school
+  // or an item's rarity/mastery/properties (see itemCompendium.ts).
+  if (data.alignment !== undefined && typeof data.alignment !== 'string') {
+    issues.push({ file: relativePath, message: 'data.alignment must be a string when provided.' })
   }
   if (data.ac !== undefined && typeof data.ac !== 'string') {
     issues.push({ file: relativePath, message: 'data.ac must be a string when provided.' })
