@@ -27,6 +27,7 @@ import { registerCompendiumBlockAssistance } from './compendiumBlockAssistance.j
 import { registerThemeCommands } from './themeCommands.js'
 import { registerThemeGatedSnippets } from './themeGatedSnippets.js'
 import { registerFormattingCommands } from './formattingCommands.js'
+import { registerCompendiumImportCommand } from './compendiumImportCommand.js'
 
 interface MarkdownItExtensionApi {
   extendMarkdownIt: (markdownIt: unknown) => unknown
@@ -240,6 +241,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
   registerCompendiumBlockAssistance(context)
   registerThemeGatedSnippets(context)
   registerFormattingCommands(context)
+  registerCompendiumImportCommand(context)
 
   void updateWorkspaceKindContext()
   void openPendingModuleConfiguration(context)

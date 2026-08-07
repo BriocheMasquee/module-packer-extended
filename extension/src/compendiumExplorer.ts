@@ -1,10 +1,18 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import * as vscode from 'vscode'
-import { findInlineSpells, findInlineItems, findInlineMonsters, findInlineBackgrounds, findInlineRollTables } from 'mpx-core'
+import {
+  findInlineSpells,
+  findInlineItems,
+  findInlineMonsters,
+  findInlineBackgrounds,
+  findInlineRollTables,
+  readRuleImportZips,
+} from 'mpx-core'
 
 const VIEW_ID = 'mpx.compendiumExplorer'
 const REVEAL_INLINE_ENTRY_COMMAND = 'mpx.revealInlineEntry'
+const REVEAL_RULE_IMPORT_ZIP_COMMAND = 'mpx.revealRuleImportZip'
 const REFRESH_COMMAND = 'mpx.refreshCompendiumExplorer'
 
 interface InlineEntrySummary {
@@ -92,7 +100,63 @@ class InlineCompendiumEntryItem extends vscode.TreeItem {
   }
 }
 
-type CompendiumItem = CompendiumCategoryItem | CompendiumEntryItem | InlineCompendiumEntryItem
+/** The "Rules" category root — unlike the other categories, it has no
+ * standalone-file folder of its own (see RuleCategoryItem's children):
+ * every entry comes from a raw EncounterPlus export zip in rules/, listed
+ * by ImportedRuleEntryItem below. */
+class RuleCategoryItem extends vscode.TreeItem {
+  constructor(
+    label: string,
+    readonly projectRoot: string,
+  ) {
+    super(label, vscode.TreeItemCollapsibleState.Collapsed)
+    this.iconPath = new vscode.ThemeIcon('folder-library')
+  }
+}
+
+/** A Compendium entry read straight out of a raw EncounterPlus export zip
+ * in rules/ — no MPX file of its own to open, so clicking reveals the
+ * export zip itself (see REVEAL_RULE_IMPORT_ZIP_COMMAND) rather than a
+ * page location. "imported" distinguishes it from "inline" (authored in a
+ * page) — this entry was never authored in MPX at all.
+ *
+ * Deletable like a standalone entry (mpxDeletableEntry), but there's no
+ * per-entry file to remove — deleting it removes the whole import zip,
+ * taking every sibling entry from the same export with it. `filePath`
+ * points at the zip so the generic delete command's fs.delete just works;
+ * `deleteDisplayName`/`deleteWarningNote` correct the confirmation dialog,
+ * which would otherwise show only this entry's own name. */
+class ImportedRuleEntryItem extends vscode.TreeItem {
+  readonly filePath: string
+  readonly deleteDisplayName: string
+  readonly deleteWarningNote: string
+
+  constructor(
+    label: string,
+    readonly zipFilePath: string,
+  ) {
+    super(label, vscode.TreeItemCollapsibleState.None)
+    this.iconPath = new vscode.ThemeIcon('law')
+    this.description = 'imported'
+    this.tooltip = `Imported from ${basename(zipFilePath)} — click to reveal the export file, right-click to delete the whole import`
+    this.command = {
+      command: REVEAL_RULE_IMPORT_ZIP_COMMAND,
+      title: 'Reveal Export File',
+      arguments: [zipFilePath],
+    }
+    this.contextValue = 'mpxDeletableEntry'
+    this.filePath = zipFilePath
+    this.deleteDisplayName = basename(zipFilePath)
+    this.deleteWarningNote = 'This removes every rule entry imported from this file, not just this one.'
+  }
+}
+
+type CompendiumItem =
+  | CompendiumCategoryItem
+  | CompendiumEntryItem
+  | InlineCompendiumEntryItem
+  | RuleCategoryItem
+  | ImportedRuleEntryItem
 
 async function entryLabel(filePath: string, fallback: string): Promise<string> {
   return readFile(filePath, 'utf8')
@@ -124,6 +188,22 @@ async function listInlineEntries(
     .sort((a, b) => String(a.label).localeCompare(String(b.label)))
 }
 
+async function listRuleEntries(projectRoot: string): Promise<ImportedRuleEntryItem[]> {
+  const { succeeded } = await readRuleImportZips(projectRoot)
+  const items = succeeded.flatMap((zip) =>
+    zip.records.map((record) => {
+      const label = typeof record.name === 'string' && record.name.trim() ? record.name : basename(zip.zipFilePath)
+      return new ImportedRuleEntryItem(label, zip.zipFilePath)
+    }),
+  )
+  return items.sort((a, b) => String(a.label).localeCompare(String(b.label)))
+}
+
+async function countRuleEntries(projectRoot: string): Promise<number> {
+  const { succeeded } = await readRuleImportZips(projectRoot)
+  return succeeded.reduce((sum, zip) => sum + zip.records.length, 0)
+}
+
 class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumItem> {
   private readonly changeEmitter = new vscode.EventEmitter<void>()
   readonly onDidChangeTreeData = this.changeEmitter.event
@@ -144,6 +224,9 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
       ])
       return [...standalone, ...inline].sort((a, b) => String(a.label).localeCompare(String(b.label)))
     }
+    if (element instanceof RuleCategoryItem) {
+      return listRuleEntries(element.projectRoot)
+    }
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
     if (!workspaceFolder) {
@@ -151,7 +234,7 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
     }
     const projectRoot = workspaceFolder.uri.fsPath
 
-    const categories: CompendiumCategoryItem[] = []
+    const categories: CompendiumItem[] = []
     for (const category of CATEGORIES) {
       const folderPath = join(projectRoot, category.folder)
       const entries = await readdir(folderPath).catch(() => [] as string[])
@@ -163,6 +246,10 @@ class CompendiumExplorerProvider implements vscode.TreeDataProvider<CompendiumIt
           new CompendiumCategoryItem(`${category.label} (${count})`, folderPath, category.icon, category.findInline, projectRoot),
         )
       }
+    }
+    const ruleCount = await countRuleEntries(projectRoot)
+    if (ruleCount > 0) {
+      categories.push(new RuleCategoryItem(`Rules (${ruleCount})`, projectRoot))
     }
     return categories
   }
@@ -191,12 +278,13 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
       new vscode.RelativePattern(workspaceFolder, '{items,spells,tables,monsters,backgrounds}/**/*.json'),
     )
     const pageWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceFolder, 'pages/**/*.md'))
-    for (const watcher of [entryWatcher, pageWatcher]) {
+    const ruleImportWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceFolder, 'rules/**/*.zip'))
+    for (const watcher of [entryWatcher, pageWatcher, ruleImportWatcher]) {
       watcher.onDidCreate(refresh)
       watcher.onDidChange(refresh)
       watcher.onDidDelete(refresh)
     }
-    watchers = [entryWatcher, pageWatcher]
+    watchers = [entryWatcher, pageWatcher, ruleImportWatcher]
   }
 
   rebuildWatchers()
@@ -210,6 +298,9 @@ export function registerCompendiumExplorer(context: vscode.ExtensionContext): vo
       const position = new vscode.Position(line, 0)
       editor.selection = new vscode.Selection(position, position)
       editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter)
+    }),
+    vscode.commands.registerCommand(REVEAL_RULE_IMPORT_ZIP_COMMAND, async (zipFilePath: string) => {
+      await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(zipFilePath))
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       rebuildWatchers()
