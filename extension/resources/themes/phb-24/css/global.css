@@ -190,7 +190,7 @@ body {
 
 p {
   margin-block-start: 0;
-  margin-block-end: 1rem;
+  margin-block-end: 0.75rem;
 }
 
 .text-center {
@@ -207,11 +207,19 @@ p {
 
 /* Hanging indent: the first line starts flush, every line after it is
  * indented — padding-left indents the whole block, text-indent pulls just
- * the first line back out by the same amount. */
-.text-data {
+ * the first line back out by the same amount. No space after by default
+ * (e.g. a run of equipment/spell-list entries reads as one block) — the
+ * next rule restores the normal paragraph gap only when what follows
+ * isn't itself a .data paragraph. */
+.data {
   font-family: var(--font-data);
   padding-left: 1.5rem;
   text-indent: -1.5rem;
+  margin-block-end: 0;
+}
+
+.data:has(+ p:not(.data)) {
+  margin-block-end: 0.75rem;
 }
 
 .center {
@@ -264,8 +272,8 @@ h6 {
  * palette, and set in --font-heading (the mock-up's 'Wolpe Pegasus' isn't
  * bundled here). */
 h1 {
-  font-size: 5.6rem;
-  line-height: 6rem;
+  font-size: 4.8rem;
+  line-height: 4.3rem;
   padding-bottom: 0.15rem;
   text-align: center;
   letter-spacing: 0.1rem;
@@ -318,7 +326,7 @@ h1::after {
 
 h2 {
   font-size: 3.4rem;
-  line-height: 3.9rem;
+  line-height: 3.2rem;
 }
 
 h3 {
