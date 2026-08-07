@@ -1,7 +1,7 @@
 {
   "name": "mpx",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Module Packer Extended — community rebuild of EncounterPlus Module Packer for the V5 module format.",
   "workspaces": [
     "core",
