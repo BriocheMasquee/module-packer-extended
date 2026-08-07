@@ -1217,13 +1217,13 @@ test('countInlinePageCompendiumEntries counts inline spell/item/monster/roll-tab
   )
 
   const counts = await countInlinePageCompendiumEntries(root)
-  assert.deepEqual(counts, { spells: 1, items: 1, monsters: 1, rollTables: 0 })
+  assert.deepEqual(counts, { spells: 1, items: 1, monsters: 1, backgrounds: 0, rollTables: 0 })
 })
 
 test('countInlinePageCompendiumEntries returns all zeros when there is no pages/ folder', async () => {
   const root = await makeTempModule()
   const counts = await countInlinePageCompendiumEntries(root)
-  assert.deepEqual(counts, { spells: 0, items: 0, monsters: 0, rollTables: 0 })
+  assert.deepEqual(counts, { spells: 0, items: 0, monsters: 0, backgrounds: 0, rollTables: 0 })
 })
 
 test('buildModule merges an inline ```spell page block into spells.json alongside standalone files', async () => {

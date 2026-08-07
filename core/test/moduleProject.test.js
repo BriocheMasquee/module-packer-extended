@@ -78,6 +78,9 @@ test('createModuleProject writes .vscode/settings.json with auto-increment and l
     'mpx.defaultShowMonsterToken': true,
     'mpx.defaultShowMonsterSources': true,
     'mpx.defaultShowMonsterTags': true,
+    'mpx.defaultShowBackgroundImage': true,
+    'mpx.defaultShowBackgroundSources': true,
+    'mpx.defaultShowBackgroundTags': true,
     'mpx.autoDetectRollTables': true,
   })
 })

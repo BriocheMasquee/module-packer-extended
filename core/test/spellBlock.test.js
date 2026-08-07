@@ -292,7 +292,7 @@ sources:
     page: 241
 tags: [damage, fire]
 `)
-  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook p\.241</)
+  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook, p\. 241</)
   assert.match(html, /Tags: <\/span><span class="compendium-block-detail-value">damage, fire</)
   assert.match(html, /<div class="compendium-block-details compendium-block-details-footer">/)
 })

@@ -121,7 +121,7 @@ sources:
     page: 241
 tags: [treasure]
 `)
-  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook p\.241</)
+  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook, p\. 241</)
   assert.match(html, /Tags: <\/span><span class="compendium-block-detail-value">treasure</)
 })
 

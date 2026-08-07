@@ -148,7 +148,7 @@ tags: [dragon]
   assert.ok(statblockCloseIndex > -1, 'footer should immediately follow the closed .statblock')
   assert.match(
     html,
-    /<span class="compendium-block-detail-label">Source: <\/span><span class="compendium-block-detail-value">Monster Manual p\.328<\/span>/,
+    /<span class="compendium-block-detail-label">Source: <\/span><span class="compendium-block-detail-value">Monster Manual, p\. 328<\/span>/,
   )
   assert.match(
     html,
