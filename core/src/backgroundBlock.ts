@@ -207,7 +207,11 @@ export interface BackgroundBlockRenderOptions {
  * Markdown (real EncounterPlus data embeds links like
  * `[Calligrapher's Supplies](/item/...)`), rendered inline like the other
  * detail values but through the Markdown renderer instead of escaped text.
- * Image renders last, matching item's own placement. */
+ * Image renders right after the description, before the Source/Tags
+ * footer — the outer div also carries a `compendium-block-background`
+ * class alongside the shared `compendium-block` one, so a theme can style
+ * background's title/detail lines/image differently from item/spell's
+ * identical-looking card without affecting them. */
 export function renderBackgroundBlockHtml(
   data: Record<string, unknown>,
   markdown: MarkdownIt,
@@ -271,7 +275,7 @@ export function renderBackgroundBlockHtml(
   const footerHtml = footerLines ? `<div class="compendium-block-details compendium-block-details-footer">${footerLines}</div>` : ''
 
   return [
-    '<div class="compendium-block">',
+    '<div class="compendium-block compendium-block-background">',
     '<div class="compendium-block-top-border"></div>',
     `<div class="compendium-block-title">${escapeHtml(name)}</div>`,
     '<div class="compendium-block-body">',
@@ -285,8 +289,8 @@ export function renderBackgroundBlockHtml(
       : '',
     '</div>',
     descriptionHtml,
-    footerHtml,
     imageHtml,
+    footerHtml,
     '</div>',
     '</div>',
   ]
