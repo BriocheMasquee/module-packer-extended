@@ -149,6 +149,24 @@
           "scope": "resource",
           "markdownDescription": "Default for an inline ` ```monster ` block's `showTags` when the field is left absent. An explicit `showTags` in the monster's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
         },
+        "mpx.defaultShowBackgroundImage": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Default for an inline ` ```background ` block's `showImage` when the field is left absent. An explicit `showImage` in the background's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+        },
+        "mpx.defaultShowBackgroundSources": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Default for an inline ` ```background ` block's `showSources` when the field is left absent. An explicit `showSources` in the background's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+        },
+        "mpx.defaultShowBackgroundTags": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Default for an inline ` ```background ` block's `showTags` when the field is left absent. An explicit `showTags` in the background's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+        },
         "mpx.autoDetectRollTables": {
           "type": "boolean",
           "default": true,

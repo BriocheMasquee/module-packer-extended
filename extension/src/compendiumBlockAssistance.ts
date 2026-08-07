@@ -9,6 +9,9 @@ import {
   parseMonsterBlock,
   MONSTER_META_FIELDS,
   MONSTER_DATA_FIELDS,
+  parseBackgroundBlock,
+  BACKGROUND_META_FIELDS,
+  BACKGROUND_DATA_FIELDS,
   SPELL_SCHOOLS,
   SPELL_ACTIVATION_UNITS,
   SPELL_RANGE_TYPES,
@@ -30,10 +33,12 @@ import {
   MONSTER_SKILLS,
   MONSTER_LANGUAGES,
   MONSTER_ENVIRONMENTS,
+  BACKGROUND_ABILITY_KEYS,
+  BACKGROUND_SKILLS,
   COMPENDIUM_RULESET,
 } from 'mpx-core'
 
-type BlockKind = 'spell' | 'item' | 'monster'
+type BlockKind = 'spell' | 'item' | 'monster' | 'background'
 
 interface BlockRegion {
   kind: BlockKind
@@ -56,6 +61,7 @@ const FIELD_NAMES: Record<BlockKind, readonly string[]> = {
   spell: [...SPELL_META_FIELDS, ...SPELL_DATA_FIELDS],
   item: [...ITEM_META_FIELDS, ...ITEM_DATA_FIELDS],
   monster: [...MONSTER_META_FIELDS, ...MONSTER_DATA_FIELDS],
+  background: [...BACKGROUND_META_FIELDS, ...BACKGROUND_DATA_FIELDS],
 }
 
 /** Enum-valued top-level scalar/array fields. Nested object fields
@@ -97,6 +103,14 @@ const ENUM_VALUES: Record<BlockKind, Record<string, readonly string[]>> = {
     languages: MONSTER_LANGUAGES,
     environments: MONSTER_ENVIRONMENTS,
   },
+  background: {
+    // Suggestions only, not a closed enum — same "custom value alongside
+    // the standard list" convention as monster's languages/environments
+    // above (see backgroundCompendium.ts). No entry for `tools`: it has no
+    // standard list at all, purely free text.
+    abilities: BACKGROUND_ABILITY_KEYS,
+    skills: BACKGROUND_SKILLS,
+  },
 }
 
 /** Object-valued fields with a known, fixed set of children — completion
@@ -135,9 +149,10 @@ const CONTAINER_FIELDS: Record<BlockKind, Record<string, Record<string, readonly
     savingThrows: ABILITY_CHILDREN,
     skills: SKILL_CHILDREN,
   },
+  background: { attributes: ATTRIBUTES_CHILDREN },
 }
 
-const FENCE_OPEN = /^```\s*(spell|item|monster)\b/i
+const FENCE_OPEN = /^```\s*(spell|item|monster|background)\b/i
 const FENCE_CLOSE = /^```\s*$/
 const FIELD_LINE = /^\s*([A-Za-z][A-Za-z0-9]*)\s*:\s*(.*)$/
 
@@ -170,7 +185,7 @@ function findParentField(document: vscode.TextDocument, region: BlockRegion, lin
   return undefined
 }
 
-/** Every *closed* ```spell/item/monster block in the document — used for
+/** Every *closed* ```spell/item/monster/background block in the document — used for
  * diagnostics, so a block still being typed (no closing ``` yet) doesn't
  * get flagged as broken while the user is mid-edit. */
 function findClosedBlockRegions(document: vscode.TextDocument): BlockRegion[] {
@@ -252,7 +267,7 @@ function enumCompletions(values: readonly string[]): vscode.CompletionItem[] {
 
 /** Field-name completion (nothing typed yet, or a key partially typed) and
  * enum-value completion (cursor right after a known field's `:`) for
- * ```spell/item/monster blocks — reuses the exact same field-name and
+ * ```spell/item/monster/background blocks — reuses the exact same field-name and
  * enum-value lists the validators/renderer already use. Shared between a
  * block's own top-level fields and a known container field's own children
  * (`attributes:`, `savingThrows: { ... }`, ...), authored either as
@@ -319,7 +334,9 @@ function blockDiagnostics(document: vscode.TextDocument): vscode.Diagnostic[] {
         ? parseSpellBlock(yamlSource)
         : region.kind === 'item'
           ? parseItemBlock(yamlSource)
-          : parseMonsterBlock(yamlSource)
+          : region.kind === 'monster'
+            ? parseMonsterBlock(yamlSource)
+            : parseBackgroundBlock(yamlSource)
     if (parsed.issues.length === 0) {
       continue
     }

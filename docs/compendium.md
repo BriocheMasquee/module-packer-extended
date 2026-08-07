@@ -21,7 +21,7 @@ Both the Compendium and Module panels have a "Collapse All" button (VSCode's bui
 - **Spell** (`spells/<slug>.json`): `id`, `name`, `slug`, `attributes`, `data` (`level`, `school`, `ritual`, `activation`, `rangeType`/`range`, `areaEffectShape`/`areaEffectSize`, `components`/`componentsDetail`, `durationType`/`duration`/`durationUnit`, `classes`), `descr`, `image`, `sources`, `tags`.
 - **Roll Table** (`tables/<slug>.json`): `id`, `name`, `slug`, `columns`, `rows`, `descr`, `sources`, `tags` — no `attributes`/`data`/`image`, unlike the other three.
 - **Monster** (`monsters/<slug>.json`): `id`, `name`, `slug`, `attributes`, `data` (`size`, `type`, `alignment`, `ac`/`hp` as free text, `speed`, `abilities`, `savingThrows`/`skills` as sparse ability/skill → bonus maps, `conditionImmunities`/`damageImmunities`/`damageResistances`/`damageVulnerabilities`, `senses`, `passivePerception`, `languages`, `cr`, `initiativeBonus`/`proficiencyBonus`, `environments`, and five feature lists — `traits`/`actions`/`bonusActions`/`reactions`/`legendaryActions`, each `{ name, text, usage? }`), `descr`, `image`, `token` (a separate map-token image), `sources`, `tags`. No `mythicActions` — confirmed to be an unused 5.5e-era leftover, omitted entirely.
-- **Background** (`backgrounds/<slug>.json`): `id`, `name`, `slug`, `attributes`, `data` (`abilities`, `feat`, `skills`, `tools`, `equipment`), `descr`, `sources`, `tags`, `image` — a different field order than the other three (`descr`/`sources`/`tags`/`image`, not `descr`/`image`/`sources`/`tags`); the other three are tracked to be realigned to match ([issue #41](https://github.com/BriocheMasquee/module-packer-extended/issues/41)). No `languages` field — a 5e-only leftover, dropped from 5.5e's own background data model (confirmed against real 5.5e exports). Standalone file only for now — no inline `` ```background `` block authoring yet, unlike item/spell/monster.
+- **Background** (`backgrounds/<slug>.json`): `id`, `name`, `slug`, `attributes`, `data` (`abilities`, `feat`, `skills`, `tools`, `equipment`), `descr`, `sources`, `tags`, `image` — a different field order than the other three (`descr`/`sources`/`tags`/`image`, not `descr`/`image`/`sources`/`tags`); the other three are tracked to be realigned to match ([issue #41](https://github.com/BriocheMasquee/module-packer-extended/issues/41)). No `languages` field — a 5e-only leftover, dropped from 5.5e's own background data model (confirmed against real 5.5e exports). Also supports inline `` ```background `` authoring — see [Inline background authoring](#inline-background-authoring).
 
 Every field is written upfront, like `module.json` — delete whatever doesn't apply to this entry. Nothing is required beyond `id`/`name`/`slug` (see [Build Module](Build-Module) for exactly what's validated and how empty fields are handled at build time).
 
@@ -327,6 +327,60 @@ Unlike every other property line (rendered inside the `.statblock` card, in the 
 - **A found-and-fixed pre-existing theme bug**: the ability table's floating "SAVE" column header was hardcoded to the French "JdS" in the theme's own CSS regardless of `mpx.contentLanguage` — corrected to always show "SAVE", with a `.statblock.lang-fr` CSS override switching it back to "JdS" only when the monster block is actually rendered in French (see [Localization](Localization)).
 - **A found-and-fixed layout bug**: `descr`'s caption above the card (`.statblock-description`) used to be absolutely positioned over a fixed-height reserved margin on `.statblock` itself — any `descr` longer than about one line overflowed that margin and overlapped whatever content preceded the block. It now renders as a normal in-flow paragraph immediately before the card, so it pushes content down instead of overlapping it, regardless of length.
 
+## Inline background authoring
+
+A fenced ` ```background ` YAML block, standalone `backgrounds/<slug>.json` fallback, `mpx-background` snippet — same mechanism as spell/item, sharing item/spell's `.compendium-block` CSS.
+
+```
+```background
+name: "New Background"
+slug: new-background
+attributes:
+  measurement: ""
+  ruleset: "5.5e"
+abilities: []
+feat: ""
+skills: []
+tools: []
+equipment: ""
+descr: ""
+sources:
+  - name: ""
+    page: 0
+showSources: true
+tags: []
+showTags: true
+image: "backgrounds/"
+showImage: true
+```
+```
+
+Field order deliberately differs from spell/item/monster's own snippet (`descr`/`sources`/`tags`/`image`, not `descr`/`image`/`sources`/`tags`) — see [issue #41](https://github.com/BriocheMasquee/module-packer-extended/issues/41).
+
+### Detail line style: a period, not a colon
+
+Unlike every other Compendium block type, a background's own detail lines (`Ability Scores`, `Feat`, `Skill Proficiencies`, `Tool Proficiencies`, `Equipment`) use the real official book's run-in-header style — a bold label ending in a period, e.g. "**Ability Scores.** Intelligence, Wisdom, and Charisma" — confirmed against a real EncounterPlus-rendered background card, not item/spell/monster's colon-separated "Label: value". The Source/Tags footer still uses the shared colon style, for visual consistency with every other block type's own footer. The catalog namespace backing these labels (`Background.AbilityScores`, `Entity.Feat`, `Background.SkillProficiencies`, `Background.ToolProficiencies`, `Background.Equipment`) is EncounterPlus's own confirmed real string set.
+
+### `abilities`/`skills`/`tools` join with a conjunction, not a plain comma
+
+"Intelligence, Wisdom, and Charisma" (English) / "Intelligence, Sagesse et Charisme" (French) — the real official book style for a joined trait list, no Oxford comma, last item joined with the language's own conjunction. Uses the platform's own `Intl.ListFormat` rather than a hardcoded word, so the comma/conjunction placement follows real locale rules. This differs from a monster's `languages`, which always joins with a plain `, ` regardless of position (see [Accepted compromises](#accepted-compromises)).
+
+### `abilities` shows the full ability name, `skills` its full name too
+
+`data.abilities` (`str`/`dex`/`con`/`int`/`wis`/`cha`) renders as the full word ("Strength", not "STR") — unlike a monster's stat block, which shows the short abbreviation. `data.skills` renders its full catalog name the same way a monster's own skill names would, including the one irregular catalog key (`Skill.SleightofHand`, lowercase "of").
+
+### `data.equipment` supports Markdown, including compendium-style links
+
+A real EncounterPlus `data.equipment` value routinely embeds a link like `[Calligrapher's Supplies](/item/materiel-de-calligraphe)` — rendered like any other Markdown link in this renderer (no special "compendium cross-reference" handling exists), which is enough to reproduce the linked-looking text a real EncounterPlus card shows for its equipment line specifically. `data.feat`/`data.skills`/`data.tools` values, by contrast, render as **plain text** — a real EncounterPlus app auto-links those to its own Feats/rules compendium at render time using logic outside the exported data itself (confirmed: the raw `feat` field is a plain string with no embedded link syntax, even where the real app's UI shows it colored/linked), which this renderer has no equivalent for.
+
+### `show*` toggles
+
+Three toggles: `showImage`, `showSources`, `showTags` (project defaults: `mpx.defaultShowBackgroundImage`, `mpx.defaultShowBackgroundSources`, `mpx.defaultShowBackgroundTags`) — no icon toggle, same as item. The illustration image renders last, after Source/Tags, matching item's own placement.
+
+### No `data.languages`
+
+A 5e-only background field, dropped from 5.5e's own background data model — see [Background's `data.feat` is a single string, not a list](#backgrounds-datafeat-is-a-single-string-not-a-list) above for the rest of the field-shape detail, confirmed the same way against real 5.5e exports.
+
 ## Roll table auto-detection
 
 A page's Markdown table becomes a roll table at build time on its own — no fenced block, no separate `tables/<slug>.json` file needed — reimplementing what the original Module Packer and old MPX both supported. The `mpx-roll-table` [snippet](Snippets) scaffolds the syntax below, but nothing about detection itself requires it — a table written entirely by hand works the same way. Detection heuristic: the header's first cell links to `/roll/...` (the dice notation, e.g. `[2d6](/roll/2d6)` — the destination itself is never followed, only its `/roll/` prefix matters):
@@ -353,16 +407,16 @@ A page's Markdown table becomes a roll table at build time on its own — no fen
 
 ## Editing assistance for inline blocks
 
-While editing a ```spell/```item/```monster block, VSCode's Markdown editor provides:
+While editing a ```spell/```item/```monster/```background block, VSCode's Markdown editor provides:
 - **Field-name completion** — on a blank line, or a line where a key name is only partially typed (e.g. `sa` while typing `savingThrows`), suggests every valid top-level YAML key for that block type. Nested under a known container field, suggests only *that* field's own children instead of the block's top-level fields — authored either as indented multi-line YAML (`attributes:` on its own line, children indented below) or as a single-line `{ ... }` (e.g. the snippet's own `skills: {}`/`savingThrows: {}` defaults — completion works inside the still-open brace the same way, one `{ }` level deep):
-  - `attributes:` → `measurement`/`ruleset` (spell, item, monster)
+  - `attributes:` → `measurement`/`ruleset` (spell, item, monster, background)
   - a spell's `activation:` → `unit`/`time`
   - a monster's `abilities:`/`savingThrows:` → the six ability keys (`str`/`dex`/`con`/`int`/`wis`/`cha`)
   - a monster's `skills:` → every skill name (`perception`, `stealth`, ...)
 
   A monster's `speed:`/`senses:` aren't covered yet — nested under either one, completion abstains rather than falling back to the top-level list.
-- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field, plus the nested fields above that have their own value list (`attributes.measurement` is `imperial`/`metric` — never `auto`, which is only a valid *setting* value, not something an individual entry ever stores; `attributes.ruleset` is always `5.5e`; a spell's `activation.unit` gets the activation-unit list). Ability/skill values are plain numbers, so only their key names are completed, not a value list. `languages`/`environments` also suggest a list now (EncounterPlus's own internal enum-to-catalog-key map confirms both are backed by a real standard list, always alongside a custom/homebrew value) — see [Fields that accept a custom value alongside a standard list](#fields-that-accept-a-custom-value-alongside-a-standard-list).
-- **Live diagnostics** — the same validation `Build Module` and the rendered preview's error message already run (`validateSpellData`/`validateItemData`/`validateMonsterData`) also shows up as an editor warning on the block's opening fence line, without needing the preview open. Only checked once the block has its closing ` ``` ` — a block still being typed isn't flagged as broken mid-edit.
+- **Enum-value completion** — right after a known field's `:` (e.g. `school:`, `type:`, `alignment:`, `rarity:`, `cr:`, or an array field like `damageResistances:`), suggests its valid values. This covers every scalar/array enum field, plus the nested fields above that have their own value list (`attributes.measurement` is `imperial`/`metric` — never `auto`, which is only a valid *setting* value, not something an individual entry ever stores; `attributes.ruleset` is always `5.5e`; a spell's `activation.unit` gets the activation-unit list). Ability/skill values are plain numbers, so only their key names are completed, not a value list. `languages`/`environments` also suggest a list now (EncounterPlus's own internal enum-to-catalog-key map confirms both are backed by a real standard list, always alongside a custom/homebrew value) — see [Fields that accept a custom value alongside a standard list](#fields-that-accept-a-custom-value-alongside-a-standard-list). A background's `abilities`/`skills` follow the exact same suggested-but-not-enforced convention; `tools` has no standard list at all, so it gets no completion.
+- **Live diagnostics** — the same validation `Build Module` and the rendered preview's error message already run (`validateSpellData`/`validateItemData`/`validateMonsterData`/`validateBackgroundData`) also shows up as an editor warning on the block's opening fence line, without needing the preview open. Only checked once the block has its closing ` ``` ` — a block still being typed isn't flagged as broken mid-edit.
 
 Completion only re-triggers on `:` (right after a field name) and `[` (entering an inline array) — not on every space — so it stays out of the way while composing free text like `descr`.
 
@@ -378,4 +432,3 @@ Both reuse the exact same field-name/enum-value lists and validators the rendere
 - **`data.classes` on a spell** and **`data.conditionImmunities` on a monster** aren't validated or autocompleted against a real list — classes and conditions aren't their own Compendium content type yet (tracked in [issue #3](https://github.com/BriocheMasquee/module-packer-extended/issues/3)), so both fields just accept free-form strings for now.
 - **No completion/diagnostics for page front matter** (`name`/`slug`/`rank`/`parent`) — deliberately not planned (closed as not wanted, see former issue #1); front-matter mistakes are still caught at `Build Module` time.
 - **No completion for a monster's `speed`/`senses`** nested fields — every other nested object field (`attributes`, a spell's `activation`, a monster's `abilities`/`savingThrows`/`skills`) is covered, see [Editing assistance for inline blocks](#editing-assistance-for-inline-blocks).
-- **No inline `` ```background `` block authoring** — unlike item/spell/monster, a background can currently only be authored as a standalone `backgrounds/<slug>.json` file. No card rendering (`.compendium-block` or otherwise) exists for it yet either.

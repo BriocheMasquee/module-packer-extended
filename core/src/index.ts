@@ -46,17 +46,21 @@ export type {
   InlineSpellBlock,
   InlineItemBlock,
   InlineMonsterBlock,
+  InlineBackgroundBlock,
   InlineRollTableBlock,
 } from './markdownRenderer.js'
 export type { SpellDisplayDefaults } from './spellBlock.js'
 export type { ItemDisplayDefaults } from './itemBlock.js'
 export type { MonsterDisplayDefaults } from './monsterBlock.js'
+export type { BackgroundDisplayDefaults } from './backgroundBlock.js'
 export { findInlineSpells } from './inlineSpellScan.js'
 export type { InlineSpellSummary } from './inlineSpellScan.js'
 export { findInlineItems } from './inlineItemScan.js'
 export type { InlineItemSummary } from './inlineItemScan.js'
 export { findInlineMonsters } from './inlineMonsterScan.js'
 export type { InlineMonsterSummary } from './inlineMonsterScan.js'
+export { findInlineBackgrounds } from './inlineBackgroundScan.js'
+export type { InlineBackgroundSummary } from './inlineBackgroundScan.js'
 export { findInlineRollTables } from './inlineRollTableScan.js'
 export type { InlineRollTableSummary } from './inlineRollTableScan.js'
 
@@ -70,6 +74,8 @@ export { parseItemBlock, ITEM_META_FIELDS, ITEM_DATA_FIELDS } from './itemBlock.
 export type { ParsedItemBlock } from './itemBlock.js'
 export { parseMonsterBlock, MONSTER_META_FIELDS, MONSTER_DATA_FIELDS } from './monsterBlock.js'
 export type { ParsedMonsterBlock } from './monsterBlock.js'
+export { parseBackgroundBlock, BACKGROUND_META_FIELDS, BACKGROUND_DATA_FIELDS } from './backgroundBlock.js'
+export type { ParsedBackgroundBlock } from './backgroundBlock.js'
 export {
   SPELL_SCHOOLS,
   SPELL_ACTIVATION_UNITS,

@@ -300,6 +300,15 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
           showTags: config.get<boolean>('defaultShowMonsterTags', true),
         }
       }
+      const resolveBackgroundDisplayDefaults = () => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
+        return {
+          showImage: config.get<boolean>('defaultShowBackgroundImage', true),
+          showSources: config.get<boolean>('defaultShowBackgroundSources', true),
+          showTags: config.get<boolean>('defaultShowBackgroundTags', true),
+        }
+      }
       const resolveAutoDetectRollTables = (): boolean => {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
         const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
@@ -313,6 +322,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
         spellDisplayDefaults: resolveSpellDisplayDefaults,
         itemDisplayDefaults: resolveItemDisplayDefaults,
         monsterDisplayDefaults: resolveMonsterDisplayDefaults,
+        backgroundDisplayDefaults: resolveBackgroundDisplayDefaults,
         autoDetectRollTables: resolveAutoDetectRollTables,
       })
     },
