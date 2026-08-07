@@ -1,7 +1,7 @@
 import { parse as parseYaml } from 'yaml'
 import type { MarkdownIt } from 'markdown-it'
 import { isNonEmptyString, isPlainObject, type ValidationIssue } from './compendiumShared.js'
-import { validateSpellData } from './spellCompendium.js'
+import { validateSpellData, SPELL_SCHOOLS } from './spellCompendium.js'
 import { translate, pluralize, type RenderLocale, type CatalogOverrides } from './catalog.js'
 import {
   escapeHtml,
@@ -14,6 +14,8 @@ import {
   formatSources,
   formatTags,
   labelSeparator,
+  translateEnum,
+  translateEnumOrCustom,
 } from './compendiumBlock.js'
 import type { MeasurementSystem, ContentLanguage } from './localization.js'
 
@@ -24,7 +26,7 @@ export const SPELL_META_FIELDS = [
   'attributes',
   'descr',
   'image',
-  'showImage',
+  'addImageToCompendium',
   'showSchoolIcon',
   'showAreaEffectIcon',
   'sources',
@@ -108,16 +110,6 @@ export function parseSpellBlock(yamlSource: string): ParsedSpellBlock {
   return { data, issues }
 }
 
-/** Catalog keys follow a simple `{Namespace}.{PascalCase(enumKey)}` pattern
- * (confirmed against every enum in the real EncounterPlus catalog: e.g.
- * `meleeWeapon` -> `ItemType.MeleeWeapon`, `dispelOrTrigger` ->
- * `SpellDuration.DispelOrTrigger`) — capitalizing just the first letter of
- * the camelCase key always lands on the right catalog entry. */
-function translateEnum(namespace: string, enumKey: string, locale: RenderLocale): string {
-  const pascalKey = enumKey.charAt(0).toUpperCase() + enumKey.slice(1)
-  return translate(`${namespace}.${pascalKey}`, locale.language, locale.overrides)
-}
-
 /** French grammatical gender of each school's own name, used only to pick
  * "mineur"/"mineure" for a cantrip's heading — confirmed against real 5.5e
  * French SRD text (e.g. "Nécromancie mineure"); not sourced from the
@@ -142,7 +134,7 @@ function ordinalFr(n: number): string {
 function formatHeading(data: Record<string, unknown>, locale: RenderLocale): string | undefined {
   const level = typeof data.level === 'number' ? data.level : undefined
   const school = isNonEmptyString(data.school) ? data.school : undefined
-  const schoolLabel = school ? translateEnum('SpellSchool', school, locale) : undefined
+  const schoolLabel = school ? translateEnumOrCustom('SpellSchool', school, SPELL_SCHOOLS, locale) : undefined
   const classes = Array.isArray(data.classes)
     ? data.classes.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.split('|')[0])
     : []
@@ -313,12 +305,21 @@ function formatDuration(data: Record<string, unknown>, locale: RenderLocale): st
   return translateEnum('SpellDuration', durationType, locale)
 }
 
-/** Project-level fallback for each `show*` toggle, used only when a spell's
- * own YAML leaves the field absent — an explicit `true`/`false` in the spell
- * always wins over this default, matching how attributes.measurement/ruleset
- * already work. All default to `true` (today's hardcoded behavior). */
+/** Project-level fallback for each toggle, used only when a spell's own
+ * YAML leaves the field absent — an explicit value in the spell always
+ * wins over this default, matching how attributes.measurement/ruleset
+ * already work. All default to `true` (today's hardcoded behavior).
+ *
+ * `addImageToCompendium` doesn't control whether the image renders — an
+ * `image` field always renders in the page (and preview) once set, no
+ * toggle needed there. It controls whether that same image is *also*
+ * copied into `spells/` and referenced from the spell's own built
+ * `spells.json` entry, so the Compendium's own detail view in
+ * EncounterPlus shows it too. See INLINE_IMAGE_PATTERN in
+ * compendiumBlock.ts for why an inline spell's image lives in `images/`,
+ * not `spells/`, unlike a standalone spell file's. */
 export interface SpellDisplayDefaults {
-  showImage?: boolean
+  addImageToCompendium?: boolean
   showSchoolIcon?: boolean
   showAreaEffectIcon?: boolean
   showSources?: boolean
@@ -366,13 +367,14 @@ export function renderSpellBlockHtml(
     ? `<div class="compendium-block-description">${markdown.render(data.descr)}</div>`
     : ''
 
-  // "spells/" (no file name) is the snippet's own untouched placeholder,
-  // matching how a standalone spell file treats that same value as "no
-  // image set" rather than a literal (broken) path to render.
-  const hasImage = isNonEmptyString(data.image) && data.image !== 'spells/'
-  const showImageDefault = options.displayDefaults?.showImage ?? true
-  const showImage = (typeof data.showImage === 'boolean' ? data.showImage : showImageDefault) && hasImage
-  const imageHtml = showImage
+  // "images/" (no file name) is the snippet's own untouched placeholder,
+  // matching how a standalone spell file treats "spells/" that same way
+  // for "no image set" rather than a literal (broken) path to render.
+  // Renders unconditionally once set — addImageToCompendium only controls
+  // whether the build also copies it into spells/ for the Compendium's
+  // own detail view, not whether it shows here.
+  const hasImage = isNonEmptyString(data.image) && data.image !== 'images/'
+  const imageHtml = hasImage
     ? `<div class="compendium-image-block"><img class="compendium-image" src="${escapeHtml(resourceImagePath(String(data.image), options.preview))}" alt=""></div>`
     : ''
 

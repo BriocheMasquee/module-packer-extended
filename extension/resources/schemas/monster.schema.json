@@ -36,6 +36,16 @@
         "air-elemental"
       ]
     },
+    "token": {
+      "type": "string",
+      "markdownDescription": "*Optional.* Path to the monster's map token image, relative to the project root — separate from `image`. Save it directly inside the `monsters` folder at the project root.",
+      "pattern": "^monsters/[^/\\\\]*$",
+      "patternErrorMessage": "The token path must point to a file stored directly inside the project's monsters folder.",
+      "default": "monsters/",
+      "examples": [
+        "monsters/air-elemental-token.png"
+      ]
+    },
     "attributes": {
       "type": "object",
       "markdownDescription": "*Optional.* Measurement system and ruleset this monster's values are written for.",
@@ -108,20 +118,27 @@
           ]
         },
         "alignment": {
-          "type": "string",
-          "markdownDescription": "*Optional.* Creature alignment.\n\nPossible values: `\"\"` (default), `\"LG\"`, `\"NG\"`, `\"CG\"`, `\"LN\"`, `\"NN\"`, `\"CN\"`, `\"LE\"`, `\"NE\"`, `\"CE\"`, `\"UU\"` (unaligned).",
-          "enum": [
-            "",
-            "LG",
-            "NG",
-            "CG",
-            "LN",
-            "NN",
-            "CN",
-            "LE",
-            "NE",
-            "CE",
-            "UU"
+          "markdownDescription": "*Optional.* Creature alignment, or a custom value. ⌃Space/Ctrl+Space for the standard list (`\"UU\"` is unaligned).\n\nExample: `\"NE\"`",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "",
+                "LG",
+                "NG",
+                "CG",
+                "LN",
+                "NN",
+                "CN",
+                "LE",
+                "NE",
+                "CE",
+                "UU"
+              ]
+            },
+            {
+              "type": "string"
+            }
           ]
         },
         "ac": {
@@ -511,16 +528,6 @@
       "default": "monsters/",
       "examples": [
         "monsters/air-elemental.png"
-      ]
-    },
-    "token": {
-      "type": "string",
-      "markdownDescription": "*Optional.* Path to the monster's map token image, relative to the project root — separate from `image`. Save it directly inside the `monsters` folder at the project root.",
-      "pattern": "^monsters/[^/\\\\]*$",
-      "patternErrorMessage": "The token path must point to a file stored directly inside the project's monsters folder.",
-      "default": "monsters/",
-      "examples": [
-        "monsters/air-elemental-token.png"
       ]
     },
     "sources": {

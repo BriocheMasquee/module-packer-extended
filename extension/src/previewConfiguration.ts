@@ -112,28 +112,30 @@ export function registerPreviewConfiguration(context: vscode.ExtensionContext): 
       void configureAllWorkspacePreviews()
     }),
     // The renderer reads mpx.defaultMeasurement/mpx.contentLanguage/
-    // mpx.defaultShowSpell*/mpx.defaultShowItem*/mpx.defaultShowMonster*/
-    // mpx.defaultShowBackground* fresh on every render (see extension.ts's
-    // extendMarkdownIt), so refreshing the open preview is enough to
-    // reflect a changed setting immediately — no Extension Development
-    // Host reload needed.
+    // mpx.defaultAddSpellImageToCompendium/mpx.defaultShowSpell*/
+    // mpx.defaultAddItemImageToCompendium/mpx.defaultShowItem*/
+    // mpx.defaultAddMonster*ToCompendium/mpx.defaultShowMonster*/
+    // mpx.defaultAddBackgroundImageToCompendium/mpx.defaultShowBackground*
+    // fresh on every render (see extension.ts's extendMarkdownIt), so
+    // refreshing the open preview is enough to reflect a changed setting
+    // immediately — no Extension Development Host reload needed.
     vscode.workspace.onDidChangeConfiguration((event) => {
       const watchedSettings = [
         'mpx.defaultMeasurement',
         'mpx.contentLanguage',
-        'mpx.defaultShowSpellImage',
+        'mpx.defaultAddSpellImageToCompendium',
         'mpx.defaultShowSpellSchoolIcon',
         'mpx.defaultShowSpellAreaEffectIcon',
         'mpx.defaultShowSpellSources',
         'mpx.defaultShowSpellTags',
-        'mpx.defaultShowItemImage',
+        'mpx.defaultAddItemImageToCompendium',
         'mpx.defaultShowItemSources',
         'mpx.defaultShowItemTags',
-        'mpx.defaultShowMonsterImage',
-        'mpx.defaultShowMonsterToken',
+        'mpx.defaultAddMonsterImageToCompendium',
+        'mpx.defaultAddMonsterTokenToCompendium',
         'mpx.defaultShowMonsterSources',
         'mpx.defaultShowMonsterTags',
-        'mpx.defaultShowBackgroundImage',
+        'mpx.defaultAddBackgroundImageToCompendium',
         'mpx.defaultShowBackgroundSources',
         'mpx.defaultShowBackgroundTags',
         'mpx.autoDetectRollTables',

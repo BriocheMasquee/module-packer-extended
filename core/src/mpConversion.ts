@@ -1007,16 +1007,16 @@ function settingsJson(module: MpModuleAnalysis): Record<string, boolean | string
     'mpx.autoIncrementVersion': true,
     'mpx.contentLanguage': module.autoDetectedLanguage,
     'mpx.defaultMeasurement': 'auto',
-    'mpx.defaultShowSpellImage': true,
+    'mpx.defaultAddSpellImageToCompendium': true,
     'mpx.defaultShowSpellSchoolIcon': true,
     'mpx.defaultShowSpellAreaEffectIcon': true,
     'mpx.defaultShowSpellSources': true,
     'mpx.defaultShowSpellTags': true,
-    'mpx.defaultShowItemImage': true,
+    'mpx.defaultAddItemImageToCompendium': true,
     'mpx.defaultShowItemSources': true,
     'mpx.defaultShowItemTags': true,
-    'mpx.defaultShowMonsterImage': true,
-    'mpx.defaultShowMonsterToken': true,
+    'mpx.defaultAddMonsterImageToCompendium': true,
+    'mpx.defaultAddMonsterTokenToCompendium': true,
     'mpx.defaultShowMonsterSources': true,
     'mpx.defaultShowMonsterTags': true,
     'mpx.autoDetectRollTables': module.autoDetectRollTables,
@@ -1215,38 +1215,38 @@ export async function convertMpProject(
   let itemBlockCount = 0
   let spellBlockCount = 0
   let monsterBlockCount = 0
-  // Tracks which source file each spells//items//monsters/ target name came
-  // from, so two different blocks that happen to share a bare filename
-  // (e.g. two pages each with their own "cover.png") are caught instead of
-  // silently overwriting one another.
-  const compendiumImageSources = {
-    item: new Map<string, string>(),
-    monster: new Map<string, string>(),
-    spell: new Map<string, string>(),
-  }
-  const COMPENDIUM_FOLDER_BY_KIND = { item: 'items', monster: 'monsters', spell: 'spells' } as const
+  // An inline block's image is copied into images/, not the entity's own
+  // folder — matching the fix for a real bug found via a live
+  // EncounterPlus import: a page's rendered HTML only ever resolves an
+  // embedded <img> relative to images/, never an entity folder like
+  // items/. All three kinds now share that same flat folder (unlike the
+  // old per-entity-folder copy, where an item's and a spell's own
+  // "cover.png" never collided), so this tracks every target name in one
+  // shared namespace to catch a collision between *any* two blocks —
+  // even across different kinds — instead of silently overwriting one
+  // another.
+  const compendiumImageSources = new Map<string, string>()
 
   const copyCompendiumBlockImage = async (
     block: MpCompendiumBlockReshape,
     pageSourcePath: string,
   ): Promise<void> => {
-    const folder = COMPENDIUM_FOLDER_BY_KIND[block.kind]
     for (const imageReference of block.imageReferences) {
       const targetName = basename(imageReference)
       const absoluteSourcePath = join(sourceDirectory, dirname(pageSourcePath), imageReference)
-      const existingSource = compendiumImageSources[block.kind].get(targetName)
+      const existingSource = compendiumImageSources.get(targetName)
       if (existingSource && existingSource !== absoluteSourcePath) {
         notices.push({
           code: 'duplicate-compendium-image',
-          message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}"'s image "${targetName}" collides with another ${block.kind} block's image of the same name; kept the first one copied.`,
+          message: `${pageSourcePath} — the ${block.kind} "${block.name ?? 'unnamed'}"'s image "${targetName}" collides with another block's image of the same name in images/; kept the first one copied.`,
           path: pageSourcePath,
         })
         continue
       }
       try {
-        await mkdir(join(destinationDirectory, folder), { recursive: true })
-        await copyFile(absoluteSourcePath, join(destinationDirectory, folder, targetName))
-        compendiumImageSources[block.kind].set(targetName, absoluteSourcePath)
+        await mkdir(join(destinationDirectory, 'images'), { recursive: true })
+        await copyFile(absoluteSourcePath, join(destinationDirectory, 'images', targetName))
+        compendiumImageSources.set(targetName, absoluteSourcePath)
       } catch {
         notices.push({
           code: 'missing-compendium-image',

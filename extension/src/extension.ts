@@ -26,6 +26,7 @@ import { registerDeleteEntryCommand } from './deleteEntryCommand.js'
 import { registerCompendiumBlockAssistance } from './compendiumBlockAssistance.js'
 import { registerThemeCommands } from './themeCommands.js'
 import { registerThemeGatedSnippets } from './themeGatedSnippets.js'
+import { registerFormattingCommands } from './formattingCommands.js'
 
 interface MarkdownItExtensionApi {
   extendMarkdownIt: (markdownIt: unknown) => unknown
@@ -238,6 +239,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
   registerDeleteEntryCommand(context)
   registerCompendiumBlockAssistance(context)
   registerThemeGatedSnippets(context)
+  registerFormattingCommands(context)
 
   void updateWorkspaceKindContext()
   void openPendingModuleConfiguration(context)
@@ -274,7 +276,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
         const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
         return {
-          showImage: config.get<boolean>('defaultShowSpellImage', true),
+          addImageToCompendium: config.get<boolean>('defaultAddSpellImageToCompendium', true),
           showSchoolIcon: config.get<boolean>('defaultShowSpellSchoolIcon', true),
           showAreaEffectIcon: config.get<boolean>('defaultShowSpellAreaEffectIcon', true),
           showSources: config.get<boolean>('defaultShowSpellSources', true),
@@ -285,7 +287,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
         const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
         return {
-          showImage: config.get<boolean>('defaultShowItemImage', true),
+          addImageToCompendium: config.get<boolean>('defaultAddItemImageToCompendium', true),
           showSources: config.get<boolean>('defaultShowItemSources', true),
           showTags: config.get<boolean>('defaultShowItemTags', true),
         }
@@ -294,8 +296,8 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
         const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
         return {
-          showImage: config.get<boolean>('defaultShowMonsterImage', true),
-          showToken: config.get<boolean>('defaultShowMonsterToken', true),
+          addImageToCompendium: config.get<boolean>('defaultAddMonsterImageToCompendium', true),
+          addTokenToCompendium: config.get<boolean>('defaultAddMonsterTokenToCompendium', true),
           showSources: config.get<boolean>('defaultShowMonsterSources', true),
           showTags: config.get<boolean>('defaultShowMonsterTags', true),
         }
@@ -304,7 +306,7 @@ export function activate(context: vscode.ExtensionContext): MarkdownItExtensionA
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
         const config = vscode.workspace.getConfiguration('mpx', workspaceFolder?.uri)
         return {
-          showImage: config.get<boolean>('defaultShowBackgroundImage', true),
+          addImageToCompendium: config.get<boolean>('defaultAddBackgroundImageToCompendium', true),
           showSources: config.get<boolean>('defaultShowBackgroundSources', true),
           showTags: config.get<boolean>('defaultShowBackgroundTags', true),
         }

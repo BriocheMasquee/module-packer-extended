@@ -292,7 +292,7 @@ sources:
     page: 241
 tags: [damage, fire]
 `)
-  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook p\.241</)
+  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook, p\. 241</)
   assert.match(html, /Tags: <\/span><span class="compendium-block-detail-value">damage, fire</)
   assert.match(html, /<div class="compendium-block-details compendium-block-details-footer">/)
 })
@@ -338,6 +338,17 @@ name: Fireball
   assert.doesNotMatch(html, /spell-block-school-icon/)
 })
 
+test('accepts a custom school value, rendered exactly as typed (not a mangled catalog key), with no icon', () => {
+  const html = renderSpell(`
+name: Homebrew Spell
+level: 3
+school: homebrewSchool
+`)
+  assert.doesNotMatch(html, /spell-block-error/)
+  assert.doesNotMatch(html, /spell-block-school-icon/)
+  assert.match(html, /Level 3 homebrewSchool/)
+})
+
 test('appends an area effect size and shape icon to the Range detail line', () => {
   const html = renderSpell(`
 name: Fireball
@@ -361,32 +372,32 @@ test('shows area size in feet units when measurement is imperial', () => {
 test('renders the illustration image when image is set', () => {
   const html = renderSpell(`
 name: Fireball
-image: spells/fireball.png
+image: images/fireball.png
 `)
-  assert.match(html, /<div class="compendium-image-block"><img class="compendium-image" src="spells\/fireball\.png" alt=""><\/div>/)
+  assert.match(html, /<div class="compendium-image-block"><img class="compendium-image" src="images\/fireball\.png" alt=""><\/div>/)
 })
 
-test('rewrites the illustration image path with a ../ prefix in preview mode (pages/ is one level deeper than spells/)', () => {
+test('rewrites the illustration image path with a ../ prefix in preview mode (pages/ is one level deeper than images/)', () => {
   const markdown = createMarkdownRenderer({ preview: true })
-  const html = markdown.render('```spell\nname: Fireball\nimage: spells/fireball.png\n```\n')
-  assert.match(html, /src="\.\.\/spells\/fireball\.png"/)
+  const html = markdown.render('```spell\nname: Fireball\nimage: images/fireball.png\n```\n')
+  assert.match(html, /src="\.\.\/images\/fireball\.png"/)
 })
 
-test('treats the untouched "spells/" placeholder as no image set, not a broken path', () => {
+test('treats the untouched "images/" placeholder as no image set, not a broken path', () => {
   const html = renderSpell(`
 name: Fireball
-image: spells/
+image: images/
 `)
   assert.doesNotMatch(html, /compendium-image-block/)
 })
 
-test('hides the illustration image when showImage is false', () => {
+test('renders the illustration image unconditionally, regardless of addImageToCompendium', () => {
   const html = renderSpell(`
 name: Fireball
-image: spells/fireball.png
-showImage: false
+image: images/fireball.png
+addImageToCompendium: false
 `)
-  assert.doesNotMatch(html, /compendium-image-block/)
+  assert.match(html, /compendium-image-block/)
 })
 
 test('hides the school icon when showSchoolIcon is false', () => {

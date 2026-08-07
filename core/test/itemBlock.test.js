@@ -8,6 +8,19 @@ function renderItem(yamlBody) {
   return markdown.render('```item\n' + yamlBody + '\n```\n')
 }
 
+test('accepts a custom rarity/mastery/properties value, rendered exactly as typed (not a mangled catalog key)', () => {
+  const html = renderItem(`
+name: Custom Item
+rarity: homebrew-tier
+mastery: custom-mastery
+properties: [custom-property]
+`)
+  assert.doesNotMatch(html, /item-block-error/)
+  assert.match(html, /<div class="compendium-block-heading">homebrew-tier<\/div>/)
+  assert.match(html, /Mastery: <\/span><span class="compendium-block-detail-value">custom-mastery</)
+  assert.match(html, /Properties: <\/span><span class="compendium-block-detail-value">custom-property</)
+})
+
 test('renders name, type/rarity subtitle, weight, value, damage, mastery, range, properties', () => {
   const html = renderItem(`
 name: Outil exhaustif arme
@@ -121,7 +134,7 @@ sources:
     page: 241
 tags: [treasure]
 `)
-  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook p\.241</)
+  assert.match(html, /Source: <\/span><span class="compendium-block-detail-value">Player's Handbook, p\. 241</)
   assert.match(html, /Tags: <\/span><span class="compendium-block-detail-value">treasure</)
 })
 
@@ -136,25 +149,25 @@ test('hides Tags when showTags is false', () => {
 })
 
 test('renders the illustration image after Source/Tags, not before', () => {
-  const html = renderItem('name: Test\nimage: items/ring.png\nsources:\n  - name: Book\n    page: 1')
+  const html = renderItem('name: Test\nimage: images/ring.png\nsources:\n  - name: Book\n    page: 1')
   const imageIndex = html.indexOf('compendium-image-block')
   const sourceIndex = html.indexOf('Source: ')
   assert.ok(imageIndex > sourceIndex, 'image should render after the Source line')
 })
 
-test('hides the illustration image when showImage is false', () => {
-  const html = renderItem('name: Test\nimage: items/ring.png\nshowImage: false')
-  assert.doesNotMatch(html, /compendium-image-block/)
+test('renders the illustration image unconditionally, regardless of addImageToCompendium', () => {
+  const html = renderItem('name: Test\nimage: images/ring.png\naddImageToCompendium: false')
+  assert.match(html, /compendium-image-block/)
 })
 
-test('rewrites the illustration image path with a ../ prefix in preview mode (pages/ is one level deeper than items/)', () => {
+test('rewrites the illustration image path with a ../ prefix in preview mode (pages/ is one level deeper than images/)', () => {
   const markdown = createMarkdownRenderer({ preview: true })
-  const html = markdown.render('```item\nname: Test\nimage: items/ring.png\n```\n')
-  assert.match(html, /src="\.\.\/items\/ring\.png"/)
+  const html = markdown.render('```item\nname: Test\nimage: images/ring.png\n```\n')
+  assert.match(html, /src="\.\.\/images\/ring\.png"/)
 })
 
-test('treats the untouched "items/" placeholder as no image set', () => {
-  const html = renderItem('name: Test\nimage: items/')
+test('treats the untouched "images/" placeholder as no image set', () => {
+  const html = renderItem('name: Test\nimage: images/')
   assert.doesNotMatch(html, /compendium-image-block/)
 })
 

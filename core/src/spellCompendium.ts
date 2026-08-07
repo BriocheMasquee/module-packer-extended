@@ -53,8 +53,11 @@ export function validateSpellData(relativePath: string, data: unknown, issues: V
   ) {
     issues.push({ file: relativePath, message: 'data.level must be an integer between 0 and 9 when provided.' })
   }
-  if (data.school !== undefined && !SPELL_SCHOOLS.includes(data.school as string)) {
-    issues.push({ file: relativePath, message: `data.school "${String(data.school)}" is not a recognized spell school.` })
+  // A suggestion, not a closed enum — the real EncounterPlus form lets you
+  // type a custom value alongside the usual options, same convention as an
+  // item's rarity/mastery/properties (see itemCompendium.ts).
+  if (data.school !== undefined && typeof data.school !== 'string') {
+    issues.push({ file: relativePath, message: 'data.school must be a string when provided.' })
   }
   if (data.ritual !== undefined && typeof data.ritual !== 'boolean') {
     issues.push({ file: relativePath, message: 'data.ritual must be a boolean when provided.' })
