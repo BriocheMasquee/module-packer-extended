@@ -25,6 +25,8 @@ Both the Compendium and Module panels have a "Collapse All" button (VSCode's bui
 
 Every field is written upfront, like `module.json` — delete whatever doesn't apply to this entry. Nothing is required beyond `id`/`name`/`slug` (see [Build Module](Build-Module) for exactly what's validated and how empty fields are handled at build time).
 
+A standalone file's own `image`/`token` lives in the entity's own folder (`items/`, `spells/`, `monsters/`, `backgrounds/`), as shown above — an inline `` ```item ``/`` ```spell ``/`` ```monster ``/`` ```background `` block's `image`/`token` works differently, authored relative to `images/` instead — see [Where the illustration image lives](#where-the-illustration-image-lives).
+
 While editing, VSCode validates each file against its own EncounterPlus schema — autocomplete (⌃Space / ⌥Esc depending on platform), hover documentation, and red squiggles on an invalid enum value, a malformed UUID, or a badly shaped `columns`/`rows` pair.
 
 ## `attributes.measurement` / `attributes.ruleset`
@@ -81,8 +83,8 @@ slug: new-spell
 attributes:
   measurement: ""
   ruleset: "5.5e"
-image: "spells/"
-showImage: true
+image: "images/"
+addImageToCompendium: true
 level: 0
 school: ""
 showSchoolIcon: true
@@ -112,21 +114,30 @@ showTags: true
 ```
 ```
 
-Free-text/enum fields (`name`, `school`, `activation.unit`, `rangeType`, `durationType`, `durationUnit`, `descr`) are quoted by default so an untouched field parses as an empty string, not YAML `null` — a `null` there would fail the same enum validation a typo would. `range`/`areaEffectSize` default to `0`, which is treated as "not set" everywhere (0 is never a real spell range or area size in D&D's rules) rather than rendering a literal "0 feet". `image: "spells/"` (no file name) is likewise treated as "no image", the same convention a standalone spell file uses.
+Free-text/enum fields (`name`, `school`, `activation.unit`, `rangeType`, `durationType`, `durationUnit`, `descr`) are quoted by default so an untouched field parses as an empty string, not YAML `null` — a `null` there would fail the same enum validation a typo would. `range`/`areaEffectSize` default to `0`, which is treated as "not set" everywhere (0 is never a real spell range or area size in D&D's rules) rather than rendering a literal "0 feet". `image: "images/"` (no file name) is likewise treated as "no image".
 
 `slug` is optional — if left out, it's generated from `name` at build time. `id` isn't part of the template at all; a deterministic UUID (from the slug + module id) is generated automatically, exactly like a page's id, so nothing needs to be typed by hand.
 
 ### `show*` toggles
 
-Every visual element — the illustration image, the school icon, the area-effect shape icon, the Source line, the Tags line — has its own `show*` boolean, placed directly under the field it controls. Each also has a project-wide default setting:
+The school icon, the area-effect shape icon, the Source line, and the Tags line each have their own `show*` boolean, placed directly under the field it controls (`image`'s own toggle works differently — see the next section). Each also has a project-wide default setting:
 
-- `mpx.defaultShowSpellImage`
 - `mpx.defaultShowSpellSchoolIcon`
 - `mpx.defaultShowSpellAreaEffectIcon`
 - `mpx.defaultShowSpellSources`
 - `mpx.defaultShowSpellTags`
 
-All default to `true`. A spell's own `show*` field, once explicitly set to `true` or `false`, always wins over the project setting — the project setting only fills in when the field is left out of the YAML entirely. `createModuleProject` prefills all five in `.vscode/settings.json`, same as `mpx.contentLanguage`/`mpx.defaultMeasurement`.
+All default to `true`. A spell's own `show*` field, once explicitly set to `true` or `false`, always wins over the project setting — the project setting only fills in when the field is left out of the YAML entirely. `createModuleProject` prefills all four (plus `addImageToCompendium`) in `.vscode/settings.json`, same as `mpx.contentLanguage`/`mpx.defaultMeasurement`.
+
+### Where the illustration image lives
+
+An inline block's `image` (a monster's `token` too — see [Inline monster authoring](#inline-monster-authoring)) is authored relative to the project's `images/` folder — `images/goblin.png`, not `spells/goblin.png` — the same folder an ordinary page image (`![](images/goblin.png)`) lives in, flat only (no subfolder). This is different from a *standalone* file's own `image`, which still lives in the entity's own folder (`spells/goblin.png`) — see [What gets created](#what-gets-created).
+
+Why the split: a page's rendered HTML only ever resolves an embedded `<img>` relative to the built module's `images/` folder, never an entity folder like `spells/` — an inline block's image always renders in the page (and the live preview) once `image` is set to a real file, no toggle needed for that part. `addImageToCompendium` (project default: `mpx.defaultAddSpellImageToCompendium`, prefilled by `createModuleProject`) instead controls a separate concern: whether that same file is *also* copied into `spells/` and referenced from this spell's own entry in the built `spells.json`, so EncounterPlus's own Compendium detail view for the spell shows it too — independent of whether it's shown in the page. Concretely:
+
+- `image` empty → no image anywhere (page, preview, or Compendium detail view).
+- `image` set, `addImageToCompendium` unset or `true` (the default) → image shows in the page/preview **and** in the Compendium detail view.
+- `image` set, `addImageToCompendium: false` → image shows in the page/preview, but **not** in the Compendium detail view.
 
 ### Icons
 
@@ -146,11 +157,11 @@ sources:
 
 `range` and `areaEffectSize` are always authored in feet — when the resolved measurement system is metric, the displayed number is converted using the same simplified factor WotC's own licensed French translations use (feet × 0.3, rounded to the nearest half-unit), not the precise 0.3048 conversion. `range`'s plain unit word switches to "mètre" when both the measurement is metric and `mpx.contentLanguage` is `"fr"` — an MPX-authored word, not from the catalog (EncounterPlus has no key for it) — see [Localization](Localization).
 
-The live preview re-resolves `mpx.defaultMeasurement`/`mpx.contentLanguage`/the five `defaultShowSpell*` settings on every render and refreshes itself automatically when any of them changes — no need to reload the Extension Development Host or reopen the preview.
+The live preview re-resolves `mpx.defaultMeasurement`/`mpx.contentLanguage`/the five spell `defaultShowSpell*`/`defaultAddSpellImageToCompendium` settings on every render and refreshes itself automatically when any of them changes — no need to reload the Extension Development Host or reopen the preview.
 
 ### Build merge
 
-At build time, every inline spell across every page is merged into `spells.json` alongside standalone files — validated exactly like a standalone file (slug format, enum values, `sources`/`tags` shape, image existence), with the same duplicate-slug/duplicate-id detection applying across *both* sources. The `show*` fields never appear in the built `spells.json` — they're an inline-authoring/rendering concern only, not part of EncounterPlus's own schema, so they're stripped before merging.
+At build time, every inline spell across every page is merged into `spells.json` alongside standalone files — validated exactly like a standalone file (slug format, enum values, `sources`/`tags` shape, image existence), with the same duplicate-slug/duplicate-id detection applying across *both* sources. The `show*` fields (and `addImageToCompendium`) never appear in the built `spells.json` — they're an inline-authoring/rendering concern only, not part of EncounterPlus's own schema, so they're stripped before merging. `image` itself is rewritten from `images/<file>` to `spells/<file>` when `addImageToCompendium` resolves to `true` (the file is copied there too), or dropped from the record entirely when it resolves to `false` — see [Where the illustration image lives](#where-the-illustration-image-lives).
 
 ### Compendium panel entry
 
@@ -171,8 +182,8 @@ slug: new-item
 attributes:
   measurement: ""
   ruleset: "5.5e"
-image: "items/"
-showImage: true
+image: "images/"
+addImageToCompendium: true
 type: ""
 typeDetail: ""
 rarity: ""
@@ -203,8 +214,8 @@ showTags: true
 
 Differences from the spell block worth calling out:
 
-- **No school/area-effect icon equivalent** — an item has no theme-provided icon set, so only three `show*` toggles exist: `showImage`, `showSources`, `showTags` (project defaults: `mpx.defaultShowItemImage`, `mpx.defaultShowItemSources`, `mpx.defaultShowItemTags`).
-- **The illustration image renders last**, after Source/Tags, rather than at the top like a spell's — an explicit design choice (an item's image is a "nice to have", not its focal point). The `showImage` field still sits directly under `image:` in the YAML, matching the usual `show*`-below-its-field convention; only the *rendered* position differs.
+- **No school/area-effect icon equivalent** — an item has no theme-provided icon set, so only two `show*` toggles exist: `showSources`, `showTags` (project defaults: `mpx.defaultShowItemSources`, `mpx.defaultShowItemTags`), plus `addImageToCompendium` (project default: `mpx.defaultAddItemImageToCompendium`) — see [Where the illustration image lives](#where-the-illustration-image-lives).
+- **The illustration image renders last**, after Source/Tags, rather than at the top like a spell's — an explicit design choice (an item's image is a "nice to have", not its focal point). The `addImageToCompendium` field still sits directly under `image:` in the YAML, matching the usual toggle-below-its-field convention; only the *rendered* position differs.
 - **Subtitle** combines `type` (+ `typeDetail` in parens) and `rarity`, e.g. "Melee Weapon, Legendary". `type: custom` is a special case (no such entry in the catalog) and falls back to "Custom".
 - **Weight/capacity have no unit conversion** — unlike a spell's `range`/`areaEffectSize` (always feet, converted to meters), an item's `weight`/`capacity` are authored directly in whichever unit the project's resolved measurement implies (kg if metric, lb if imperial) and just labeled accordingly. There's no single canonical unit to convert from the way D&D's rules fix spell ranges in feet.
 - **`weight`/`value`/`ac`/`str` of `0` are treated as "not set"**, same convention as a spell's `range: 0`/`areaEffectSize: 0`.
@@ -222,10 +233,10 @@ slug: new-monster
 attributes:
   measurement: ""
   ruleset: "5.5e"
-image: "monsters/"
-showImage: true
-token: "monsters/"
-showToken: true
+image: "images/"
+addImageToCompendium: true
+token: "images/"
+addTokenToCompendium: true
 size: ""
 type: ""
 typeDetail: ""
@@ -302,7 +313,7 @@ Neither ever reaches `monsters.json` — matching every other presentation-only 
 
 ### `show*` toggles
 
-Four toggles: `showImage`, `showToken`, `showSources`, `showTags` (project defaults: `mpx.defaultShowMonsterImage`, `mpx.defaultShowMonsterToken`, `mpx.defaultShowMonsterSources`, `mpx.defaultShowMonsterTags`) — no icon toggle, same as item. `token` (circular portrait, top-right) and `image` (full-width illustration, bottom) are independent fields/toggles, matching the two separate image-like fields EncounterPlus already gives a monster.
+Four toggles: `addImageToCompendium`, `addTokenToCompendium`, `showSources`, `showTags` (project defaults: `mpx.defaultAddMonsterImageToCompendium`, `mpx.defaultAddMonsterTokenToCompendium`, `mpx.defaultShowMonsterSources`, `mpx.defaultShowMonsterTags`) — no icon toggle, same as item. `token` (circular portrait, top-right) and `image` (full-width illustration, bottom) are independent fields/toggles, matching the two separate image-like fields EncounterPlus already gives a monster — both render unconditionally once set (in the page, preview, and statblock), same as every other type; their own toggle only controls whether the file is *also* copied into `monsters/` for the Compendium's own detail view — see [Where the illustration image lives](#where-the-illustration-image-lives).
 
 ### Source / Tags render outside the card
 
@@ -350,8 +361,8 @@ sources:
 showSources: true
 tags: []
 showTags: true
-image: "backgrounds/"
-showImage: true
+image: "images/"
+addImageToCompendium: false
 ```
 ```
 
@@ -375,7 +386,7 @@ A real EncounterPlus `data.equipment` value routinely embeds a link like `[Calli
 
 ### `show*` toggles
 
-Three toggles: `showImage`, `showSources`, `showTags` (project defaults: `mpx.defaultShowBackgroundImage`, `mpx.defaultShowBackgroundSources`, `mpx.defaultShowBackgroundTags`) — no icon toggle, same as item. The illustration image renders last, after Source/Tags, matching item's own placement.
+Three toggles: `addImageToCompendium`, `showSources`, `showTags` (project defaults: `mpx.defaultAddBackgroundImageToCompendium`, `mpx.defaultShowBackgroundSources`, `mpx.defaultShowBackgroundTags`) — no icon toggle, same as item. The illustration image renders unconditionally once `image` is set (in the page/preview), regardless of `addImageToCompendium` — see [Where the illustration image lives](#where-the-illustration-image-lives). The snippet's own default is `addImageToCompendium: false`, unlike item/spell/monster's `true` — a deliberate choice for background specifically (see the project's own history for why), not a general convention.
 
 ### No `data.languages`
 

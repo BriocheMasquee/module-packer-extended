@@ -310,7 +310,7 @@ classes: Magicien, Ensorceleur
   assert.match(page, /classes: \["Magicien", "Ensorceleur"\]/)
 })
 
-test('convertMpProject copies an inline Spell block\'s image into spells/ and rewrites its path', async () => {
+test('convertMpProject copies an inline Spell block\'s image into images/ and rewrites its path', async () => {
   const { destinationDirectory, sourceDirectory } = await makeTempDirs()
   await writeFile(join(sourceDirectory, 'Module.yaml'), 'name: Test\nversion: "1.0"\n')
   await writeFile(
@@ -332,10 +332,10 @@ show-image: true
 
   await convertMpProject(sourceDirectory, destinationDirectory)
   const page = await readFile(join(destinationDirectory, 'pages', 'page.md'), 'utf8')
-  assert.match(page, /image: "spells\/spell-cover\.png"/)
-  assert.match(page, /showImage: true/)
+  assert.match(page, /image: "images\/spell-cover\.png"/)
+  assert.match(page, /addImageToCompendium: true/)
   assert.equal(
-    await readFile(join(destinationDirectory, 'spells', 'spell-cover.png'), 'utf8'),
+    await readFile(join(destinationDirectory, 'images', 'spell-cover.png'), 'utf8'),
     'spell image bytes',
   )
 })
@@ -483,10 +483,17 @@ test('convertMpProject reshapes a real MP Item block (array properties, currency
   assert.match(page, /properties: \["versatile", "finesse"\]/)
   assert.match(page, /value: 1\b/)
   assert.match(page, /sources:\n\s*- name: "Example Module"/)
-  assert.match(page, /image: "items\/QuaterstaffOfThwacking\.jpg"/)
+  assert.match(page, /image: "images\/QuaterstaffOfThwacking\.jpg"/)
+  assert.match(page, /addImageToCompendium: true/)
 
+  // MP's own show-image: false has no MPX equivalent (an authored image
+  // always shows on the card now) — folded into a field notice rather
+  // than silently changing behavior, see reshapeMpItemYaml. The fixture's
+  // page also has a Spell block with show-image: false (see the Spell
+  // reshape test below), so both show up here.
   const fieldNotices = result.notices.filter((notice) => notice.code === 'compendium-field-notice')
-  assert.equal(fieldNotices.length, 0)
+  assert.equal(fieldNotices.length, 2)
+  assert.ok(fieldNotices.every((notice) => /show-image/.test(notice.message)))
 })
 
 test('convertMpProject reshapes a real MP Spell block (composite "Self (30-foot radius)" range)', async () => {
@@ -507,10 +514,14 @@ test('convertMpProject reshapes a real MP Spell block (composite "Self (30-foot 
   assert.match(page, /durationUnit: "minute"/)
   assert.match(page, /classes: \["Sorcerer", "Warlock", "Wizard"\]/)
 
+  // MP's own show-image: false has no MPX equivalent (an authored image
+  // always shows on the card now) — folded into a field notice rather
+  // than silently changing behavior, see reshapeMpSpellYaml.
   const fieldNotices = result.notices.filter(
     (notice) => notice.code === 'compendium-field-notice' && notice.message.includes('Dumpster Fire'),
   )
-  assert.equal(fieldNotices.length, 0)
+  assert.equal(fieldNotices.length, 1)
+  assert.match(fieldNotices[0].message, /show-image/)
 })
 
 test('convertMpProject reshapes a real MP Monster block (structured speed/saves/skills/senses, feature lists, mythic-actions folded into descr)', async () => {
@@ -545,8 +556,10 @@ test('convertMpProject reshapes a real MP Monster block (structured speed/saves/
   assert.match(page, /environments: \["forest", "grassland", "hill", "underdark"\]/)
   assert.match(page, /bonusActions:/)
   assert.match(page, /legendaryActions:/)
-  assert.match(page, /image: "monsters\/Monster\.jpg"/)
-  assert.match(page, /token: "monsters\/MonsterToken\.png"/)
+  assert.match(page, /image: "images\/Monster\.jpg"/)
+  assert.match(page, /addImageToCompendium: true/)
+  assert.match(page, /token: "images\/MonsterToken\.png"/)
+  assert.match(page, /addTokenToCompendium: true/)
 
   // "mythic-actions" has no MPX field — the "never drop MP data" rule folds
   // it into descr rather than losing it.

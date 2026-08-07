@@ -61,25 +61,25 @@ async function executeBuildModule(outputChannel: vscode.OutputChannel): Promise<
     )
   }
   const spellDisplayDefaults = {
-    showImage: config.get<boolean>('defaultShowSpellImage', true),
+    addImageToCompendium: config.get<boolean>('defaultAddSpellImageToCompendium', true),
     showSchoolIcon: config.get<boolean>('defaultShowSpellSchoolIcon', true),
     showAreaEffectIcon: config.get<boolean>('defaultShowSpellAreaEffectIcon', true),
     showSources: config.get<boolean>('defaultShowSpellSources', true),
     showTags: config.get<boolean>('defaultShowSpellTags', true),
   }
   const itemDisplayDefaults = {
-    showImage: config.get<boolean>('defaultShowItemImage', true),
+    addImageToCompendium: config.get<boolean>('defaultAddItemImageToCompendium', true),
     showSources: config.get<boolean>('defaultShowItemSources', true),
     showTags: config.get<boolean>('defaultShowItemTags', true),
   }
   const monsterDisplayDefaults = {
-    showImage: config.get<boolean>('defaultShowMonsterImage', true),
-    showToken: config.get<boolean>('defaultShowMonsterToken', true),
+    addImageToCompendium: config.get<boolean>('defaultAddMonsterImageToCompendium', true),
+    addTokenToCompendium: config.get<boolean>('defaultAddMonsterTokenToCompendium', true),
     showSources: config.get<boolean>('defaultShowMonsterSources', true),
     showTags: config.get<boolean>('defaultShowMonsterTags', true),
   }
   const backgroundDisplayDefaults = {
-    showImage: config.get<boolean>('defaultShowBackgroundImage', true),
+    addImageToCompendium: config.get<boolean>('defaultAddBackgroundImageToCompendium', true),
     showSources: config.get<boolean>('defaultShowBackgroundSources', true),
     showTags: config.get<boolean>('defaultShowBackgroundTags', true),
   }

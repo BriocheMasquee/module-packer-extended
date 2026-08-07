@@ -17,7 +17,7 @@ import { SPELL_COMPONENTS, SPELL_SCHOOLS } from './spellCompendium.js'
 // Reshapes MP (Module Packer V4)'s own inline ```Item/```Spell/```Monster
 // block field vocabulary — free-text, kebab-case, comma-separated — into
 // MPX's current flat field vocabulary (structured activation/duration/
-// speed/senses/saves, arrays, descr, showImage, ...), the shape
+// speed/senses/saves, arrays, descr, addImageToCompendium, ...), the shape
 // core/src/{item,spell,monster}Block.ts actually render.
 //
 // Guiding rule (explicit, 2026-08-06): a value that exists in MP but has no
@@ -233,10 +233,29 @@ function reshapeMpItemYaml(raw: Record<string, unknown>): {
     lines.push(`slug: ${JSON.stringify(slug)}`)
   }
   if (image) {
-    lines.push(`image: ${JSON.stringify(`items/${image}`)}`)
-  }
-  if (showImage !== undefined) {
-    lines.push(`showImage: ${showImage}`)
+    // The image is copied into images/ (not items/) by the caller — see
+    // copyCompendiumBlockImage in mpConversion.ts — matching the fix for a
+    // real bug found via a live EncounterPlus import: a page's rendered
+    // HTML only ever resolves an embedded <img> relative to images/, never
+    // an entity folder. addImageToCompendium: true preserves MP's own
+    // behavior most faithfully (the image was always available both on
+    // the card and in MP's own item reference) — matching this project's
+    // "when in doubt, favor the option most faithful to MP" convention.
+    lines.push(`image: ${JSON.stringify(`images/${image}`)}`)
+    lines.push('addImageToCompendium: true')
+    if (showImage === false) {
+      // MP's own show-image: false hid the image from the *card*
+      // specifically while MP's own reference still had it — MPX has no
+      // equivalent once the image always renders in the page unconditionally,
+      // so this is folded into a notice rather than silently changing
+      // behavior (this project's "never silently drop" rule).
+      fieldNotices.push({
+        field: 'show-image',
+        message:
+          'MP had this image hidden from the card (show-image: false) while still keeping it in its own item reference — MPX has no equivalent (an authored image always shows on the card), so it now renders visibly here too.',
+        originalValue: 'false',
+      })
+    }
   }
   if (type) {
     lines.push(`type: ${JSON.stringify(type)}`)
@@ -500,10 +519,18 @@ function reshapeMpSpellYaml(raw: Record<string, unknown>): {
     lines.push(`slug: ${JSON.stringify(slug)}`)
   }
   if (image) {
-    lines.push(`image: ${JSON.stringify(`spells/${image}`)}`)
-  }
-  if (showImage !== undefined) {
-    lines.push(`showImage: ${showImage}`)
+    // See the identical comment in reshapeMpItemYaml — same fix (images/,
+    // not spells/) and same MP show-image: false caveat.
+    lines.push(`image: ${JSON.stringify(`images/${image}`)}`)
+    lines.push('addImageToCompendium: true')
+    if (showImage === false) {
+      fieldNotices.push({
+        field: 'show-image',
+        message:
+          'MP had this image hidden from the card (show-image: false) while still keeping it in its own spell reference — MPX has no equivalent (an authored image always shows on the card), so it now renders visibly here too.',
+        originalValue: 'false',
+      })
+    }
   }
   if (level !== undefined) {
     lines.push(`level: ${level}`)
@@ -889,10 +916,15 @@ function reshapeMpMonsterYaml(raw: Record<string, unknown>): {
     lines.push(`slug: ${JSON.stringify(slug)}`)
   }
   if (image) {
-    lines.push(`image: ${JSON.stringify(`monsters/${image}`)}`)
+    // See the identical comment in reshapeMpItemYaml — same fix (images/,
+    // not monsters/); MP's monster blocks never had a show-image
+    // equivalent, so there's no toggle-loss notice needed here.
+    lines.push(`image: ${JSON.stringify(`images/${image}`)}`)
+    lines.push('addImageToCompendium: true')
   }
   if (token) {
-    lines.push(`token: ${JSON.stringify(`monsters/${token}`)}`)
+    lines.push(`token: ${JSON.stringify(`images/${token}`)}`)
+    lines.push('addTokenToCompendium: true')
   }
   if (size) {
     lines.push(`size: ${JSON.stringify(size)}`)

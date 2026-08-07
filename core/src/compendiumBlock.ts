@@ -18,13 +18,38 @@ export function themeAssetPath(fileName: string, preview: boolean | undefined): 
   return `${preview ? '../' : ''}assets/img/${fileName}`
 }
 
-/** A spell/item/monster's own `image`/`token` field (e.g. `spells/x.png`,
- * `monsters/y.png`) is relative to the project root — same `../` adjustment
- * `installImageRendering` already applies to a page's own `images/...`
- * paths, needed for the same reason: a page file lives one level deeper,
- * in `pages/`, than the project root the path is actually relative to. */
+/** A standalone entity file's own `image`/`token` field (e.g. `spells/x.png`,
+ * `monsters/y.png`) or an inline block's (e.g. `images/x.png`, see
+ * INLINE_IMAGE_PATTERN) is relative to the project root — same `../`
+ * adjustment `installImageRendering` already applies to a page's own
+ * `images/...` paths, needed for the same reason: a page file lives one
+ * level deeper, in `pages/`, than the project root the path is actually
+ * relative to. */
 export function resourceImagePath(resourcePath: string, preview: boolean | undefined): string {
   return preview ? `../${resourcePath}` : resourcePath
+}
+
+/** An inline `image`/`token` field is authored relative to the project's
+ * `images/` folder — the same folder an ordinary page image lives in —
+ * not the entity's own folder (`items/`, `spells/`, `monsters/`,
+ * `backgrounds/`) a *standalone* file's `image`/`token` uses. This is the
+ * fix for a real bug found via a live EncounterPlus import: a page's
+ * rendered HTML only ever resolves an embedded `<img>` relative to the
+ * module's `images/` folder, never an entity folder — an inline block
+ * whose `image` pointed at `items/x.png` (mirroring the standalone
+ * convention) rendered fine in the entity's own Compendium detail view
+ * once merged into `items.json`, but never showed up in the page itself.
+ * Flat only (`images/<file>`, no subfolder) — avoids any filename
+ * collision when the same file is optionally also copied into the
+ * entity's own folder (see `addImageToCompendium`/`addTokenToCompendium`
+ * in each block's DisplayDefaults), which requires a flat path there too. */
+export const INLINE_IMAGE_PATTERN = /^images\/[^/\\]+$/
+
+/** The bare basename of an `images/<file>` path — used to derive the
+ * entity-folder archive path (`items/<file>`, ...) when an inline block's
+ * image/token is also copied into the Compendium at build time. */
+export function inlineImageBasename(imagesPath: string): string {
+  return imagesPath.slice('images/'.length)
 }
 
 /** Distance and weight values are authored in whichever unit an entry's own

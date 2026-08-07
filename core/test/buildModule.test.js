@@ -1217,13 +1217,13 @@ test('countInlinePageCompendiumEntries counts inline spell/item/monster/roll-tab
   )
 
   const counts = await countInlinePageCompendiumEntries(root)
-  assert.deepEqual(counts, { spells: 1, items: 1, monsters: 1, rollTables: 0 })
+  assert.deepEqual(counts, { spells: 1, items: 1, monsters: 1, backgrounds: 0, rollTables: 0 })
 })
 
 test('countInlinePageCompendiumEntries returns all zeros when there is no pages/ folder', async () => {
   const root = await makeTempModule()
   const counts = await countInlinePageCompendiumEntries(root)
-  assert.deepEqual(counts, { spells: 0, items: 0, monsters: 0, rollTables: 0 })
+  assert.deepEqual(counts, { spells: 0, items: 0, monsters: 0, backgrounds: 0, rollTables: 0 })
 })
 
 test('buildModule merges an inline ```spell page block into spells.json alongside standalone files', async () => {
@@ -1309,12 +1309,12 @@ test('buildModule rejects an inline spell slug that collides with a standalone s
   })
 })
 
-test('buildModule copies an inline spell\'s illustration image the same way a standalone spell does', async () => {
+test('buildModule copies an inline spell\'s illustration image into images/ and, by default, also into spells/ for the Compendium', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)
   await mkdir(join(root, 'pages'), { recursive: true })
-  await mkdir(join(root, 'spells'), { recursive: true })
-  await writeFile(join(root, 'spells', 'fireball.png'), 'fake-image-data')
+  await mkdir(join(root, 'images'), { recursive: true })
+  await writeFile(join(root, 'images', 'fireball.png'), 'fake-image-data')
   await writeFile(
     join(root, 'pages', 'intro.md'),
     [
@@ -1327,7 +1327,7 @@ test('buildModule copies an inline spell\'s illustration image the same way a st
       '',
       '```spell',
       'name: Fireball',
-      'image: spells/fireball.png',
+      'image: images/fireball.png',
       '```',
       '',
     ].join('\n'),
@@ -1335,6 +1335,7 @@ test('buildModule copies an inline spell\'s illustration image the same way a st
 
   const summary = await buildModule(root)
 
+  assert.ok(listZipEntries(summary.outputPath).includes('images/fireball.png'))
   assert.ok(listZipEntries(summary.outputPath).includes('spells/fireball.png'))
   const spells = JSON.parse(readZipEntry(summary.outputPath, 'spells.json'))
   assert.equal(spells[0].image, 'spells/fireball.png')
@@ -1356,7 +1357,7 @@ test('buildModule rejects an inline spell whose image references a missing file'
       '',
       '```spell',
       'name: Fireball',
-      'image: spells/missing.png',
+      'image: images/missing.png',
       '```',
       '',
     ].join('\n'),
@@ -1532,12 +1533,12 @@ test('buildModule rejects an inline item slug that collides with a standalone it
   })
 })
 
-test('buildModule copies an inline item\'s illustration image the same way a standalone item does', async () => {
+test('buildModule copies an inline item\'s illustration image into images/ and, by default, also into items/ for the Compendium', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)
   await mkdir(join(root, 'pages'), { recursive: true })
-  await mkdir(join(root, 'items'), { recursive: true })
-  await writeFile(join(root, 'items', 'ring.png'), 'fake-image-data')
+  await mkdir(join(root, 'images'), { recursive: true })
+  await writeFile(join(root, 'images', 'ring.png'), 'fake-image-data')
   await writeFile(
     join(root, 'pages', 'intro.md'),
     [
@@ -1550,7 +1551,7 @@ test('buildModule copies an inline item\'s illustration image the same way a sta
       '',
       '```item',
       'name: Ring',
-      'image: items/ring.png',
+      'image: images/ring.png',
       '```',
       '',
     ].join('\n'),
@@ -1558,6 +1559,7 @@ test('buildModule copies an inline item\'s illustration image the same way a sta
 
   const summary = await buildModule(root)
 
+  assert.ok(listZipEntries(summary.outputPath).includes('images/ring.png'))
   assert.ok(listZipEntries(summary.outputPath).includes('items/ring.png'))
   const items = JSON.parse(readZipEntry(summary.outputPath, 'items.json'))
   assert.equal(items[0].image, 'items/ring.png')
@@ -1579,7 +1581,7 @@ test('buildModule rejects an inline item whose image references a missing file',
       '',
       '```item',
       'name: Ring',
-      'image: items/missing.png',
+      'image: images/missing.png',
       '```',
       '',
     ].join('\n'),
@@ -1735,13 +1737,13 @@ test('buildModule rejects an inline monster slug that collides with a standalone
   })
 })
 
-test('buildModule copies both an inline monster\'s image and token the same way a standalone monster does', async () => {
+test('buildModule copies both an inline monster\'s image and token into images/ and, by default, also into monsters/ for the Compendium', async () => {
   const root = await makeTempModule()
   await writeValidModule(root)
   await mkdir(join(root, 'pages'), { recursive: true })
-  await mkdir(join(root, 'monsters'), { recursive: true })
-  await writeFile(join(root, 'monsters', 'dragon.png'), 'fake-image-data')
-  await writeFile(join(root, 'monsters', 'dragon-token.png'), 'fake-token-data')
+  await mkdir(join(root, 'images'), { recursive: true })
+  await writeFile(join(root, 'images', 'dragon.png'), 'fake-image-data')
+  await writeFile(join(root, 'images', 'dragon-token.png'), 'fake-token-data')
   await writeFile(
     join(root, 'pages', 'intro.md'),
     [
@@ -1754,8 +1756,8 @@ test('buildModule copies both an inline monster\'s image and token the same way 
       '',
       '```monster',
       'name: Dragon',
-      'image: monsters/dragon.png',
-      'token: monsters/dragon-token.png',
+      'image: images/dragon.png',
+      'token: images/dragon-token.png',
       '```',
       '',
     ].join('\n'),
@@ -1763,6 +1765,8 @@ test('buildModule copies both an inline monster\'s image and token the same way 
 
   const summary = await buildModule(root)
 
+  assert.ok(listZipEntries(summary.outputPath).includes('images/dragon.png'))
+  assert.ok(listZipEntries(summary.outputPath).includes('images/dragon-token.png'))
   assert.ok(listZipEntries(summary.outputPath).includes('monsters/dragon.png'))
   assert.ok(listZipEntries(summary.outputPath).includes('monsters/dragon-token.png'))
   const monsters = JSON.parse(readZipEntry(summary.outputPath, 'monsters.json'))
@@ -1786,7 +1790,7 @@ test('buildModule rejects an inline monster whose token references a missing fil
       '',
       '```monster',
       'name: Dragon',
-      'token: monsters/missing.png',
+      'token: images/missing.png',
       '```',
       '',
     ].join('\n'),

@@ -22,9 +22,9 @@ export const MONSTER_META_FIELDS = [
   'attributes',
   'descr',
   'image',
-  'showImage',
+  'addImageToCompendium',
   'token',
-  'showToken',
+  'addTokenToCompendium',
   'sources',
   'showSources',
   'tags',
@@ -501,14 +501,23 @@ function featureListHtml(kind: string, entries: unknown, locale: RenderLocale, m
 const FEATURE_LIST_KINDS = ['trait', 'action', 'bonusAction', 'reaction', 'legendaryAction'] as const
 const FEATURE_LIST_DATA_FIELDS = ['traits', 'actions', 'bonusActions', 'reactions', 'legendaryActions'] as const
 
-/** Project-level fallback for each `show*` toggle, used only when a
- * monster's own YAML leaves the field absent — an explicit `true`/`false`
- * in the monster always wins over this default, same spell/item pattern.
- * All default to `true`. No icon toggle: a monster has no theme-provided
- * icon set, same as an item. */
+/** Project-level fallback for each toggle, used only when a monster's own
+ * YAML leaves the field absent — an explicit value in the monster always
+ * wins over this default, same spell/item pattern. All default to `true`.
+ * No icon toggle: a monster has no theme-provided icon set, same as an
+ * item.
+ *
+ * `addImageToCompendium`/`addTokenToCompendium` don't control whether
+ * `image`/`token` render — both always render in the page (and preview)
+ * once set, no toggle needed there. They control whether that same file
+ * is *also* copied into `monsters/` and referenced from the monster's own
+ * built `monsters.json` entry, so the Compendium's own detail view in
+ * EncounterPlus shows it too. See INLINE_IMAGE_PATTERN in
+ * compendiumBlock.ts for why an inline monster's image/token lives in
+ * `images/`, not `monsters/`, unlike a standalone monster file's. */
 export interface MonsterDisplayDefaults {
-  showImage?: boolean
-  showToken?: boolean
+  addImageToCompendium?: boolean
+  addTokenToCompendium?: boolean
   showSources?: boolean
   showTags?: boolean
 }
@@ -573,13 +582,16 @@ export function renderMonsterBlockHtml(
   // its own class hook to switch to "JdS" in French.
   const languageClass = locale.language === 'fr' ? ' lang-fr' : ''
 
-  const showTokenDefault = options.displayDefaults?.showToken ?? true
-  const showToken = typeof data.showToken === 'boolean' ? data.showToken : showTokenDefault
-  const hasToken = isNonEmptyString(data.token) && data.token !== 'monsters/'
-  const tokenHtml =
-    showToken && hasToken
-      ? `<img class="statblock-token" src="${escapeHtml(resourceImagePath(String(data.token), options.preview))}" alt="">`
-      : ''
+  // "images/" (no file name) is the snippet's own untouched placeholder,
+  // matching how a standalone monster file treats "monsters/" that same
+  // way for "no token set". Renders unconditionally once set —
+  // addTokenToCompendium only controls whether the build also copies it
+  // into monsters/ for the Compendium's own detail view, not whether it
+  // shows here.
+  const hasToken = isNonEmptyString(data.token) && data.token !== 'images/'
+  const tokenHtml = hasToken
+    ? `<img class="statblock-token" src="${escapeHtml(resourceImagePath(String(data.token), options.preview))}" alt="">`
+    : ''
 
   const subtitle = formatSubtitle(monsterData, locale)
 
@@ -620,13 +632,10 @@ export function renderMonsterBlockHtml(
     featureListHtml(kind, monsterData[FEATURE_LIST_DATA_FIELDS[index]], locale, markdown),
   ).join('')
 
-  const showImageDefault = options.displayDefaults?.showImage ?? true
-  const showImage = typeof data.showImage === 'boolean' ? data.showImage : showImageDefault
-  const hasImage = isNonEmptyString(data.image) && data.image !== 'monsters/'
-  const imageHtml =
-    showImage && hasImage
-      ? `<img class="statblock-image" src="${escapeHtml(resourceImagePath(String(data.image), options.preview))}" alt="">`
-      : ''
+  const hasImage = isNonEmptyString(data.image) && data.image !== 'images/'
+  const imageHtml = hasImage
+    ? `<img class="statblock-image" src="${escapeHtml(resourceImagePath(String(data.image), options.preview))}" alt="">`
+    : ''
 
   // Unlike every other property line (rendered inside the card, in the
   // theme's own .statblock-property-line style), Source/Tags render outside

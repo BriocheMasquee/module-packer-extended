@@ -13,7 +13,7 @@ export const BACKGROUND_META_FIELDS = [
   'attributes',
   'descr',
   'image',
-  'showImage',
+  'addImageToCompendium',
   'sources',
   'showSources',
   'tags',
@@ -181,13 +181,22 @@ function formatFeat(data: Record<string, unknown>): string | undefined {
   return isNonEmptyString(data.feat) ? data.feat : undefined
 }
 
-/** Project-level fallback for each `show*` toggle, used only when a
- * background's own YAML leaves the field absent — an explicit `true`/
- * `false` in the background always wins over this default, same pattern as
- * item's own ItemDisplayDefaults. No icon toggles: a background has no
- * theme-provided icon set, same as item. */
+/** Project-level fallback for each toggle, used only when a background's
+ * own YAML leaves the field absent — an explicit value in the background
+ * always wins over this default, same pattern as item's own
+ * ItemDisplayDefaults. No icon toggles: a background has no
+ * theme-provided icon set, same as item.
+ *
+ * `addImageToCompendium` doesn't control whether the image renders — an
+ * `image` field always renders in the page (and preview) once set, no
+ * toggle needed there. It controls whether that same image is *also*
+ * copied into `backgrounds/` and referenced from the background's own
+ * built `backgrounds.json` entry, so the Compendium's own detail view in
+ * EncounterPlus shows it too. See INLINE_IMAGE_PATTERN in
+ * compendiumBlock.ts for why an inline background's image lives in
+ * `images/`, not `backgrounds/`, unlike a standalone background file's. */
 export interface BackgroundDisplayDefaults {
-  showImage?: boolean
+  addImageToCompendium?: boolean
   showSources?: boolean
   showTags?: boolean
 }
@@ -263,14 +272,14 @@ export function renderBackgroundBlockHtml(
   const equipment = isNonEmptyString(backgroundData.equipment) ? backgroundData.equipment : undefined
   const descriptionHtml = isNonEmptyString(data.descr) ? `<div class="compendium-block-description">${markdown.render(data.descr)}</div>` : ''
 
-  // "backgrounds/" (no file name) is the snippet's own untouched
-  // placeholder, matching how a standalone background file treats that
-  // same value as "no image set" rather than a literal (broken) path to
-  // render.
-  const hasImage = isNonEmptyString(data.image) && data.image !== 'backgrounds/'
-  const showImageDefault = options.displayDefaults?.showImage ?? true
-  const showImage = (typeof data.showImage === 'boolean' ? data.showImage : showImageDefault) && hasImage
-  const imageHtml = showImage
+  // "images/" (no file name) is the snippet's own untouched placeholder,
+  // matching how a standalone background file treats "backgrounds/" that
+  // same way for "no image set" rather than a literal (broken) path to
+  // render. Renders unconditionally once set — addImageToCompendium only
+  // controls whether the build also copies it into backgrounds/ for the
+  // Compendium's own detail view, not whether it shows here.
+  const hasImage = isNonEmptyString(data.image) && data.image !== 'images/'
+  const imageHtml = hasImage
     ? `<div class="compendium-image-block"><img class="compendium-image" src="${escapeHtml(resourceImagePath(String(data.image), options.preview))}" alt=""></div>`
     : ''
 

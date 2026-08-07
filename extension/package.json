@@ -77,11 +77,11 @@
           "scope": "resource",
           "markdownDescription": "Default measurement system used for generated labels and prefilled when creating a new Compendium entry. An entry's own `attributes.measurement` value, once set, always takes precedence.\n\nPossible values: `\"auto\"` (default, imperial for English / metric for French), `\"imperial\"`, `\"metric\"`."
         },
-        "mpx.defaultShowSpellImage": {
+        "mpx.defaultAddSpellImageToCompendium": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "markdownDescription": "Default for an inline ` ```spell ` block's `showImage` when the field is left absent. An explicit `showImage` in the spell's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+          "markdownDescription": "Default for an inline ` ```spell ` block's `addImageToCompendium` when the field is left absent. An explicit `addImageToCompendium` in the spell's own YAML always takes precedence.\n\nDoesn't control whether the image renders — an `image` field always renders in the page/preview once set. Controls whether it's *also* copied into `spells/` and referenced from the spell's own built Compendium entry, so EncounterPlus's own Compendium detail view shows it too.\n\nPossible values: `true` (default) or `false`."
         },
         "mpx.defaultShowSpellSchoolIcon": {
           "type": "boolean",
@@ -107,11 +107,11 @@
           "scope": "resource",
           "markdownDescription": "Default for an inline ` ```spell ` block's `showTags` when the field is left absent. An explicit `showTags` in the spell's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
         },
-        "mpx.defaultShowItemImage": {
+        "mpx.defaultAddItemImageToCompendium": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "markdownDescription": "Default for an inline ` ```item ` block's `showImage` when the field is left absent. An explicit `showImage` in the item's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+          "markdownDescription": "Default for an inline ` ```item ` block's `addImageToCompendium` when the field is left absent. An explicit `addImageToCompendium` in the item's own YAML always takes precedence.\n\nDoesn't control whether the image renders — an `image` field always renders in the page/preview once set. Controls whether it's *also* copied into `items/` and referenced from the item's own built Compendium entry, so EncounterPlus's own Compendium detail view shows it too.\n\nPossible values: `true` (default) or `false`."
         },
         "mpx.defaultShowItemSources": {
           "type": "boolean",
@@ -125,17 +125,17 @@
           "scope": "resource",
           "markdownDescription": "Default for an inline ` ```item ` block's `showTags` when the field is left absent. An explicit `showTags` in the item's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
         },
-        "mpx.defaultShowMonsterImage": {
+        "mpx.defaultAddMonsterImageToCompendium": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "markdownDescription": "Default for an inline ` ```monster ` block's `showImage` when the field is left absent. An explicit `showImage` in the monster's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+          "markdownDescription": "Default for an inline ` ```monster ` block's `addImageToCompendium` when the field is left absent. An explicit `addImageToCompendium` in the monster's own YAML always takes precedence.\n\nDoesn't control whether the image renders — an `image` field always renders in the page/preview once set. Controls whether it's *also* copied into `monsters/` and referenced from the monster's own built Compendium entry, so EncounterPlus's own Compendium detail view shows it too.\n\nPossible values: `true` (default) or `false`."
         },
-        "mpx.defaultShowMonsterToken": {
+        "mpx.defaultAddMonsterTokenToCompendium": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "markdownDescription": "Default for an inline ` ```monster ` block's `showToken` when the field is left absent. An explicit `showToken` in the monster's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+          "markdownDescription": "Default for an inline ` ```monster ` block's `addTokenToCompendium` when the field is left absent. An explicit `addTokenToCompendium` in the monster's own YAML always takes precedence.\n\nDoesn't control whether the token renders — a `token` field always renders in the page/preview once set. Controls whether it's *also* copied into `monsters/` and referenced from the monster's own built Compendium entry, so EncounterPlus's own Compendium detail view shows it too.\n\nPossible values: `true` (default) or `false`."
         },
         "mpx.defaultShowMonsterSources": {
           "type": "boolean",
@@ -149,11 +149,11 @@
           "scope": "resource",
           "markdownDescription": "Default for an inline ` ```monster ` block's `showTags` when the field is left absent. An explicit `showTags` in the monster's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
         },
-        "mpx.defaultShowBackgroundImage": {
+        "mpx.defaultAddBackgroundImageToCompendium": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "markdownDescription": "Default for an inline ` ```background ` block's `showImage` when the field is left absent. An explicit `showImage` in the background's own YAML always takes precedence.\n\nPossible values: `true` (default) or `false`."
+          "markdownDescription": "Default for an inline ` ```background ` block's `addImageToCompendium` when the field is left absent. An explicit `addImageToCompendium` in the background's own YAML always takes precedence.\n\nDoesn't control whether the image renders — an `image` field always renders in the page/preview once set. Controls whether it's *also* copied into `backgrounds/` and referenced from the background's own built Compendium entry, so EncounterPlus's own Compendium detail view shows it too.\n\nPossible values: `true` (default) or `false`."
         },
         "mpx.defaultShowBackgroundSources": {
           "type": "boolean",

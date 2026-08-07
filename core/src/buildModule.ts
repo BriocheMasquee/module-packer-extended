@@ -21,6 +21,7 @@ import { SPELL_IMAGE_PATTERN, validateSpellData, stripEmptySpellFields } from '.
 import { ITEM_IMAGE_PATTERN, validateItemData, stripEmptyItemFields } from './itemCompendium.js'
 import { MONSTER_IMAGE_PATTERN, validateMonsterData, stripEmptyMonsterFields } from './monsterCompendium.js'
 import { BACKGROUND_IMAGE_PATTERN, validateBackgroundData, stripEmptyBackgroundFields } from './backgroundCompendium.js'
+import { INLINE_IMAGE_PATTERN, inlineImageBasename } from './compendiumBlock.js'
 import type { SpellDisplayDefaults } from './spellBlock.js'
 import type { ItemDisplayDefaults } from './itemBlock.js'
 import type { MonsterDisplayDefaults } from './monsterBlock.js'
@@ -540,7 +541,46 @@ function readSpells(
   )
 }
 
-const SPELL_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'sources', 'tags', 'data'] as const
+/** Resolves an inline block's `image`/`token` field for the build. The
+ * page HTML (already rendered by readPages, since it's the same
+ * renderer) shows the image unconditionally whenever it's set — that
+ * needs no action here, since `images/` is copied into the zip verbatim
+ * like any other page image (see addDirectoryToZip). This only handles
+ * the *Compendium copy*: validates the file exists, and when
+ * `addToCompendium` is true, additionally schedules it to be copied into
+ * the entity's own folder (`items/`, `monsters/`, ...) and returns the
+ * entity-folder path to store in the built record's own `image`/`token`
+ * field — mirroring a standalone file's own convention, so the
+ * Compendium's own detail view in EncounterPlus shows it too. Returns
+ * undefined (field omitted from the record) whenever the source field is
+ * empty, the placeholder, invalid, or `addToCompendium` is false. */
+async function resolveInlineCompendiumImage(
+  moduleRoot: string,
+  label: string,
+  fieldLabel: string,
+  entityFolder: string,
+  imageValue: unknown,
+  addToCompendium: boolean,
+  imageResourcesOut: Map<string, string>,
+  issues: BuildIssue[],
+): Promise<string | undefined> {
+  if (!isNonEmptyString(imageValue) || imageValue === 'images/') {
+    return undefined
+  }
+  if (!INLINE_IMAGE_PATTERN.test(imageValue)) {
+    issues.push({ file: label, message: `${fieldLabel} must be a path to a file directly inside the images folder.` })
+    return undefined
+  }
+  const resolved = await checkResourceReference(moduleRoot, label, fieldLabel, imageValue, issues)
+  if (!resolved || !addToCompendium) {
+    return undefined
+  }
+  const archivePath = `${entityFolder}/${inlineImageBasename(imageValue)}`
+  imageResourcesOut.set(archivePath, resolved)
+  return archivePath
+}
+
+const SPELL_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'sources', 'tags', 'data'] as const
 
 /** Normalizes one inline ````spell` block (already lightly validated at
  * preview-render time) into the same record shape a standalone spells/*.json
@@ -554,6 +594,7 @@ async function buildInlineSpellRecord(
   source: PageInlineEntrySource,
   moduleId: string,
   defaultMeasurement: MeasurementSystem,
+  defaultAddImageToCompendium: boolean,
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
   pathById: Map<string, string>,
@@ -572,17 +613,17 @@ async function buildInlineSpellRecord(
   if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
     issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
   }
-  const image = raw.image
-  if (isNonEmptyString(image) && image !== 'spells/') {
-    if (!SPELL_IMAGE_PATTERN.test(image)) {
-      issues.push({ file: label, message: 'image must be a path to a file directly inside the spells folder.' })
-    } else {
-      const resolved = await checkResourceReference(moduleRoot, label, '"image"', image, issues)
-      if (resolved) {
-        imageResourcesOut.set(image, resolved)
-      }
-    }
-  }
+  const addImageToCompendium = typeof raw.addImageToCompendium === 'boolean' ? raw.addImageToCompendium : defaultAddImageToCompendium
+  const compendiumImage = await resolveInlineCompendiumImage(
+    moduleRoot,
+    label,
+    '"image"',
+    'spells',
+    raw.image,
+    addImageToCompendium,
+    imageResourcesOut,
+    issues,
+  )
 
   if (!isValidSlug(slug)) {
     return undefined
@@ -610,11 +651,14 @@ async function buildInlineSpellRecord(
       record[field] = raw[field]
     }
   }
+  if (compendiumImage) {
+    record.image = compendiumImage
+  }
   applyCompendiumAttributeDefaults(record, defaultMeasurement)
   return stripEmptySpellFields(record)
 }
 
-const ITEM_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'sources', 'tags', 'data'] as const
+const ITEM_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'sources', 'tags', 'data'] as const
 
 /** Same mechanism as buildInlineSpellRecord (see its comment) — for items
  * merging into items.json instead of spells.json. */
@@ -623,6 +667,7 @@ async function buildInlineItemRecord(
   source: PageInlineEntrySource,
   moduleId: string,
   defaultMeasurement: MeasurementSystem,
+  defaultAddImageToCompendium: boolean,
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
   pathById: Map<string, string>,
@@ -641,17 +686,17 @@ async function buildInlineItemRecord(
   if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
     issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
   }
-  const image = raw.image
-  if (isNonEmptyString(image) && image !== 'items/') {
-    if (!ITEM_IMAGE_PATTERN.test(image)) {
-      issues.push({ file: label, message: 'image must be a path to a file directly inside the items folder.' })
-    } else {
-      const resolved = await checkResourceReference(moduleRoot, label, '"image"', image, issues)
-      if (resolved) {
-        imageResourcesOut.set(image, resolved)
-      }
-    }
-  }
+  const addImageToCompendium = typeof raw.addImageToCompendium === 'boolean' ? raw.addImageToCompendium : defaultAddImageToCompendium
+  const compendiumImage = await resolveInlineCompendiumImage(
+    moduleRoot,
+    label,
+    '"image"',
+    'items',
+    raw.image,
+    addImageToCompendium,
+    imageResourcesOut,
+    issues,
+  )
 
   if (!isValidSlug(slug)) {
     return undefined
@@ -679,11 +724,14 @@ async function buildInlineItemRecord(
       record[field] = raw[field]
     }
   }
+  if (compendiumImage) {
+    record.image = compendiumImage
+  }
   applyCompendiumAttributeDefaults(record, defaultMeasurement)
   return stripEmptyItemFields(record)
 }
 
-const MONSTER_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'image', 'token', 'sources', 'tags', 'data'] as const
+const MONSTER_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'sources', 'tags', 'data'] as const
 
 /** Same mechanism as buildInlineSpellRecord (see its comment) — for
  * monsters merging into monsters.json instead of spells.json. `token` is
@@ -696,6 +744,8 @@ async function buildInlineMonsterRecord(
   source: PageInlineEntrySource,
   moduleId: string,
   defaultMeasurement: MeasurementSystem,
+  defaultAddImageToCompendium: boolean,
+  defaultAddTokenToCompendium: boolean,
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
   pathById: Map<string, string>,
@@ -714,19 +764,28 @@ async function buildInlineMonsterRecord(
   if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
     issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
   }
-  for (const imageField of ['image', 'token']) {
-    const imageValue = raw[imageField]
-    if (isNonEmptyString(imageValue) && imageValue !== 'monsters/') {
-      if (!MONSTER_IMAGE_PATTERN.test(imageValue)) {
-        issues.push({ file: label, message: `${imageField} must be a path to a file directly inside the monsters folder.` })
-      } else {
-        const resolved = await checkResourceReference(moduleRoot, label, `"${imageField}"`, imageValue, issues)
-        if (resolved) {
-          imageResourcesOut.set(imageValue, resolved)
-        }
-      }
-    }
-  }
+  const addImageToCompendium = typeof raw.addImageToCompendium === 'boolean' ? raw.addImageToCompendium : defaultAddImageToCompendium
+  const compendiumImage = await resolveInlineCompendiumImage(
+    moduleRoot,
+    label,
+    '"image"',
+    'monsters',
+    raw.image,
+    addImageToCompendium,
+    imageResourcesOut,
+    issues,
+  )
+  const addTokenToCompendium = typeof raw.addTokenToCompendium === 'boolean' ? raw.addTokenToCompendium : defaultAddTokenToCompendium
+  const compendiumToken = await resolveInlineCompendiumImage(
+    moduleRoot,
+    label,
+    '"token"',
+    'monsters',
+    raw.token,
+    addTokenToCompendium,
+    imageResourcesOut,
+    issues,
+  )
 
   if (!isValidSlug(slug)) {
     return undefined
@@ -753,6 +812,12 @@ async function buildInlineMonsterRecord(
     if (raw[field] !== undefined) {
       record[field] = raw[field]
     }
+  }
+  if (compendiumImage) {
+    record.image = compendiumImage
+  }
+  if (compendiumToken) {
+    record.token = compendiumToken
   }
   applyCompendiumAttributeDefaults(record, defaultMeasurement)
   return stripEmptyMonsterFields(record)
@@ -801,7 +866,7 @@ function readBackgrounds(
   )
 }
 
-const BACKGROUND_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'sources', 'tags', 'image', 'data'] as const
+const BACKGROUND_ENVELOPE_FIELDS = ['name', 'attributes', 'descr', 'sources', 'tags', 'data'] as const
 
 /** Same mechanism as buildInlineItemRecord (see its comment) — for
  * backgrounds merging into backgrounds.json instead of items.json. */
@@ -810,6 +875,7 @@ async function buildInlineBackgroundRecord(
   source: PageInlineEntrySource,
   moduleId: string,
   defaultMeasurement: MeasurementSystem,
+  defaultAddImageToCompendium: boolean,
   issues: BuildIssue[],
   imageResourcesOut: Map<string, string>,
   pathById: Map<string, string>,
@@ -828,17 +894,17 @@ async function buildInlineBackgroundRecord(
   if (raw.tags !== undefined && (!Array.isArray(raw.tags) || !raw.tags.every((tag) => typeof tag === 'string'))) {
     issues.push({ file: label, message: 'tags must be an array of strings when provided.' })
   }
-  const image = raw.image
-  if (isNonEmptyString(image) && image !== 'backgrounds/') {
-    if (!BACKGROUND_IMAGE_PATTERN.test(image)) {
-      issues.push({ file: label, message: 'image must be a path to a file directly inside the backgrounds folder.' })
-    } else {
-      const resolved = await checkResourceReference(moduleRoot, label, '"image"', image, issues)
-      if (resolved) {
-        imageResourcesOut.set(image, resolved)
-      }
-    }
-  }
+  const addImageToCompendium = typeof raw.addImageToCompendium === 'boolean' ? raw.addImageToCompendium : defaultAddImageToCompendium
+  const compendiumImage = await resolveInlineCompendiumImage(
+    moduleRoot,
+    label,
+    '"image"',
+    'backgrounds',
+    raw.image,
+    addImageToCompendium,
+    imageResourcesOut,
+    issues,
+  )
 
   if (!isValidSlug(slug)) {
     return undefined
@@ -865,6 +931,9 @@ async function buildInlineBackgroundRecord(
     if (raw[field] !== undefined) {
       record[field] = raw[field]
     }
+  }
+  if (compendiumImage) {
+    record.image = compendiumImage
   }
   applyCompendiumAttributeDefaults(record, defaultMeasurement)
   return stripEmptyBackgroundFields(record)
@@ -1439,6 +1508,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       source,
       moduleId,
       defaultMeasurement,
+      options.spellDisplayDefaults?.addImageToCompendium ?? true,
       issues,
       spellImageResources,
       spellPathById,
@@ -1458,6 +1528,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       source,
       moduleId,
       defaultMeasurement,
+      options.itemDisplayDefaults?.addImageToCompendium ?? true,
       issues,
       itemImageResources,
       itemPathById,
@@ -1477,6 +1548,8 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       source,
       moduleId,
       defaultMeasurement,
+      options.monsterDisplayDefaults?.addImageToCompendium ?? true,
+      options.monsterDisplayDefaults?.addTokenToCompendium ?? true,
       issues,
       monsterImageResources,
       monsterPathById,
@@ -1496,6 +1569,7 @@ export async function buildModule(moduleRoot: string, options: BuildOptions = {}
       source,
       moduleId,
       defaultMeasurement,
+      options.backgroundDisplayDefaults?.addImageToCompendium ?? true,
       issues,
       backgroundImageResources,
       backgroundPathById,

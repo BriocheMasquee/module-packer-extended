@@ -21,7 +21,7 @@ export const ITEM_META_FIELDS = [
   'attributes',
   'descr',
   'image',
-  'showImage',
+  'addImageToCompendium',
   'sources',
   'showSources',
   'tags',
@@ -247,14 +247,23 @@ function formatContainerCapacity(data: Record<string, unknown>, locale: RenderLo
   return data.container === true ? formatWeight(data.capacity, locale) : undefined
 }
 
-/** Project-level fallback for each `show*` toggle, used only when an item's
- * own YAML leaves the field absent — an explicit `true`/`false` in the item
- * always wins over this default, matching the same spell/measurement
- * pattern. All default to `true` (today's hardcoded behavior). No icon
- * toggles: unlike a spell's school/area-effect icons, an item has no
- * theme-provided icon set. */
+/** Project-level fallback for each toggle, used only when an item's own
+ * YAML leaves the field absent — an explicit value in the item always wins
+ * over this default, matching the same spell/measurement pattern. All
+ * default to `true` (today's hardcoded behavior). No icon toggles: unlike
+ * a spell's school/area-effect icons, an item has no theme-provided icon
+ * set.
+ *
+ * `addImageToCompendium` doesn't control whether the image renders — an
+ * `image` field always renders in the page (and preview) once set, no
+ * toggle needed there. It controls whether that same image is *also*
+ * copied into `items/` and referenced from the item's own built
+ * `items.json` entry, so the Compendium's own detail view in
+ * EncounterPlus shows it too. See INLINE_IMAGE_PATTERN in
+ * compendiumBlock.ts for why an inline item's image lives in `images/`,
+ * not `items/`, unlike a standalone item file's. */
 export interface ItemDisplayDefaults {
-  showImage?: boolean
+  addImageToCompendium?: boolean
   showSources?: boolean
   showTags?: boolean
 }
@@ -301,13 +310,14 @@ export function renderItemBlockHtml(data: Record<string, unknown>, markdown: Mar
     ? `<div class="compendium-block-description">${markdown.render(data.descr)}</div>`
     : ''
 
-  // "items/" (no file name) is the snippet's own untouched placeholder,
-  // matching how a standalone item file treats that same value as "no
-  // image set" rather than a literal (broken) path to render.
-  const hasImage = isNonEmptyString(data.image) && data.image !== 'items/'
-  const showImageDefault = options.displayDefaults?.showImage ?? true
-  const showImage = (typeof data.showImage === 'boolean' ? data.showImage : showImageDefault) && hasImage
-  const imageHtml = showImage
+  // "images/" (no file name) is the snippet's own untouched placeholder,
+  // matching how a standalone item file treats "items/" that same way for
+  // "no image set" rather than a literal (broken) path to render. Renders
+  // unconditionally once set — addImageToCompendium only controls whether
+  // the build also copies it into items/ for the Compendium's own detail
+  // view, not whether it shows here.
+  const hasImage = isNonEmptyString(data.image) && data.image !== 'images/'
+  const imageHtml = hasImage
     ? `<div class="compendium-image-block"><img class="compendium-image" src="${escapeHtml(resourceImagePath(String(data.image), options.preview))}" alt=""></div>`
     : ''
 

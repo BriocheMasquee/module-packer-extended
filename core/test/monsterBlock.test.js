@@ -148,7 +148,7 @@ tags: [dragon]
   assert.ok(statblockCloseIndex > -1, 'footer should immediately follow the closed .statblock')
   assert.match(
     html,
-    /<span class="compendium-block-detail-label">Source: <\/span><span class="compendium-block-detail-value">Monster Manual p\.328<\/span>/,
+    /<span class="compendium-block-detail-label">Source: <\/span><span class="compendium-block-detail-value">Monster Manual, p\. 328<\/span>/,
   )
   assert.match(
     html,
@@ -168,27 +168,27 @@ test('hides Tags when showTags is false', () => {
   assert.doesNotMatch(html, /Tags: /)
 })
 
-test('renders the token image and the illustration image, both hidden when their toggle is false', () => {
-  const withImages = renderMonster('name: Test\nimage: monsters/dragon.png\ntoken: monsters/dragon-token.png')
-  assert.match(withImages, /<img class="statblock-token" src="monsters\/dragon-token\.png" alt="">/)
-  assert.match(withImages, /<img class="statblock-image" src="monsters\/dragon\.png" alt="">/)
+test('renders the token image and the illustration image unconditionally, regardless of their addXToCompendium toggle', () => {
+  const withImages = renderMonster('name: Test\nimage: images/dragon.png\ntoken: images/dragon-token.png')
+  assert.match(withImages, /<img class="statblock-token" src="images\/dragon-token\.png" alt="">/)
+  assert.match(withImages, /<img class="statblock-image" src="images\/dragon\.png" alt="">/)
 
-  const hidden = renderMonster(
-    'name: Test\nimage: monsters/dragon.png\ntoken: monsters/dragon-token.png\nshowImage: false\nshowToken: false',
+  const stillShown = renderMonster(
+    'name: Test\nimage: images/dragon.png\ntoken: images/dragon-token.png\naddImageToCompendium: false\naddTokenToCompendium: false',
   )
-  assert.doesNotMatch(hidden, /statblock-token/)
-  assert.doesNotMatch(hidden, /statblock-image/)
+  assert.match(stillShown, /statblock-token/)
+  assert.match(stillShown, /statblock-image/)
 })
 
 test('rewrites both the token and illustration image paths with a ../ prefix in preview mode', () => {
   const markdown = createMarkdownRenderer({ preview: true })
-  const html = markdown.render('```monster\nname: Test\nimage: monsters/dragon.png\ntoken: monsters/dragon-token.png\n```\n')
-  assert.match(html, /src="\.\.\/monsters\/dragon-token\.png"/)
-  assert.match(html, /src="\.\.\/monsters\/dragon\.png"/)
+  const html = markdown.render('```monster\nname: Test\nimage: images/dragon.png\ntoken: images/dragon-token.png\n```\n')
+  assert.match(html, /src="\.\.\/images\/dragon-token\.png"/)
+  assert.match(html, /src="\.\.\/images\/dragon\.png"/)
 })
 
-test('treats the untouched "monsters/" placeholder as no image/token set', () => {
-  const html = renderMonster('name: Test\nimage: monsters/\ntoken: monsters/')
+test('treats the untouched "images/" placeholder as no image/token set', () => {
+  const html = renderMonster('name: Test\nimage: images/\ntoken: images/')
   assert.doesNotMatch(html, /statblock-token/)
   assert.doesNotMatch(html, /statblock-image/)
 })
