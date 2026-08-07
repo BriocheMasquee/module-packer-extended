@@ -64,6 +64,13 @@ These aren't tied to the project's theme (`mpx.projectTheme`) — the extension 
   | Value 1 | Value 2 |
   {.blue}
   ```
+- **`mpx-table-two`** — two matching tables side by side in one Markdown table, with a deliberately empty middle column as a transparent gutter (`phb-24` theme only):
+  ```
+  | Column 1 | Column 2 |  | Column 1 | Column 2 |
+  | :---: | :---: | :---: | :---: | :---: |
+  | Value | Value |  | Value | Value |
+  {.table-two}
+  ```
 - **`mpx-roll-table`** — a table auto-detected as a roll table at build time, see [Compendium](Compendium#roll-table-auto-detection):
   ```
   Roll Table Title {.table-title}

@@ -249,6 +249,17 @@
     ],
     "description": "Insert a table with a color or presentation choice"
   },
+  "MPX Two-Column Table": {
+    "prefix": "mpx-table-two",
+    "body": [
+      "| ${2:Column 1} | ${3:Column 2} |  | ${4:Column 1} | ${5:Column 2} |",
+      "| :---: | :---: | :---: | :---: | :---: |",
+      "| ${6:Value} | ${7:Value} |  | ${8:Value} | ${9:Value} |",
+      "{.table-two}",
+      "$0"
+    ],
+    "description": "Insert two matching tables side by side, with a transparent gutter column between them"
+  },
   "MPX Roll Table": {
     "prefix": "mpx-roll-table",
     "body": [

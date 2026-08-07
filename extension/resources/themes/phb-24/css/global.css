@@ -686,6 +686,39 @@ table.teal    { --table-bg: var(--color-teal-light);    --table-accent: var(--co
 table.magenta { --table-bg: var(--color-magenta-light); --table-accent: var(--color-magenta); --table-border: var(--color-magenta-dark); }
 table.signature { --table-bg: var(--color-signature-light); --table-accent: var(--color-signature); --table-border: var(--color-signature-dark); }
 
+/* Two matching tables presented side by side in one Markdown table: 5
+   columns (2 data pairs + a deliberately empty 3rd column as a transparent
+   gutter between them), authored with the mpx-table-two snippet. Reuses
+   the same --table-bg striping as a normal table (so table.blue.table-two
+   etc. still work) instead of a dedicated color pair, unlike the original
+   PHB-2024 version this is ported from. */
+table.table-two {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+table.table-two th,
+table.table-two td {
+  width: 23.5%;
+  text-align: center;
+}
+
+table.table-two tbody tr {
+  background: transparent;
+}
+
+table.table-two tbody tr:nth-child(odd) td:not(:nth-child(3)) {
+  background: var(--table-bg, #dae8ed);
+}
+
+table.table-two th:nth-child(3),
+table.table-two td:nth-child(3) {
+  width: 6%;
+  padding: 0;
+  background: transparent;
+}
+
 .color-links a {
   color: var(--blockquote-accent, var(--table-accent, var(--color-signature))) !important;
 }
