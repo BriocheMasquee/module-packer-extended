@@ -342,6 +342,23 @@ h4 {
   line-height: 2.7rem;
 }
 
+/* {.title-line} on an H4 — the exact same decorative banner used above an
+ * item/spell/monster/background card (.compendium-block-top-border), just
+ * applied above a regular page heading instead of inside a Compendium
+ * block. */
+h4.title-line::before {
+  content: '';
+  display: block;
+  height: 0.75rem;
+  margin-bottom: 0.3rem;
+  background-image: url('../img/item-line.webp');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  filter: grayscale(1);
+  opacity: 0.32;
+}
+
 h5 {
   font-size: 1.9rem;
   line-height: 2.4rem;
