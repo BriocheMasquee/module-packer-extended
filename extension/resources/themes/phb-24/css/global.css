@@ -346,6 +346,12 @@ h4 {
  * item/spell/monster/background card (.compendium-block-top-border), just
  * applied above a regular page heading instead of inside a Compendium
  * block. */
+h4.title-line {
+  /* Wider than a plain paragraph gap (0.75rem) — the shared h1-h6
+   * margin-top (0.5rem) read as too tight above the banner. */
+  margin-top: 2rem;
+}
+
 h4.title-line::before {
   content: '';
   display: block;
