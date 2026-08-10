@@ -63,7 +63,7 @@ jobs:
       # this by hand (explicit project requirement).
       - name: Open a pull request with any changes
         if: env.SKIP != 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'chore: sync translation catalogs from EncounterPlus'
           title: 'chore: sync translation catalogs from EncounterPlus'
