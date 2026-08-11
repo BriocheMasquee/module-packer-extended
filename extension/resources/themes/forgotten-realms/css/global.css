@@ -1,7 +1,7 @@
 /*
 Module Packer Extended for Encounterplus
 ----------------
-MPX — Forgotten Realms theme (work in progress, currently a copy of phb-24)
+MPX — Forgotten Realms theme
 global styles & theme
 */
 
@@ -205,12 +205,6 @@ p {
   text-align: left;
 }
 
-/* Hanging indent: the first line starts flush, every line after it is
- * indented — padding-left indents the whole block, text-indent pulls just
- * the first line back out by the same amount. No space after by default
- * (e.g. a run of equipment/spell-list entries reads as one block) — the
- * next rule restores the normal paragraph gap only when what follows
- * isn't itself a .data paragraph. */
 .data {
   font-family: var(--font-data);
   padding-left: 1.5rem;
@@ -264,21 +258,21 @@ h6 {
   margin-bottom: 0.3rem;
 }
 
-/* Chapter title: a small uppercase label (from the heading's own
- * data-chapter attribute, flanked by a pair of gold flourish images), the
- * gradient title text, then a decorative rule — ported from the PHB-2024
- * mock-up's own H1 system, colored with this theme's existing
- * --color-signature/--color-gold tokens instead of the mock-up's bespoke
- * palette, and set in --font-heading (the mock-up's 'Wolpe Pegasus' isn't
- * bundled here). */
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 1.4rem;
+}
+
 h1 {
-  font-size: 4.8rem;
-  line-height: 4.3rem;
+  font-size: 4.4rem;
+  line-height: 3.8rem;
   padding-bottom: 0.15rem;
   text-align: center;
   letter-spacing: 0.1rem;
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--color-signature) 0%, var(--color-signature-light) 90%);
+  background-image: linear-gradient(to bottom, #531707 0%, #b49189 90%);
   background-size: 100% 100%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
@@ -294,13 +288,13 @@ h1[data-chapter]::before {
   margin-right: auto;
   font-family: var(--font-heading);
   text-transform: uppercase;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: normal;
   letter-spacing: 0.15rem;
   line-height: 1em;
   margin-bottom: 0;
   padding: 0 5.5rem;
-  color: var(--color-signature);
+  color: var(--color-gray);
   -webkit-text-stroke: 0.012rem var(--color-black);
   background-repeat: no-repeat, no-repeat;
   background-position: left center, right center;
@@ -313,42 +307,88 @@ h1[data-chapter]::before {
 h1::after {
   content: '';
   display: block;
-  width: 34rem;
+  width: 40rem;
   max-width: 100%;
-  height: 1.85rem;
-  margin: 0 auto 0.5rem;
+  aspect-ratio: 1800 / 220;
+  margin: -0.3rem auto 0.5rem;
   background-image: url('../img/chapter-underline.webp');
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 100% 100%;
+  background-size: contain;
+  filter: brightness(1.35);
   -webkit-text-stroke: 0;
 }
 
 h2 {
-  font-size: 3.4rem;
+  font-size: 3rem;
   line-height: 3.2rem;
 }
 
 h3 {
-  font-size: 2.5rem;
-  line-height: 3.2rem;
+  font-size: 2.4rem;
+  line-height: 2.56rem;
   border-bottom: 0.15rem solid var(--color-gold);
   overflow: hidden;
   margin-bottom: 0.5rem;
 }
 
-h4 {
-  font-size: 2.2rem;
-  line-height: 2.7rem;
+/* One plain line of real text (not a pseudo-element) so the "Personnages
+   de Niveau X" portion can carry its own color via **bold** — a
+   pseudo-element's content can't mix two colors, which is why the earlier
+   badge/cadre attempts kept fighting positioning instead. */
+/* Left "bevel": the top-left corner stays a sharp point, only the
+   bottom-left corner is set back in a big-radius curve. */
+p.adventure-kicker {
+  position: relative;
+  display: table;
+  margin-left: auto;
+  margin-right: 0;
+  margin-top: 0.35rem;
+  margin-bottom: 0.45rem;
+  border: 0.04rem solid var(--color-gold);
+  border-bottom-left-radius: 1.6rem;
+  background: #fdfcf9;
+  padding: 0.02rem 0.6rem 0.02rem 0.9rem;
+  font-family: var(--font-data);
+  font-size: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  white-space: nowrap;
 }
 
-/* {.title-line} on an H4 — the exact same decorative banner used above an
- * item/spell/monster/background card (.compendium-block-top-border), just
- * applied above a regular page heading instead of inside a Compendium
- * block. */
+p.adventure-kicker strong {
+  color: var(--color-signature);
+}
+
+/* Thin gold line, same width as the box, sitting just above it. */
+p.adventure-kicker::before {
+  content: '';
+  position: absolute;
+  top: -0.3rem;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--color-gold);
+}
+
+p.adventure-kicker + h3 {
+  margin-top: 0;
+}
+
+h3.adventure-header + p {
+  margin-top: 0;
+  font-style: italic;
+  color: #6b6b6b;
+}
+
+h4 {
+  font-size: 2.1rem;
+  line-height: 1.96rem;
+}
+
 h4.title-line {
-  /* Wider than a plain paragraph gap (0.75rem) — the shared h1-h6
-   * margin-top (0.5rem) read as too tight above the banner. */
   margin-top: 2rem;
 }
 
@@ -367,19 +407,14 @@ h4.title-line::before {
 
 h5 {
   font-size: 1.9rem;
-  line-height: 2.4rem;
+  line-height: 1.9rem;
 }
 
 h6 {
-  font-size: 1.6rem;
-  line-height: 2.1rem;
+  font-size: 1.3rem;
+  line-height: 1.7rem;
 }
 
-/* Drop cap + small-caps opening line for the paragraph right after a
- * chapter H1 — ported from the PHB-2024 mock-up (its own gold two-tone
- * drop cap and always-small-caps first line). Set in --font-heading
- * (matches the H1 above it) rather than --font-dropcap's blackletter,
- * which read too far from the mock-up's reference. */
 h1 + p:not(.no-fancy)::first-letter {
   font-family: var(--font-heading) !important;
   font-size: 6.2rem;
@@ -392,7 +427,7 @@ h1 + p:not(.no-fancy)::first-letter {
   padding-right: 1rem;
   float: left;
   color: transparent;
-  background-image: linear-gradient(#b89956, #d8cdb6);
+  background-image: linear-gradient(#6c1e09, #cfa79e);
   background-size: 100% 100%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
@@ -424,7 +459,7 @@ blockquote {
   font-family: var(--font-data);
   font-size: 1.3rem;
   display: block;
-  background-color: var(--blockquote-bg, #e8d7c4);
+  background-color: var(--blockquote-bg, #e2ead8);
   padding: 1rem 1.5rem;
   margin: 2rem 0;
   position: relative;
@@ -559,11 +594,6 @@ blockquote.flowchart-with-link::before {
   border-left: 0.3rem solid var(--blockquote-accent, var(--color-signature));
 }
 
-/* The border is a 9-sliced raster (flowchart.webp has no color to swap via a
- * CSS variable), so a color class needs its own pre-tinted copy — one image
- * per accent, reused by both .flowchart and .flowchart-with-link since the
- * border art itself is identical between them. No .signature variant: it's
- * already flowchart.webp's own default color, nothing to swap to. */
 blockquote.flowchart.blue,    blockquote.flowchart-with-link.blue    { border-image-source: url('../img/flowchart-blue.webp'); }
 blockquote.flowchart.green,   blockquote.flowchart-with-link.green   { border-image-source: url('../img/flowchart-green.webp'); }
 blockquote.flowchart.red,     blockquote.flowchart-with-link.red     { border-image-source: url('../img/flowchart-red.webp'); }
@@ -603,7 +633,7 @@ blockquote.large-quote::after {
    ------------------------------------------------------------------------ */
 
 figure {
-  margin: 0;
+  margin: 1rem 0 0;
   padding: 0;
 }
 
@@ -629,9 +659,6 @@ figcaption {
   font-size: 0.95rem;
 }
 
-/* {.caption-over}: the caption sits on the image itself (bottom edge)
- * instead of below it — same font as .caption, in pale gray-white with a
- * dark shadow for legibility over whatever the image looks like. */
 figure:has(> img.caption-over) {
   position: relative;
 }
@@ -640,7 +667,7 @@ figure:has(> img.caption-over) figcaption {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 4rem;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -695,7 +722,11 @@ thead {
 }
 
 tbody tr:nth-child(odd) {
-  background: var(--table-bg, #dae8ed);
+  background: var(--table-bg, #e4e9db);
+}
+
+tbody tr:nth-child(even) {
+  background: var(--table-bg-alt, #f7f5f1);
 }
 
 table.blue    { --table-bg: var(--color-blue-light);    --table-accent: var(--color-blue);    --table-border: var(--color-blue-dark); }
@@ -709,12 +740,6 @@ table.teal    { --table-bg: var(--color-teal-light);    --table-accent: var(--co
 table.magenta { --table-bg: var(--color-magenta-light); --table-accent: var(--color-magenta); --table-border: var(--color-magenta-dark); }
 table.signature { --table-bg: var(--color-signature-light); --table-accent: var(--color-signature); --table-border: var(--color-signature-dark); }
 
-/* Two matching tables presented side by side in one Markdown table: 5
-   columns (2 data pairs + a deliberately empty 3rd column as a transparent
-   gutter between them), authored with the mpx-table-two snippet. Reuses
-   the same --table-bg striping as a normal table (so table.blue.table-two
-   etc. still work) instead of a dedicated color pair, unlike the original
-   PHB-2024 version this is ported from. */
 table.table-two {
   border-collapse: separate;
   border-spacing: 0;
@@ -958,6 +983,19 @@ a.roll {
 
 a[href*='/rule/'],
 a.rule {
+  color: var(--color-gray-dark);
+}
+
+a[href*='/feat/'],
+a.feat,
+a[href*='/background/'],
+a.background,
+a[href*='/species/'],
+a.species,
+a[href*='/class/'],
+a.class,
+a[href*='/subclass/'],
+a.subclass {
   color: var(--color-signature-dark);
 }
 
@@ -1143,10 +1181,6 @@ mark.text-black,     strong.text-black,     em.text-black     { color: var(--col
   margin: 0 0 0.4rem;
 }
 
-/* Fixed width instead of a `gap` (whose effective offset would shift with
-   AC's text length) — keeps Initiative's start position constant, roughly
-   aligned with where the DEX ability column begins below (each ability
-   column is 1/3 of the card's ~46rem inner content width). */
 .statblock-primary .statblock-topstat-line:first-child {
   width: 15.3rem;
 }
@@ -1471,17 +1505,6 @@ mark.text-black,     strong.text-black,     em.text-black     { color: var(--col
   display: none;
 }
 
-/* Background: same .compendium-block markup as item/spell, but its own
- * `compendium-block-background` class (set by renderBackgroundBlockHtml)
- * lets it diverge visually — no top-border flourish (unlike item/spell),
- * title styled like the theme's own h3 (rather than item/spell's larger
- * heading-style title) with extra breathing room before the data block,
- * and its illustration image (placed between the description and the
- * Source/Tags footer) rendered at its normal full width like item's own
- * (not shrunk), just centered via its wrapper. The data block's font/
- * bold-label/zero-inter-paragraph-spacing and the description's narrative
- * font are already the shared defaults above — nothing to override
- * there. */
 .compendium-block-background .compendium-block-top-border {
   display: none;
 }
