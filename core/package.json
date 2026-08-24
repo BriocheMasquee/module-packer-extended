@@ -25,7 +25,7 @@
     "yazl": "^3.3.1"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/unzipper": "^0.10.11",
     "@types/yazl": "^3.3.1"
   }

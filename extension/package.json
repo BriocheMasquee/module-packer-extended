@@ -508,9 +508,9 @@
     "test": "echo \"no tests yet\""
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.134.0",
     "@vscode/vsce": "^3.6.0",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "mpx-core": "*",
     "typescript": "^7.0.2"
   }
