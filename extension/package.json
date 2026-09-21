@@ -509,7 +509,7 @@
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^3.6.0",
+    "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.1",
     "mpx-core": "*",
     "typescript": "^7.0.2"
